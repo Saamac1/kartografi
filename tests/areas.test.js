@@ -59,3 +59,21 @@ test('generaattorin alueet eivät mene osittain päällekkäin ja kaikki nimet p
     assert.ok(d.areas.length >= 3);
   }
 });
+
+test('saman alueen sisäkkäiset ja jatkuvat rajaukset yhdistetään', () => {
+  const d = doc([
+    { x: 2, y: 2, w: 6, h: 4, name: 'A' }, { x: 3, y: 3, w: 2, h: 2, name: 'A' },   // sisäkkäinen pois
+    { x: 8, y: 2, w: 3, h: 4, name: 'A' },                                          // vierekkäinen samalla rivivälillä -> yksi 9x4
+    { x: 3, y: 3, w: 1, h: 1, name: 'B' },                                          // eri alue säilyy
+    { x: 0, y: 8, w: 4, h: 2, name: 'C' }, { x: 0, y: 9, w: 4, h: 3, name: 'C' },   // päällekkäin samalla sarakevälillä -> 4x4
+    { x: 10, y: 9, w: 2, h: 2, name: 'C' },                                         // erillinen säilyy
+  ]);
+  const removed = areas.normalize(d);
+  assert.equal(removed, 3);
+  assert.deepEqual(d.areas, [
+    { x: 2, y: 2, w: 9, h: 4, name: 'A' },
+    { x: 3, y: 3, w: 1, h: 1, name: 'B' },
+    { x: 0, y: 8, w: 4, h: 4, name: 'C' }, { x: 10, y: 9, w: 2, h: 2, name: 'C' },
+  ]);
+  assert.equal(areas.normalize(d), 0);
+});

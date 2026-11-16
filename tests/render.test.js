@@ -46,3 +46,11 @@ test('kaikki selitteen merkit piirtyvät virheettä', () => {
   assert.ok(svg.length > 10000);
   assert.ok(svg.includes('clipPath id="kclip0"'));
 });
+
+test('koristeet (decor) eivät tule selitteeseen', () => {
+  const d = rlml.blankDoc(40, 30); d.grid[5] = '~~~~~' + 'K' + '~'.repeat(34); d.grid[10] = '~~~~~~....^^TT' + '~'.repeat(26);
+  const rows = dd => renderer.scene(dd, { cellMM: 5 }).body.length;
+  const withDecor = rows(d);
+  d.legend.find(e => e.ch === 'K').decor = false;
+  assert.ok(rows(d) > withDecor, 'ilman decor-määrettä kraken lisää selitteeseen rivin');
+});

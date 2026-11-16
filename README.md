@@ -94,7 +94,7 @@ legend:
 - n HILL
 - r RIVER
 - X GRASS with TREASURE
-- K WATER with KRAKEN
+- K WATER with KRAKEN decor
 
 areas:
 - 8,6 size 26x17 as NORSUSAARI
@@ -116,6 +116,9 @@ text fi
 
 Piirtotyyppi päätellään legendan tile-kuvauksesta (`WATER`, `MOUNTAIN`,
 `FOREST.deciduous`, `… with PALM` jne.), joten merkit voi vaihtaa vapaasti.
+Määre `decor` legendarivin lopussa merkitsee palan koristeeksi (esim.
+kraken): se piirretään kartalle, mutta sitä ei listata selitteeseen.
+Tulostus-välilehden *Selitteessä*-valinnat asettavat saman määreen.
 
 ### Alueet (`areas:`)
 
@@ -127,6 +130,10 @@ Piirtotyyppi päätellään legendan tile-kuvauksesta (`WATER`, `MOUNTAIN`,
 - Ruudun tarkin alue on pienin sen sisältävä; tasatilanteessa myöhemmin
   määritelty. Editorin tilarivi näyttää polun, esim. *Norsusaari › Vaaravuori*.
 - Osittaisesta päällekkäisyydestä varoitetaan; vanhempaa ei silloin synny.
+- Saman alueen rajaukset yhdistetään automaattisesti: toisen sisään jäävä
+  suorakulmio poistetaan, ja kaksi suorakulmiota, joiden yhdiste on
+  suorakulmio (sama rivi- tai sarakeväli, päällekkäin tai vierekkäin),
+  yhdistetään yhdeksi.
 
 ### Piirto-ohjeet (`labels paper`)
 

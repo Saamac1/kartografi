@@ -3,7 +3,7 @@
 //
 // Osiot:
 //   map NIMI size LxK + koodilohko   ruudukko
-//   legend:                         - <merkki> <TILE>
+//   legend:                         - <merkki> <TILE> [decor]   (decor = koriste, ei näy selitteessä)
 //   areas:                          - x,y size LxK as NIMI      (sama nimi useasti = yhdiste)
 //   labels paper                    - level N | NIMI  [size N] [spacing wide|normal] [place land|water|center] [at x,y] [hide] [outline dotted]
 //   text fi                         - NIMI "Näkyvä teksti"      (lainausmerkit vapaaehtoiset)
@@ -23,7 +23,7 @@
     { ch: 'n', spec: 'HILL', name: 'kukkula' },
     { ch: 'r', spec: 'RIVER', name: 'joki' },
     { ch: 'X', spec: 'GRASS with TREASURE', name: 'aarre' },
-    { ch: 'K', spec: 'WATER with KRAKEN', name: 'kraken' },
+    { ch: 'K', spec: 'WATER with KRAKEN', name: 'kraken', decor: true },
   ];
   const TYPE_NAMES = {
     water: 'vesi', grass: 'niitty', shrubs: 'pensaikko', conifer: 'havumetsä', deciduous: 'lehtimetsä',
@@ -120,8 +120,10 @@
       if (!t.startsWith('-')) { section = 'other'; continue; }
       const body = t.slice(1).trim();
       if (section === 'legend' && (m = ln.match(/^\s*-\s(\S)\s+(.+?)\s*$/))) {
-        const known = DEFAULT_LEGEND.find(e => e.ch === m[1] && e.spec === m[2]);
-        doc.legend.push({ ch: m[1], spec: m[2], name: known ? known.name : TYPE_NAMES[typeOf(m[2])] });
+        let spec = m[2], decor = false; const dm = spec.match(/^(.*?)\s+decor$/i); if (dm) { spec = dm[1]; decor = true; }
+        const known = DEFAULT_LEGEND.find(e => e.ch === m[1] && e.spec === spec);
+        const e = { ch: m[1], spec, name: known ? known.name : TYPE_NAMES[typeOf(spec)] }; if (decor) e.decor = true;
+        doc.legend.push(e);
       } else if (section === 'areas') {
         m = body.match(/^(\d+)\s*,\s*(\d+)\s+size\s+(\d+)\s*x\s*(\d+)\s+as\s+(\S+)$/i);
         if (m && ID_RE.test(m[5])) doc.areas.push({ x: +m[1], y: +m[2], w: +m[3], h: +m[4], name: m[5] });
@@ -165,7 +167,7 @@
     let s = '';
     if (doc.title) s += `# ${doc.title}\n\n`;
     s += `map ${doc.name || 'MAP'} size ${doc.W}x${doc.H}\n\n\`\`\`\n${doc.grid.join('\n')}\n\`\`\`\n\nlegend:\n`;
-    for (const e of doc.legend) s += `- ${e.ch} ${e.spec}\n`;
+    for (const e of doc.legend) s += `- ${e.ch} ${e.spec}${e.decor ? ' decor' : ''}\n`;
     if (doc.areas && doc.areas.length) { s += '\nareas:\n'; for (const a of doc.areas) s += `- ${a.x},${a.y} size ${a.w}x${a.h} as ${a.name}\n`; }
     if (doc.rules && doc.rules.length) { s += '\nlabels paper\n'; for (const r of doc.rules) s += `- ${ruleToString(r)}\n`; }
     const tk = Object.keys(doc.texts || {});

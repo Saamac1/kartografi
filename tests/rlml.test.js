@@ -57,3 +57,11 @@ test('tile-tyypit tunnistetaan kuvauksesta', () => {
   assert.equal(rlml.typeOf('SAND with PALM'), 'palm');
   assert.equal(rlml.typeOf('FLOOR'), 'grass');
 });
+
+test('decor-määre luetaan ja kirjoitetaan', () => {
+  const doc = rlml.parse('map T size 2x1\n\n```\n~K\n```\n\nlegend:\n- ~ WATER\n- K WATER with KRAKEN decor\n- X GRASS with TREASURE\n');
+  assert.deepEqual(doc.legend.map(e => [e.ch, e.spec, !!e.decor]), [['~', 'WATER', false], ['K', 'WATER with KRAKEN', true], ['X', 'GRASS with TREASURE', false]]);
+  assert.equal(rlml.typeMap(doc).K, 'kraken');
+  assert.match(rlml.serialize(doc), /- K WATER with KRAKEN decor\n/);
+  assert.ok(rlml.DEFAULT_LEGEND.find(e => e.ch === 'K').decor);
+});

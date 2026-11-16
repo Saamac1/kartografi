@@ -29,9 +29,9 @@
     pick: ch => setBrush(ch),
     getModel: () => M, selectedArea: () => selArea, showAreas: () => $('showAreas').checked,
     selectArea: n => { selArea = n; buildAreaList(); showTool(); }, areaName: n => KG.areas.displayName(doc, n), endAreaTool: () => endAreaTool(),
-    areasChanged: live => { refreshModel(); if (!live) { buildAreaList(); touched(); } else scheduleRender(); ed.draw(); },
+    areasChanged: live => { if (!live) { const n = KG.areas.normalize(doc); if (n) status(`Sisäkkäiset rajaukset yhdistettiin (${n} vähemmän)`); } refreshModel(); if (!live) { buildAreaList(); touched(); } else scheduleRender(); ed.draw(); },
     restored: () => { refreshModel(); buildAreaList(); touched(); },
-    addRect: r => { if (!selArea) { status('Valitse tai luo alue ensin'); return; } ed.snapshot(); doc.areas.push(Object.assign(r, { name: selArea })); areaChanged(); },
+    addRect: r => { if (!selArea) { status('Valitse tai luo alue ensin'); return; } ed.snapshot(); doc.areas.push(Object.assign(r, { name: selArea })); const n = KG.areas.normalize(doc); areaChanged(); if (n) status(`Alueen ${KG.areas.displayName(doc, selArea)} rajaukset yhdistettiin (${n} vähemmän)`); },
     removeRectAt: p => { for (let i = doc.areas.length - 1; i >= 0; i--) { const a = doc.areas[i]; if ((!selArea || a.name === selArea) && p.x >= a.x && p.y >= a.y && p.x < a.x + a.w && p.y < a.y + a.h) { ed.snapshot(); doc.areas.splice(i, 1); areaChanged(); status(`Suorakulmio poistettu alueesta ${a.name}`); return; } } },
     status,
     onCursor: (c, k) => { const e = doc.legend.find(l => l.ch === k), path = M.at(c.x, c.y).map(n => KG.areas.displayName(doc, n)).join(' › '); $('cursorInfo').textContent = `x ${c.x}, y ${c.y}   "${k}" ${e ? e.name : 'tuntematon merkki'}   ${path ? '▸ ' + path : ''}`; },
@@ -40,10 +40,18 @@
     const p = $('palette'); p.innerHTML = '';
     for (const e of doc.legend) {
       const b = document.createElement('button'); b.className = 'pal' + (e.ch === ed.brush ? ' on' : ''); b.dataset.ch = e.ch;
-      b.innerHTML = `<span class="ch" style="background:${KG.EDITOR_COLORS[KG.rlml.typeOf(e.spec)] || '#fff'}">${e.ch.replace('<', '&lt;')}</span><span>${e.name}</span>`;
+      b.innerHTML = `<span class="ch" style="background:${KG.EDITOR_COLORS[KG.rlml.typeOf(e.spec)] || '#fff'}">${e.ch.replace('<', '&lt;')}</span><span>${e.name}${e.decor ? ' <i>(koriste)</i>' : ''}</span>`;
       b.title = e.spec; b.onclick = () => { setBrush(e.ch); setMode && setMode(false); endAreaTool && endAreaTool(); if (!matchMedia('(pointer: coarse)').matches) ed.cv.focus(); };
       p.appendChild(b);
     }
+  }
+  // selitteeseen otettavat palat; koristeet (decor) jätetään pois
+  function buildLegendPick() {
+    const el = $('legendPick'); el.innerHTML = '';
+    for (const e of doc.legend) { const t = KG.rlml.typeOf(e.spec); if (t === 'water' || t === 'grass') continue;
+      const l = document.createElement('label'); l.innerHTML = `<input type="checkbox"${e.decor ? '' : ' checked'}> ${e.name}`; l.title = e.decor ? 'koriste (decor)' : '';
+      l.querySelector('input').onchange = ev => { if (ev.target.checked) delete e.decor; else e.decor = true; buildPalette(); touched(); };
+      el.appendChild(l); }
   }
   function setBrush(ch) { ed.brush = ch; document.querySelectorAll('.pal').forEach(b => b.classList.toggle('on', b.dataset.ch === ch)); showTool(); ed.draw(); }
   $('brush').onchange = e => { ed.brushSize = +e.target.value; };
@@ -198,7 +206,7 @@
     if (b.dataset.tab === 'tNames') fillNames();
   });
 
-  function afterDocChange() { ed.undo = []; ed.redo = []; $('inW').value = doc.W; $('inH').value = doc.H; selArea = null; refreshModel(); fillNames(); buildPalette(); buildAreaList(); ed.setDoc(); touched(); if (doc.warnings && doc.warnings.length) status(doc.warnings[0]); }
+  function afterDocChange() { ed.undo = []; ed.redo = []; { const n = KG.areas.normalize(doc); if (n) doc.warnings = (doc.warnings || []).concat(`Sisäkkäisiä rajauksia yhdistettiin: ${n}`); } buildLegendPick(); $('inW').value = doc.W; $('inH').value = doc.H; selArea = null; refreshModel(); fillNames(); buildPalette(); buildAreaList(); ed.setDoc(); touched(); if (doc.warnings && doc.warnings.length) status(doc.warnings[0]); }
   afterDocChange(); render();
   window.KG_APP = { get doc() { return doc; }, editor: ed, render };
 })();

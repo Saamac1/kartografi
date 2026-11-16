@@ -72,7 +72,33 @@
     return out;
   }
 
-  const api = { model, displayName, styleFor, validate };
+  // Saman alueen suorakulmiot: sisäkkäiset pois, ja kaksi suorakulmiota yhdistetään,
+  // jos niiden yhdiste on itsekin suorakulmio (sama rivi- tai sarakeväli, päällekkäin tai vierekkäin).
+  function mergeRects(list) {
+    let r = list.map(a => Object.assign({}, a)), changed = true;
+    const inside = (a, b) => a.x >= b.x && a.y >= b.y && a.x + a.w <= b.x + b.w && a.y + a.h <= b.y + b.h;
+    while (changed) {
+      changed = false;
+      outer: for (let i = 0; i < r.length; i++) for (let j = 0; j < r.length; j++) {
+        if (i === j) continue; const a = r[i], b = r[j];
+        if (inside(b, a)) { r.splice(j, 1); changed = true; break outer; }
+        if (a.y === b.y && a.h === b.h && a.x <= b.x + b.w && b.x <= a.x + a.w) { const x = Math.min(a.x, b.x); a.w = Math.max(a.x + a.w, b.x + b.w) - x; a.x = x; r.splice(j, 1); changed = true; break outer; }
+        if (a.x === b.x && a.w === b.w && a.y <= b.y + b.h && b.y <= a.y + a.h) { const y = Math.min(a.y, b.y); a.h = Math.max(a.y + a.h, b.y + b.h) - y; a.y = y; r.splice(j, 1); changed = true; break outer; }
+      }
+    }
+    return r;
+  }
+  // Yhdistää jokaisen alueen suorakulmiot; palauttaa poistuneiden suorakulmioiden määrän
+  function normalize(doc) {
+    const order = [], by = {};
+    for (const a of doc.areas || []) { if (!by[a.name]) { by[a.name] = []; order.push(a.name); } by[a.name].push(a); }
+    const out = []; for (const n of order) out.push(...mergeRects(by[n]));
+    const removed = (doc.areas || []).length - out.length;
+    if (removed) doc.areas = out;
+    return removed;
+  }
+
+  const api = { model, displayName, styleFor, validate, mergeRects, normalize };
   KG.areas = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })();

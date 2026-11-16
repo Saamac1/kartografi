@@ -92,7 +92,9 @@
     const hl = d => d < 1.2 ? 1 : d < 2.1 ? 2 : d < 3 ? 3 : d < 4 ? 4 : d < 5.1 ? 6 : d < 6.3 ? 8 : 0;
 
     // selite, kompassi ja otsikko (alalaita)
-    const present = new Set(); for (const r of T) for (const t of r) present.add(t);
+    // selitteeseen vain kartalla esiintyvät, ei-koristeelliset palat (legendan 'decor' jää pois)
+    const decorCh = new Set(doc.legend.filter(e => e.decor).map(e => e.ch)), present = new Set();
+    for (let j = 0; j < H; j++) { const r = doc.grid[j] || ''; for (let i = 0; i < W; i++) if (!decorCh.has(r[i])) present.add(T[j][i]); }
     const legendItems = ['conifer', 'deciduous', 'shrubs', 'palm', 'mountain', 'hill', 'river', 'treasure', 'kraken'].filter(t => present.has(t));
     legendItems.push('shallow', 'deep');
     const LGrows = Math.ceil(legendItems.length / 2);

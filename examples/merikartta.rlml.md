@@ -60,7 +60,7 @@ legend:
 - n HILL
 - r RIVER
 - X GRASS with TREASURE
-- K WATER with KRAKEN
+- K WATER with KRAKEN decor
 
 areas:
 - 20,6 size 34x25 as LOKKILUOTO
