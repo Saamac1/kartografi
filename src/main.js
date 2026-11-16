@@ -165,8 +165,11 @@
   // esimerkit: koko tiedosto korvaa nykyisen (kysytään ensin)
   (KG.examples || []).forEach(x => { const o = document.createElement('option'); o.value = x.id; o.textContent = x.name; $('exSel').appendChild(o); });
   $('exSel').onchange = e => { const x = (KG.examples || []).find(v => v.id === e.target.value); e.target.value = ''; if (!x) return;
-    if (!confirm(`Avataanko esimerkki "${x.name}"? Nykyinen kartta korvataan – tallenna se ensin, jos haluat säilyttää sen.`)) return;
-    doc = KG.rlml.parse(x.text); store.set('kg.map', '0'); afterDocChange(); status(`Avattu esimerkki: ${x.name}`); };
+    // selaimen vahvistusikkunat on estetty artefaktissa, joten edellinen kartta säilytetään palautettavaksi
+    if (!prevFile) prevFile = { text: KG.rlml.serialize(doc), map: doc.file ? doc.file.maps.indexOf(doc) : 0 };
+    doc = KG.rlml.parse(x.text); store.set('kg.map', '0'); afterDocChange(); status(`Avattu esimerkki: ${x.name}`); $('btnPrev').hidden = false; };
+  let prevFile = null;
+  $('btnPrev').onclick = () => { if (!prevFile) return; const f = KG.rlml.parseFile(prevFile.text); doc = f.maps[Math.max(0, Math.min(prevFile.map, f.maps.length - 1))]; prevFile = null; $('btnPrev').hidden = true; afterDocChange(); status('Edellinen kartta palautettu'); };
   $('mapSel').onchange = e => { doc = doc.file.maps[+e.target.value]; store.set('kg.map', e.target.value); afterDocChange(); };
   $('styleSel').onchange = e => { doc.style = e.target.value; doc.styleSet = true; KG.rlml.refreshNames(doc); ed.undo = []; afterDocChange(); status(`Kartan tyyliksi asetettiin ${e.target.selectedOptions[0].textContent}`); };
   $('btnResize').onclick = () => { KG.rlml.resize(doc, +$('inW').value, +$('inH').value); ed.undo = []; afterDocChange(); };
