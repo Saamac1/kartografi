@@ -41,7 +41,7 @@
       <select id="brush"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="5">5</option></select>
     </label>
     <h3>Alueet</h3>
-    <div class="row tools"><button id="toolPan" class="only-mobile" title="Vieritä karttaa sormella">Selaa</button><button id="toolPaint" class="on" title="Piirrä maastoa">Maasto</button><button id="toolArea" title="Raahaa suorakulmio valitulle alueelle; oikea napsautus poistaa suorakulmion">Rajaa alue</button></div>
+    <div class="row tools"><button id="toolPaint" class="on" title="Piirrä valitulla palalla">Piirrä maastoa</button><button id="toolArea" title="Raahaa suorakulmio valitulle alueelle; oikea napsautus poistaa suorakulmion">Rajaa alue</button></div>
     <label class="row"><input id="showAreas" type="checkbox" checked> Näytä alueet</label>
     <select id="areaList" size="8"></select>
     <div class="row"><input id="newArea" type="text" placeholder="Uusi alue, esim. Vaaravuori"><button id="btnNewArea">Lisää</button></div>
@@ -49,7 +49,7 @@
     <div id="checks" class="checks"></div>
     <details class="help no-mobile" open>
       <summary>Ohjeet</summary>
-      <p><b>Hiiri:</b> vasen piirtää valitulla palalla, oikea poimii palan kartalta, Vaihto + napsautus täyttää alueen.</p>
+      <p><b>Hiiri:</b> vasen piirtää valitulla palalla, oikea poimii palan kartalta, Vaihto + napsautus täyttää alueen. Palan valinta palauttaa piirtotilan, alueen valinta vaihtaa rajaustilaan.</p>
       <p><b>Näppäimistö</b> (napsauta karttaa ensin): nuolet liikuttavat kursoria, merkin kirjoitus korvaa ruudun ja siirtyy oikealle, Enter seuraavalle riville, Askelpalautin vasemmalle, Ctrl+Z / Ctrl+Y kumoa ja tee uudelleen.</p>
     </details>
   </aside>

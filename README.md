@@ -25,7 +25,8 @@ tiedostot ovat tavallisia skriptejä, joten `file://` toimii.
   *Lehtijako* näyttää A4-lehtien rajat.
 - **Generoi:** uusi saaristo annetulla siemenellä ja koolla. Sama siemen ja koko
   tuottavat aina saman kartan.
-- **Alueet (vasen):** *Lisää* luo alueen nimestä, *Rajaa alue* -työkalulla
+- **Alueet (vasen):** *Lisää* luo alueen nimestä, ja alueen valinta listasta
+  vaihtaa rajaustilaan. *Rajaa alue* -tilassa
   raahataan suorakulmio valitulle alueelle (oikea napsautus poistaa). Lista
   näyttää hierarkian, ja alla näkyvät tarkistusten huomautukset.
 - **Nimet-välilehti:** otsikko, piirto-ohjeet (`labels paper`) ja tekstit
@@ -38,8 +39,9 @@ tiedostot ovat tavallisia skriptejä, joten `file://` toimii.
 
 Kapealla näytöllä editori, esikatselu sekä tulostus ja nimet ovat omilla
 välilehdillään, ja tiedosto- ja generointipainikkeet ovat ☰-valikossa.
-*Selaa*-työkalu vierittää karttaa sormella, *Maasto* ja *Rajaa alue*
-piirtävät. Esikatselua ei voi irrottaa omaksi ikkunakseen.
+Yksi sormi piirtää, kaksi sormea vierittää karttaa. Palan valinta selitteestä
+vaihtaa piirtotilaan ja alueen valinta listasta rajaustilaan. Esikatselua ei
+voi irrottaa omaksi ikkunakseen.
 
 ## Tulostus
 

@@ -18,6 +18,7 @@
   const fileBase = () => (doc.name || 'kartta').toLowerCase();
 
   // ---- alueet
+  let setToolRef = null;
   let M = KG.areas.model(doc), selArea = null;
   const refreshModel = () => { M = KG.areas.model(doc); };
 
@@ -37,7 +38,7 @@
     for (const e of doc.legend) {
       const b = document.createElement('button'); b.className = 'pal' + (e.ch === ed.brush ? ' on' : ''); b.dataset.ch = e.ch;
       b.innerHTML = `<span class="ch" style="background:${KG.EDITOR_COLORS[KG.rlml.typeOf(e.spec)] || '#fff'}">${e.ch.replace('<', '&lt;')}</span><span>${e.name}</span>`;
-      b.title = e.spec; b.onclick = () => { setBrush(e.ch); ed.cv.focus(); };
+      b.title = e.spec; b.onclick = () => { setBrush(e.ch); setToolRef && setToolRef('paint'); if (!matchMedia('(pointer: coarse)').matches) ed.cv.focus(); };
       p.appendChild(b);
     }
   }
@@ -146,9 +147,8 @@
   }
   function showChecks() { const v = KG.areas.validate(doc, M).concat((doc.warnings || []).map(m => ({ level: 'info', msg: m })));
     $('checks').innerHTML = v.slice(0, 10).map(x => `<div class="${x.level}">${x.level === 'error' ? '✖' : x.level === 'warn' ? '⚠' : 'ℹ'} ${x.msg.replace(/</g, '&lt;')}</div>`).join('') + (v.length > 10 ? `<div class="info">… ${v.length - 10} lisää</div>` : ''); }
-  $('areaList').onchange = e => { selArea = e.target.value; ed.draw(); };
-  const setTool = t => { ed.mode = t; $('toolPan').classList.toggle('on', t === 'pan'); $('toolPaint').classList.toggle('on', t === 'paint'); $('toolArea').classList.toggle('on', t === 'area'); ed.cv.classList.toggle('pan', t === 'pan'); ed.cv.style.cursor = t === 'area' ? 'cell' : t === 'pan' ? 'grab' : 'crosshair'; ed.draw(); };
-  $('toolPan').onclick = () => setTool('pan');
+  $('areaList').onchange = e => { selArea = e.target.value; setTool('area'); status(`Rajaustila: raahaa suorakulmio alueelle ${KG.areas.displayName(doc, selArea)}`); };
+  const setTool = setToolRef = t => { ed.mode = t; $('toolPaint').classList.toggle('on', t === 'paint'); $('toolArea').classList.toggle('on', t === 'area'); ed.cv.style.cursor = t === 'area' ? 'cell' : 'crosshair'; ed.draw(); };
   $('btnMenu').onclick = () => document.querySelector('header.bar').classList.toggle('open');
   // puhelimessa: välilehdet editorille, esikatselulle ja asetuksille
   const mobile = () => window.matchMedia('(max-width: 820px)').matches;
@@ -158,7 +158,7 @@
     if (b.dataset.pane === 'preview' && last) showSvg(last.svg);
     if (b.dataset.pane === 'settings' && $('tNames').classList.contains('on')) fillNames();
   });
-  if (mobile() && matchMedia('(pointer: coarse)').matches) { setTool('pan'); status('Valitse Maasto tai Rajaa alue piirtääksesi; Selaa vierittää'); }
+  if (matchMedia('(pointer: coarse)').matches) status('Yksi sormi piirtää, kaksi sormea vierittää karttaa');
   $('toolPaint').onclick = () => setTool('paint');
   $('toolArea').onclick = () => { setTool('area'); if (!selArea) status('Valitse alue listasta tai luo uusi'); };
   $('showAreas').onchange = () => ed.draw();

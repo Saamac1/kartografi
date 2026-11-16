@@ -9,9 +9,11 @@
       this.cv = canvas; this.ctx = canvas.getContext('2d'); this.hooks = hooks;
       this.cw = 13; this.ch = 17; this.cur = { x: 0, y: 0 }; this.typeStartX = 0; this.brush = '.'; this.brushSize = 1;
       this.undo = []; this.redo = []; this.drag = null; this.hover = null; this.mode = 'paint'; this.band = null;
-      canvas.addEventListener('pointerdown', e => this.down(e));
-      canvas.addEventListener('pointermove', e => this.move(e));
-      window.addEventListener('pointerup', () => this.up());
+      this.touches = new Map(); this.pan = null;
+      canvas.addEventListener('pointerdown', e => { if (this.touchDown(e)) return; this.down(e); });
+      canvas.addEventListener('pointermove', e => { if (this.touchMove(e)) return; this.move(e); });
+      window.addEventListener('pointerup', e => { if (this.touchUp(e)) return; this.up(); });
+      window.addEventListener('pointercancel', e => { this.touchUp(e); this.up(); });
       canvas.addEventListener('pointerleave', () => { this.hover = null; this.draw(); });
       canvas.addEventListener('contextmenu', e => e.preventDefault());
       canvas.addEventListener('keydown', e => this.key(e));
@@ -38,6 +40,32 @@
       c.lineWidth = 2; c.strokeStyle = document.activeElement === this.cv ? '#2f5d8a' : '#888'; c.strokeRect(this.cur.x * cw + 1, this.cur.y * ch + 1, cw - 2, ch - 2); c.lineWidth = 1;
       this.hooks.onCursor && this.hooks.onCursor(this.cur, d.grid[this.cur.y][this.cur.x]);
     }
+    // Kosketus: yksi sormi piirtää, kaksi sormea vierittää (ja peruu juuri aloitetun vedon)
+    touchDown(e) {
+      if (e.pointerType !== 'touch') return false;
+      this.touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (this.touches.size === 2) {
+        if (this.drag) { if (this.drag.changed && this.undo.length) { this.doc.grid = this.undo.pop(); this.hooks.changed(); } else if (!this.drag.changed) this.undo.pop(); this.drag = null; }
+        this.band = null;
+        const s = this.cv.parentElement, m = this.mid(); this.pan = { x: m.x, y: m.y, sl: s.scrollLeft, st: s.scrollTop }; this.draw();
+        return true;
+      }
+      return this.touches.size > 2 || !!this.pan;
+    }
+    touchMove(e) {
+      if (e.pointerType !== 'touch' || !this.touches.has(e.pointerId)) return false;
+      this.touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (!this.pan) return false;
+      if (this.touches.size >= 2) { const s = this.cv.parentElement, m = this.mid(); s.scrollLeft = this.pan.sl - (m.x - this.pan.x); s.scrollTop = this.pan.st - (m.y - this.pan.y); }
+      return true;
+    }
+    touchUp(e) {
+      if (e.pointerType !== 'touch') return false;
+      this.touches.delete(e.pointerId);
+      if (this.pan) { if (!this.touches.size) this.pan = null; return true; }
+      return false;
+    }
+    mid() { const v = [...this.touches.values()]; return { x: (v[0].x + v[1].x) / 2, y: (v[0].y + v[1].y) / 2 }; }
     cellAt(e) { const r = this.cv.getBoundingClientRect(); return { x: Math.floor((e.clientX - r.left) / this.cw), y: Math.floor((e.clientY - r.top) / this.ch) }; }
     inside(p) { return p.x >= 0 && p.y >= 0 && p.x < this.doc.W && p.y < this.doc.H; }
     snapshot() { this.undo.push(this.doc.grid.slice()); if (this.undo.length > 300) this.undo.shift(); this.redo = []; }
@@ -48,7 +76,6 @@
       while (st.length) { const [x, y] = st.pop(); if (x < 0 || y < 0 || x >= d.W || y >= d.H || d.grid[y][x] !== from) continue; this.set(x, y, to); st.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]); } return true; }
     down(e) {
       const p = this.cellAt(e); if (!this.inside(p)) return;
-      if (this.mode === 'pan') { this.cur = { x: p.x, y: p.y }; this.typeStartX = p.x; this.draw(); return; }
       this.cv.focus(); this.cur = { x: p.x, y: p.y }; this.typeStartX = p.x;
       if (this.mode === 'area') {
         if (e.button === 2) { this.hooks.removeRectAt(p); this.draw(); return; }

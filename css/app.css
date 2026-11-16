@@ -25,7 +25,6 @@ input, select, textarea { font: inherit; }
 .preview { border-left: 1px solid var(--line); background: #e9e6df; }
 .scroll { flex: 1; overflow: auto; min-height: 0; }
 #ed { display: block; outline: none; cursor: crosshair; touch-action: none; }
-#ed.pan { touch-action: pan-x pan-y; cursor: grab; }
 #ed:focus { box-shadow: inset 0 0 0 2px var(--accent); }
 .statusline { padding: 3px 8px; font-family: var(--mono); background: var(--panel); border-top: 1px solid var(--line); }
 #pv { padding: 10px; }
