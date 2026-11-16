@@ -34,6 +34,13 @@ tiedostot ovat tavallisia skriptejä, joten `file://` toimii.
 - Kartta tallentuu selaimen muistiin automaattisesti; *Tallenna RLML* lataa
   sen tiedostona.
 
+### Puhelimessa
+
+Kapealla näytöllä editori, esikatselu sekä tulostus ja nimet ovat omilla
+välilehdillään, ja tiedosto- ja generointipainikkeet ovat ☰-valikossa.
+*Selaa*-työkalu vierittää karttaa sormella, *Maasto* ja *Rajaa alue*
+piirtävät. Esikatselua ei voi irrottaa omaksi ikkunakseen.
+
 ## Tulostus
 
 - **Koko kuva yhdelle arkille:** valitse paperi (A4–A0) ja suunta; kartta

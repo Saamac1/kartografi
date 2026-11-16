@@ -6,9 +6,10 @@
 <title>Karttageneraattori</title>
 <link rel="stylesheet" href="css/app.css">
 </head>
-<body>
+<body class="pane-editor">
 <header class="bar">
   <strong class="brand">Karttageneraattori</strong>
+  <button id="btnMenu" class="only-mobile menu-btn" aria-label="Valikko">☰ Tiedosto ja kartta</button>
   <span class="grp">
     <button id="btnNew" title="Tyhjä kartta">Uusi</button>
     <label>L <input id="inW" type="number" min="8" max="200" value="64"></label>
@@ -30,6 +31,8 @@
   <span id="status" class="status"></span>
 </header>
 
+<nav class="apptabs" id="appTabs"><button data-pane="editor" class="on">Editori</button><button data-pane="preview">Esikatselu</button><button data-pane="settings">Tulostus ja nimet</button></nav>
+
 <main class="layout">
   <aside class="palette">
     <h3>Selite</h3>
@@ -38,13 +41,13 @@
       <select id="brush"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="5">5</option></select>
     </label>
     <h3>Alueet</h3>
-    <div class="row tools"><button id="toolPaint" class="on" title="Piirrä maastoa">Maasto</button><button id="toolArea" title="Raahaa suorakulmio valitulle alueelle; oikea napsautus poistaa suorakulmion">Rajaa alue</button></div>
+    <div class="row tools"><button id="toolPan" class="only-mobile" title="Vieritä karttaa sormella">Selaa</button><button id="toolPaint" class="on" title="Piirrä maastoa">Maasto</button><button id="toolArea" title="Raahaa suorakulmio valitulle alueelle; oikea napsautus poistaa suorakulmion">Rajaa alue</button></div>
     <label class="row"><input id="showAreas" type="checkbox" checked> Näytä alueet</label>
     <select id="areaList" size="8"></select>
     <div class="row"><input id="newArea" type="text" placeholder="Uusi alue, esim. Vaaravuori"><button id="btnNewArea">Lisää</button></div>
     <div class="row"><button id="btnDelArea">Poista alue</button></div>
     <div id="checks" class="checks"></div>
-    <details class="help" open>
+    <details class="help no-mobile" open>
       <summary>Ohjeet</summary>
       <p><b>Hiiri:</b> vasen piirtää valitulla palalla, oikea poimii palan kartalta, Vaihto + napsautus täyttää alueen.</p>
       <p><b>Näppäimistö</b> (napsauta karttaa ensin): nuolet liikuttavat kursoria, merkin kirjoitus korvaa ruudun ja siirtyy oikealle, Enter seuraavalle riville, Askelpalautin vasemmalle, Ctrl+Z / Ctrl+Y kumoa ja tee uudelleen.</p>
@@ -60,7 +63,7 @@
     <div class="bar small">
       <button id="zOut">−</button><button id="zFit">Sovita</button><button id="zIn">+</button>
       <label><input id="showSheets" type="checkbox"> Lehtijako</label>
-      <button id="btnPop" title="Avaa esikatselu omaan ikkunaansa">Irrota ikkunaksi</button>
+      <button id="btnPop" class="no-mobile" title="Avaa esikatselu omaan ikkunaansa">Irrota ikkunaksi</button>
       <span id="renderInfo" class="status"></span>
     </div>
     <div class="scroll" id="pvScroll"><div id="pv"></div></div>

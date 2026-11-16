@@ -47,7 +47,9 @@
     fill(p) { const d = this.doc, from = d.grid[p.y][p.x], to = this.brush; if (from === to) return false; const st = [[p.x, p.y]];
       while (st.length) { const [x, y] = st.pop(); if (x < 0 || y < 0 || x >= d.W || y >= d.H || d.grid[y][x] !== from) continue; this.set(x, y, to); st.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]); } return true; }
     down(e) {
-      const p = this.cellAt(e); if (!this.inside(p)) return; this.cv.focus(); this.cur = { x: p.x, y: p.y }; this.typeStartX = p.x;
+      const p = this.cellAt(e); if (!this.inside(p)) return;
+      if (this.mode === 'pan') { this.cur = { x: p.x, y: p.y }; this.typeStartX = p.x; this.draw(); return; }
+      this.cv.focus(); this.cur = { x: p.x, y: p.y }; this.typeStartX = p.x;
       if (this.mode === 'area') {
         if (e.button === 2) { this.hooks.removeRectAt(p); this.draw(); return; }
         if (e.button === 0) { this.band = { x0: p.x, y0: p.y, x1: p.x, y1: p.y }; this.cv.setPointerCapture(e.pointerId); this.draw(); }
