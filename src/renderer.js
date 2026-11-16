@@ -6,6 +6,7 @@
   const KG = globalThis.KG = globalThis.KG || {};
   const rlml = KG.rlml || (typeof require !== 'undefined' && require('./rlml.js'));
   const font = KG.font || (typeof require !== 'undefined' && require('./font.js'));
+  const areasM = KG.areas || (typeof require !== 'undefined' && require('./areas.js'));
   const CS = 16, MG = 24;
 
   // ---- deterministinen satunnaisuus (paikkasidonnainen, jotta muokkaus ei sekoita muuta karttaa)
@@ -234,9 +235,50 @@
       out.push(g); kn++;
     }
 
-    // ---- nimet
+    // ---- alueiden nimet: sijoitus tyylisääntöjen mukaan, törmäyksiä vältellen
     const txt = (s, x, y, size, oo) => font.text(s, x, y, size, Object.assign({ w: wM, halo: wM * 4 + 1.5 }, oo || {}));
-    for (const l of (doc.labels || [])) { const sz = l.size || 10; out.push(txt(l.text, (l.x + .5) * CS, (l.y + .5) * CS - sz / 2, sz)); }
+    const placed = [];
+    if (LG) placed.push({ x0: LG.x, y0: LG.y, x1: LG.x + LG.w, y1: LG.y + LG.h });
+    if (CP) placed.push({ x0: CP.x - CP.r, y0: CP.y - CP.r - 14, x1: CP.x + CP.r, y1: CP.y + CP.r });
+    const titleW = doc.title ? font.textPath(doc.title, 0, 0, 14, 5, 'l').w : 0, titleX = Math.max(1.6 * CS + titleW / 2, Math.min(MW / 2, (CP ? CP.x - CP.r - 2 * CS : MW) - titleW / 2));
+    if (o.title && doc.title) placed.push({ x0: titleX - titleW / 2, y0: MH - 2.3 * CS - 3, x1: titleX + titleW / 2, y1: MH - 2.3 * CS + 17 });
+    const AM = areasM.model(doc), labelsOut = [], outlines = [];
+    const busy = { mountain: 3, conifer: 1, deciduous: 1, palm: 1, treasure: 4, kraken: 4, hill: 1, river: 1 };
+    for (const name of AM.order.slice().sort((a, b) => AM.byName[a].level - AM.byName[b].level || AM.byName[b].size - AM.byName[a].size)) {
+      const A = AM.byName[name]; if (!A.size) continue;
+      const st = areasM.styleFor(doc, AM, name);
+      if (st.outline) { let d = ''; for (const c of A.cells) { const x = c % W, y = (c / W) | 0, X = x * CS, Y = y * CS, has = (i, j) => i >= 0 && j >= 0 && i < W && j < H && A.cells.has(j * W + i);
+          if (!has(x, y - 1)) d += seg(X, Y, X + CS, Y); if (!has(x, y + 1)) d += seg(X, Y + CS, X + CS, Y + CS); if (!has(x - 1, y)) d += seg(X, Y, X, Y + CS); if (!has(x + 1, y)) d += seg(X + CS, Y, X + CS, Y + CS); }
+        outlines.push(`<path d="${d}" fill="none" stroke="#000" stroke-width="${f(wT)}" stroke-dasharray="${f(wT * .1)} ${f(mm(1.2))}"/>`); }
+      if (st.hide) continue;
+      const text = areasM.displayName(doc, name), size = st.size || 10, gap = st.spacing === 'wide' ? size * .75 : size * .35, tw = font.textPath(text, 0, 0, size, gap, 'l').w;
+      let landN = 0; for (const c of A.cells) if (land(c % W, (c / W) | 0)) landN++;
+      const place = st.at ? 'at' : (st.place || (landN > A.size * .25 ? 'land' : 'water'));
+      let anchor;
+      if (place === 'at') anchor = [st.at[0] + .5, st.at[1] + .5];
+      else if (place === 'center') anchor = [A.bbox.x + A.bbox.w / 2, A.bbox.y + A.bbox.h / 2];
+      else {
+        const want = place === 'land'; let sx = 0, sy = 0, n = 0; for (const c of A.cells) { const x = c % W, y = (c / W) | 0; if (land(x, y) === want) { sx += x; sy += y; n++; } }
+        if (!n) anchor = [A.bbox.x + A.bbox.w / 2, A.bbox.y + A.bbox.h / 2];
+        else if (want) { const cx = sx / n, cy = sy / n; let best = null, bd = 1e9; for (const c of A.cells) { const x = c % W, y = (c / W) | 0; if (!land(x, y)) continue; const dd = Math.hypot(x - cx, y - cy); if (dd < bd) { bd = dd; best = [x + .5, y + .5]; } } anchor = best; }
+        else { let best = null, bd = -1; for (const c of A.cells) { const x = c % W, y = (c / W) | 0; if (land(x, y)) continue; const dd = D[y][x] - Math.hypot(x + .5 - (A.bbox.x + A.bbox.w / 2), y + .5 - (A.bbox.y + A.bbox.h / 2)) * .05; if (dd > bd) { bd = dd; best = [x + .5, y + .5]; } } anchor = best; }
+      }
+      const offs = place === 'at' ? [[0, 0]] : [[0, 0], [0, .9], [0, -.9], [1.2, 0], [-1.2, 0], [0, 1.8], [0, -1.8], [2.4, 0], [-2.4, 0], [1.2, .9], [-1.2, .9], [1.2, -.9], [-1.2, -.9], [0, 2.7], [0, -2.7]];
+      let best = null, bs = 1e18;
+      for (const [ox, oy] of offs) {
+        const cx = (anchor[0] + ox) * CS, cy = (anchor[1] + oy) * CS, b = { x0: cx - tw / 2 - 3, y0: cy - size / 2 - 3, x1: cx + tw / 2 + 3, y1: cy + size / 2 + 3 };
+        let sc = Math.hypot(ox, oy) * 2;
+        for (const p of placed) { const ix = Math.min(b.x1, p.x1) - Math.max(b.x0, p.x0), iy = Math.min(b.y1, p.y1) - Math.max(b.y0, p.y0); if (ix > 0 && iy > 0) sc += 1000 + ix * iy; }
+        if (b.x0 < 0 || b.y0 < 0 || b.x1 > MW || b.y1 > MH) sc += 500;
+        for (let y = Math.floor(b.y0 / CS); y <= Math.floor(b.y1 / CS); y++) for (let x = Math.floor(b.x0 / CS); x <= Math.floor(b.x1 / CS); x++) {
+          const t = type(x, y); sc += busy[t] || 0; if (place === 'land' && !land(x, y)) sc += 1.5; if (place === 'water' && land(x, y)) sc += 3;
+          if (!(x >= 0 && y >= 0 && x < W && y < H && A.cells.has(y * W + x))) sc += 2; }
+        if (sc < bs) { bs = sc; best = { cx, cy, b }; }
+      }
+      placed.push(best.b);
+      labelsOut.push(txt(text, best.cx, best.cy - size / 2, size, { gap }));
+    }
+    out.push(...outlines, ...labelsOut);
 
     // ---- kompassiruusu
     if (CP) { const { x: cx, y: cy, r } = CP; let g = `<circle cx="${f(cx)}" cy="${f(cy)}" r="${f(r * .75)}" fill="#fff" stroke="#000" stroke-width="${f(wM)}"/><circle cx="${f(cx)}" cy="${f(cy)}" r="${f(r * .66)}" fill="none" stroke="#000" stroke-width="${f(wT)}"/>`;
@@ -264,7 +306,7 @@
       legendItems.forEach((t, n) => { const c = n < LGrows ? 0 : 1, rr = n < LGrows ? n : n - LGrows; g += draw[t](col[c], row(rr)) + txt(names[t], col[c] + 16, row(rr) - 7, 7, { align: 'l', gap: 2.2, halo: 0 }); });
       out.push(g); }
 
-    if (o.title && doc.title) { const tw = font.textPath(doc.title, 0, 0, 14, 5, 'l').w; out.push(txt(doc.title, Math.max(1.6 * CS + tw / 2, Math.min(MW / 2, (CP ? CP.x - CP.r - 2 * CS : MW) - tw / 2)), MH - 2.3 * CS, 14, { gap: 5 })); }
+    if (o.title && doc.title) out.push(txt(doc.title, titleX, MH - 2.3 * CS, 14, { gap: 5 }));
     if (o.frame) out.push(`<rect x="-10" y="-10" width="${MW + 20}" height="${MH + 20}" fill="none" stroke="#000" stroke-width="${f(wC)}"/><rect x="-5" y="-5" width="${MW + 10}" height="${MH + 10}" fill="none" stroke="#000" stroke-width="${f(wT)}"/>`);
 
     return { body: out.join('\n'), VW: MW + 2 * MG, VH: MH + 2 * MG, MG, k, cellMM: o.cellMM, W, H };

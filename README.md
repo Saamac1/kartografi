@@ -25,8 +25,11 @@ tiedostot ovat tavallisia skriptejä, joten `file://` toimii.
   *Lehtijako* näyttää A4-lehtien rajat.
 - **Generoi:** uusi saaristo annetulla siemenellä ja koolla. Sama siemen ja koko
   tuottavat aina saman kartan.
-- **Nimet-välilehti:** otsikko ja paikannimet (`x,y NIMI size 10`), tai
-  *Lisää kursorin kohtaan*.
+- **Alueet (vasen):** *Lisää* luo alueen nimestä, *Rajaa alue* -työkalulla
+  raahataan suorakulmio valitulle alueelle (oikea napsautus poistaa). Lista
+  näyttää hierarkian, ja alla näkyvät tarkistusten huomautukset.
+- **Nimet-välilehti:** otsikko, piirto-ohjeet (`labels paper`) ja tekstit
+  (`text fi`).
 - **RLML-lähde-välilehti:** kartta tekstinä; muokkaa ja lue takaisin.
 - Kartta tallentuu selaimen muistiin automaattisesti; *Tallenna RLML* lataa
   sen tiedostona.
@@ -50,7 +53,9 @@ tiedostot ovat tavallisia skriptejä, joten `file://` toimii.
 
 ## RLML
 
-Kartta on RLML-karttatiedosto (markdown):
+Kartta on RLML-karttatiedosto (markdown). Tämä työkalu kokeilee kolmea uutta
+osiota: `areas:` (merkitys), `labels paper` (piirto-ohjeet) ja `text fi`
+(näkyvät nimet).
 
 ````
 # KAPTEENI AALTOLAN KARTTA
@@ -74,13 +79,53 @@ legend:
 - X GRASS with TREASURE
 - K WATER with KRAKEN
 
-labels:
-- 20,19 NORSUSAARI size 11
+areas:
+- 8,6 size 26x17 as NORSUSAARI
+- 30,3 size 7x6 as NORSUSAARI
+- 14,9 size 7x5 as VAARAVUORI
+- 2,16 size 12x10 as SYNKKA_SYVA
+
+labels paper
+- level 0 size 11 spacing wide
+- level 1 size 8.5
+- SYNKKA_SYVA size 9 place water
+- VAARAVUORI outline dotted
+
+text fi
+- NORSUSAARI "Norsusaari"
+- VAARAVUORI "Vaaravuori"
+- SYNKKA_SYVA "Synkkä syvä"
 ````
 
 Piirtotyyppi päätellään legendan tile-kuvauksesta (`WATER`, `MOUNTAIN`,
 `FOREST.deciduous`, `… with PALM` jne.), joten merkit voi vaihtaa vapaasti.
-`labels:` on tämän työkalun laajennus.
+
+### Alueet (`areas:`)
+
+- `- x,y size LxK as NIMI`: suorakulmio ruutuina (0,0 vasen yläkulma).
+  Saman nimen rivit muodostavat yhdisteen.
+- Ruutu kuuluu kaikkiin alueisiin, joihin se osuu. Alue A on alueen B
+  vanhempi, jos kaikki B:n ruudut ovat A:ssa ja A on suurempi (pienin
+  tällainen). Taso = vanhempien määrä.
+- Ruudun tarkin alue on pienin sen sisältävä; tasatilanteessa myöhemmin
+  määritelty. Editorin tilarivi näyttää polun, esim. *Norsusaari › Vaaravuori*.
+- Osittaisesta päällekkäisyydestä varoitetaan; vanhempaa ei silloin synny.
+
+### Piirto-ohjeet (`labels paper`)
+
+`- level N | NIMI` ja valinnaisesti `size N`, `spacing wide|normal`,
+`place land|water|center`, `at x,y`, `hide`, `outline dotted`.
+Oletus < tasosääntö < nimisääntö. `land` sijoittaa nimen alueen maaruutujen
+painopisteeseen, `water` syvimpään kohtaan; piirtäjä siirtää nimeä, jos se
+osuisi toiseen nimeen, selitteeseen tai vuoriin.
+
+### Tekstit (`text fi`)
+
+`- NIMI "Näkyvä teksti"`; lainausmerkit ovat vapaaehtoisia. Ilman tekstiä
+näytetään tunniste muokattuna (`SYNKKA_SYVA` → *Synkka syva*).
+
+Vanha `labels:`-osio (`- x,y TEKSTI size N`) luetaan edelleen ja muunnetaan
+yhden ruudun alueiksi.
 
 ## Rakenne
 
@@ -89,6 +134,7 @@ index.html          käyttöliittymä
 css/app.css
 src/rlml.js         RLML-tiedoston luku ja kirjoitus
 src/font.js         päätteellinen kursiivi viivafontti
+src/areas.js        alueet: yhdisteet, hierarkia, tarkistukset
 src/renderer.js     kartta SVG:ksi (yksikkö 16 / ruutu, viivat millimetreinä)
 src/generator.js    satunnainen saaristo
 src/print.js        arkki- ja lehtijako, tulostus-HTML

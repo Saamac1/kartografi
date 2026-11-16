@@ -7,7 +7,9 @@
   function vn(x, y, s) { const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy, sm = t => t * t * (3 - 2 * t), hf = (a, b) => h32(a, b, s) / 4294967296; const a = hf(ix, iy), b = hf(ix + 1, iy), c = hf(ix, iy + 1), d = hf(ix + 1, iy + 1); const u = sm(fx), v = sm(fy); return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v; }
   function fbm(x, y, s) { let t = 0, a = .5, f = 1, n = 0; for (let o = 0; o < 4; o++) { t += vn(x * f, y * f, s + o * 7) * a; n += a; a *= .5; f *= 2; } return t / n; }
   function rng(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
-  const NAMES = ['NORSUSAARI', 'PALMUSAARI', 'KALLOSAARI', 'LOKKILUOTO', 'RUMMUSAARI', 'KORPPISAARI', 'MERIKOTKAN SAARI', 'HYLKYSAARI', 'KILPIKONNASAARI', 'TUULISAARI'];
+  const NAMES = ['Norsusaari', 'Palmusaari', 'Kallosaari', 'Lokkiluoto', 'Rummusaari', 'Korppisaari', 'Merikotkan saari', 'Hylkysaari', 'Kilpikonnasaari', 'Tuulisaari'];
+  const MOUNTAINS = ['Vaaravuori', 'Ukonvuori', 'Kotkankallio', 'Huurrehuippu', 'Myrskyvaara'];
+  const syvaPt = (deep, kr) => deep.find(([d, i, j]) => !kr || Math.hypot(i - kr[1], j - kr[2]) > 12);
   const N8 = [[0, 1], [1, 0], [0, -1], [-1, 0], [1, 1], [-1, 1], [1, -1], [-1, -1]];
 
   function generate(opt) {
@@ -78,18 +80,41 @@
     for (let it = 0; it < 60; it++) for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) { if (!D[j][i]) continue; let m = D[j][i]; for (const [a, b] of N8) { const x = i + a, y = j + b; if (x >= 0 && y >= 0 && x < W && y < H) m = Math.min(m, D[y][x] + (a && b ? 1.41 : 1)); } D[j][i] = m; }
     const deep = []; for (let j = 6; j < H - 8; j++) for (let i = 7; i < W - 7; i++) if (!land(i, j) && !inFree(i, j) && !inFree(i + 5, j + 3)) deep.push([D[j][i], i, j]);
     deep.sort((a, b) => b[0] - a[0]);
-    const labels = [];
+    const areas = [], texts = {}, rules = [];
     const kr = deep.find(([d]) => d >= 4) || deep[0];
     if (kr && opt.kraken !== false) M[kr[2]][kr[1]] = 'K';
-    const syva = deep.find(([d, i, j]) => !kr || Math.hypot(i - kr[1], j - kr[2]) > 12);
-    if (syva) labels.push({ x: syva[1], y: syva[2], text: 'SYNKKÄ SYVÄ', size: 9 });
+    // saarten alueet: rajaava suorakulmio yhdellä ruudulla väljennettynä
     const pick = NAMES.slice(); for (let i = pick.length - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); [pick[i], pick[j]] = [pick[j], pick[i]]; }
-    order.slice(0, Math.min(4, order.length)).forEach((n, q) => { const c = comps[n]; if (c.length < 25) return; const cx = c.reduce((s, p) => s + p[0], 0) / c.length, cy = c.reduce((s, p) => s + p[1], 0) / c.length;
-      let best = c[0], bd = 1e9; for (const p of c) { const dd = Math.hypot(p[0] - cx, p[1] - (cy + 2)); if (dd < bd && M[p[1]][p[0]] !== '^') { bd = dd; best = p; } }
-      const nm = comps[n].some(([i, j]) => M[j][i] === 'Y') && !pick.slice(0, q).includes('PALMUSAARI') && q > 0 ? 'PALMUSAARI' : pick[q] === 'PALMUSAARI' ? pick[9] : pick[q];
-      labels.push({ x: best[0], y: best[1], text: nm, size: q === 0 ? 11 : 10 }); });
+    const bbox = cells => { let x0 = 1e9, y0 = 1e9, x1 = -1, y1 = -1; for (const [i, j] of cells) { x0 = Math.min(x0, i); y0 = Math.min(y0, j); x1 = Math.max(x1, i); y1 = Math.max(y1, j); } return { x0, y0, x1, y1 }; };
+    const named = order.filter(n => comps[n].length >= 25).slice(0, 4);
+    const palmIsland = named.slice(1).sort((a, b) => comps[b].filter(([i, j]) => M[j][i] === 'Y').length - comps[a].filter(([i, j]) => M[j][i] === 'Y').length)[0];
+    const used = new Set(), rects = [];
+    named.forEach((n, q) => {
+      let nm = n === palmIsland && comps[n].some(([i, j]) => M[j][i] === 'Y') ? 'Palmusaari' : pick.find(p => !used.has(p) && p !== 'Palmusaari');
+      used.add(nm); const b = bbox(comps[n]);
+      rects.push({ x0: Math.max(0, b.x0 - 1), y0: Math.max(0, b.y0 - 1), x1: Math.min(W - 1, b.x1 + 1), y1: Math.min(H - 1, b.y1 + 1), id: rlml.toId(nm), text: nm, own: comps[n].length, comp: n });
+    });
+    if (syvaPt(deep, kr)) { const [, i, j] = syvaPt(deep, kr); rects.push({ x0: Math.max(0, i - 5), y0: Math.max(0, j - 2), x1: Math.min(W - 1, i + 5), y1: Math.min(H - 1, j + 2), id: 'SYNKKA_SYVA', text: 'Synkkä syvä', own: 0, water: true }); }
+    // osittaiset päällekkäisyydet pois: pienempää kavennetaan
+    const ov = (a, b) => a.x0 <= b.x1 && b.x0 <= a.x1 && a.y0 <= b.y1 && b.y0 <= a.y1;
+    const inside = (a, b) => a.x0 >= b.x0 && a.x1 <= b.x1 && a.y0 >= b.y0 && a.y1 <= b.y1;
+    const area = a => (a.x1 - a.x0 + 1) * (a.y1 - a.y0 + 1);
+    for (let it = 0; it < 30; it++) { let ch = false;
+      for (const a of rects) for (const b of rects) { if (a === b || !ov(a, b) || inside(a, b) || inside(b, a)) continue;
+        const s = a.water || (!b.water && area(a) <= area(b)) ? a : b, o = s === a ? b : a;
+        const opts = [Object.assign({}, s, { x1: o.x0 - 1 }), Object.assign({}, s, { x0: o.x1 + 1 }), Object.assign({}, s, { y1: o.y0 - 1 }), Object.assign({}, s, { y0: o.y1 + 1 })].filter(r => r.x1 >= r.x0 && r.y1 >= r.y0);
+        const keep = r => { if (s.water) return area(r); let n = 0; for (const [i, j] of comps[s.comp]) if (i >= r.x0 && i <= r.x1 && j >= r.y0 && j <= r.y1) n++; return n * 1000 + area(r); };
+        opts.sort((p, q) => keep(q) - keep(p)); if (opts[0]) Object.assign(s, opts[0]); else s.dead = true; ch = true; }
+      if (!ch) break; }
+    for (const r of rects) { if (r.dead) continue; areas.push({ x: r.x0, y: r.y0, w: r.x1 - r.x0 + 1, h: r.y1 - r.y0 + 1, name: r.id }); texts[r.id] = r.text; if (r.water) rules.push({ name: r.id, place: 'water', size: 9 }); }
+    // pääsaaren vuoristo omaksi alueekseen
+    if (named.length) { const mc = comps[named[0]].filter(([i, j]) => M[j][i] === '^'); const isl = rects.find(r => r.comp === named[0]);
+      if (mc.length >= 4 && isl && !isl.dead) { const b = bbox(mc), nm = MOUNTAINS[Math.floor(R() * MOUNTAINS.length)];
+        const r = { x: Math.max(b.x0, isl.x0), y: Math.max(b.y0, isl.y0) }; r.w = Math.min(b.x1, isl.x1) - r.x + 1; r.h = Math.min(b.y1, isl.y1) - r.y + 1;
+        if (r.w > 0 && r.h > 0) { areas.push(Object.assign(r, { name: rlml.toId(nm) })); texts[rlml.toId(nm)] = nm; } } }
+    rules.unshift({ level: 0, size: 11, spacing: 'wide' }, { level: 1, size: 8.5 });
     const doc = rlml.blankDoc(W, H);
-    doc.grid = M.map(r => r.join('')); doc.labels = labels; doc.name = 'MERIKARTTA';
+    doc.grid = M.map(r => r.join('')); doc.areas = areas; doc.rules = rules; doc.texts = texts; doc.name = 'MERIKARTTA';
     return doc;
   }
   const api = { generate };

@@ -17,13 +17,20 @@
   }
   const fileBase = () => (doc.name || 'kartta').toLowerCase();
 
+  // ---- alueet
+  let M = KG.areas.model(doc), selArea = null;
+  const refreshModel = () => { M = KG.areas.model(doc); };
+
   // ---- editori ja paletti
   const ed = new KG.Editor($('ed'), {
     getDoc: () => doc,
     changed: () => { touched(); },
     pick: ch => setBrush(ch),
+    getModel: () => M, selectedArea: () => selArea, showAreas: () => $('showAreas').checked,
+    addRect: r => { if (!selArea) { status('Valitse tai luo alue ensin'); return; } doc.areas.push(Object.assign(r, { name: selArea })); areaChanged(); },
+    removeRectAt: p => { for (let i = doc.areas.length - 1; i >= 0; i--) { const a = doc.areas[i]; if ((!selArea || a.name === selArea) && p.x >= a.x && p.y >= a.y && p.x < a.x + a.w && p.y < a.y + a.h) { doc.areas.splice(i, 1); areaChanged(); status(`Suorakulmio poistettu alueesta ${a.name}`); return; } } },
     status,
-    onCursor: (c, k) => { const e = doc.legend.find(l => l.ch === k); $('cursorInfo').textContent = `x ${c.x}, y ${c.y}   "${k}" ${e ? e.name + ' (' + e.spec + ')' : 'tuntematon merkki'}   sivellin "${ed ? ed.brush : ''}"`; },
+    onCursor: (c, k) => { const e = doc.legend.find(l => l.ch === k), path = M.at(c.x, c.y).map(n => KG.areas.displayName(doc, n)).join(' › '); $('cursorInfo').textContent = `x ${c.x}, y ${c.y}   "${k}" ${e ? e.name : 'tuntematon merkki'}   ${path ? '▸ ' + path : ''}`; },
   });
   function buildPalette() {
     const p = $('palette'); p.innerHTML = '';
@@ -54,7 +61,7 @@
 
   // ---- piirto ja esikatselu
   let renderT = 0, last = null, zoom = 1, popup = null;
-  function touched() { store.set('kg.doc', KG.rlml.serialize(doc)); scheduleRender(); if ($('tSrc').classList.contains('on')) $('srcTa').value = KG.rlml.serialize(doc); }
+  function touched() { refreshModel(); showChecks(); store.set('kg.doc', KG.rlml.serialize(doc)); scheduleRender(); if ($('tSrc').classList.contains('on')) $('srcTa').value = KG.rlml.serialize(doc); }
   function scheduleRender() { clearTimeout(renderT); $('renderInfo').textContent = 'piirretään…'; renderT = setTimeout(render, 280); }
   function render() {
     const s = settings(), t0 = performance.now();
@@ -130,20 +137,39 @@
   $('fileIn').onchange = e => { const fl = e.target.files[0]; if (!fl) return; const rd = new FileReader(); rd.onload = () => { try { doc = KG.rlml.parse(rd.result); ed.undo = []; afterDocChange(); status('Avattu ' + fl.name); } catch (er) { status('Tiedostoa ei voitu lukea: ' + er.message); } }; rd.readAsText(fl); e.target.value = ''; };
   $('btnUndo').onclick = () => ed.doUndo(); $('btnRedo').onclick = () => ed.doRedo();
 
+  // ---- alueet: lista, työkalu, tarkistukset
+  function areaChanged() { refreshModel(); buildAreaList(); ed.draw(); touched(); }
+  function buildAreaList() {
+    const L = $('areaList'), names = M.tree.slice(); if (selArea && !names.includes(selArea)) names.push(selArea);
+    L.innerHTML = names.map(n => { const A = M.byName[n], lv = A ? A.level : 0, cnt = A ? A.rects.length : 0;
+      return `<option value="${n}"${n === selArea ? ' selected' : ''}>${'   '.repeat(lv)}${KG.areas.displayName(doc, n)}  (${n}${cnt ? ', ' + cnt + ' ▭' : ', ei vielä suorakulmioita'})</option>`; }).join('');
+  }
+  function showChecks() { const v = KG.areas.validate(doc, M).concat((doc.warnings || []).map(m => ({ level: 'info', msg: m })));
+    $('checks').innerHTML = v.slice(0, 10).map(x => `<div class="${x.level}">${x.level === 'error' ? '✖' : x.level === 'warn' ? '⚠' : 'ℹ'} ${x.msg.replace(/</g, '&lt;')}</div>`).join('') + (v.length > 10 ? `<div class="info">… ${v.length - 10} lisää</div>` : ''); }
+  $('areaList').onchange = e => { selArea = e.target.value; ed.draw(); };
+  const setTool = t => { ed.mode = t; $('toolPaint').classList.toggle('on', t === 'paint'); $('toolArea').classList.toggle('on', t === 'area'); ed.cv.style.cursor = t === 'area' ? 'cell' : 'crosshair'; ed.draw(); };
+  $('toolPaint').onclick = () => setTool('paint');
+  $('toolArea').onclick = () => { setTool('area'); if (!selArea) status('Valitse alue listasta tai luo uusi'); };
+  $('showAreas').onchange = () => ed.draw();
+  $('btnNewArea').onclick = () => { const t = $('newArea').value.trim(); if (!t) { status('Kirjoita alueen nimi'); return; }
+    let id = KG.rlml.toId(t), n = 2; const base = id; while (M.byName[id] || (doc.texts[id] && doc.texts[id] !== t)) id = base + '_' + n++;
+    doc.texts[id] = t; selArea = id; $('newArea').value = ''; setTool('area'); buildAreaList(); touched(); status(`Raahaa alueen ${t} suorakulmio kartalle`); };
+  $('newArea').onkeydown = e => { if (e.key === 'Enter') $('btnNewArea').onclick(); };
+  $('btnDelArea').onclick = () => { if (!selArea) return; const n = selArea; doc.areas = doc.areas.filter(a => a.name !== n); delete doc.texts[n]; doc.rules = doc.rules.filter(r => r.name !== n); selArea = null; areaChanged(); status(`Alue ${n} poistettu`); };
+
   // ---- nimet ja lähde
-  const labelsText = () => (doc.labels || []).map(l => `${l.x},${l.y} ${l.text}${l.size && l.size !== 10 ? ' size ' + l.size : ''}`).join('\n');
   $('inTitle').oninput = e => { doc.title = e.target.value; touched(); };
-  $('btnLabelsApply').onclick = () => { const out = []; for (const ln of $('labelsTa').value.split('\n')) { const m = ln.trim().match(/^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s+(.+?)(?:\s+size\s+(\d+(?:\.\d+)?))?$/i); if (m) out.push({ x: +m[1], y: +m[2], text: m[3], size: m[4] ? +m[4] : 10 }); } doc.labels = out; ed.draw(); touched(); status(out.length + ' nimeä'); };
-  $('btnAddLabel').onclick = () => { const t = $('inLabel').value.trim(); if (!t) { status('Kirjoita nimi ensin'); return; } doc.labels.push({ x: ed.cur.x, y: ed.cur.y, text: t, size: +$('inLabelSize').value || 10 }); $('labelsTa').value = labelsText(); $('inLabel').value = ''; ed.draw(); touched(); };
+  $('btnNamesApply').onclick = () => { doc.rules = KG.rlml.parseRulesText($('rulesTa').value); doc.texts = KG.rlml.parseTextsText($('textsTa').value); areaChanged(); status('Nimet päivitetty'); };
+  const fillNames = () => { $('inTitle').value = doc.title || ''; $('rulesTa').value = KG.rlml.rulesText(doc); $('textsTa').value = KG.rlml.textsText(doc); $('langLbl').textContent = doc.lang || 'fi'; };
   $('btnSrcApply').onclick = () => { try { const d = KG.rlml.parse($('srcTa').value); if (!d.W || !d.H) throw new Error('map-rivi puuttuu'); doc = d; afterDocChange(); status('Lähde luettu'); } catch (e) { status('Virhe lähteessä: ' + e.message); } };
   document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => {
     document.querySelectorAll('.tabs button').forEach(x => x.classList.toggle('on', x === b));
     document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.id === b.dataset.tab));
     if (b.dataset.tab === 'tSrc') $('srcTa').value = KG.rlml.serialize(doc);
-    if (b.dataset.tab === 'tNames') { $('labelsTa').value = labelsText(); $('inTitle').value = doc.title || ''; }
+    if (b.dataset.tab === 'tNames') fillNames();
   });
 
-  function afterDocChange() { ed.undo = []; ed.redo = []; $('inW').value = doc.W; $('inH').value = doc.H; $('inTitle').value = doc.title || ''; $('labelsTa').value = labelsText(); buildPalette(); ed.setDoc(); touched(); }
+  function afterDocChange() { ed.undo = []; ed.redo = []; $('inW').value = doc.W; $('inH').value = doc.H; selArea = null; refreshModel(); fillNames(); buildPalette(); buildAreaList(); ed.setDoc(); touched(); if (doc.warnings && doc.warnings.length) status(doc.warnings[0]); }
   afterDocChange(); render();
   window.KG_APP = { get doc() { return doc; }, editor: ed, render };
 })();

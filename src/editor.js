@@ -8,7 +8,7 @@
     constructor(canvas, hooks) {
       this.cv = canvas; this.ctx = canvas.getContext('2d'); this.hooks = hooks;
       this.cw = 13; this.ch = 17; this.cur = { x: 0, y: 0 }; this.typeStartX = 0; this.brush = '.'; this.brushSize = 1;
-      this.undo = []; this.redo = []; this.drag = null; this.hover = null;
+      this.undo = []; this.redo = []; this.drag = null; this.hover = null; this.mode = 'paint'; this.band = null;
       canvas.addEventListener('pointerdown', e => this.down(e));
       canvas.addEventListener('pointermove', e => this.move(e));
       window.addEventListener('pointerup', () => this.up());
@@ -28,8 +28,13 @@
         c.fillStyle = COLORS[t] || '#fff'; c.fillRect(i * cw, j * ch, cw, ch);
         if (t !== 'water' || k !== '~') { c.fillStyle = t ? '#222' : '#c00'; c.fillText(k, i * cw + cw / 2, j * ch + ch / 2 + 1); }
         else { c.fillStyle = '#9db8d0'; c.fillText(k, i * cw + cw / 2, j * ch + ch / 2 + 1); } } }
-      for (const l of d.labels || []) { c.strokeStyle = '#b00'; c.strokeRect(l.x * cw + 1.5, l.y * ch + 1.5, cw - 3, ch - 3); }
-      if (this.hover) { const n = this.brushSize, o = Math.floor((n - 1) / 2); c.strokeStyle = 'rgba(0,0,0,.6)'; c.strokeRect((this.hover.x - o) * cw + .5, (this.hover.y - o) * ch + .5, n * cw - 1, n * ch - 1); }
+      const M = this.hooks.getModel ? this.hooks.getModel() : null, sel = this.hooks.selectedArea ? this.hooks.selectedArea() : null;
+      if (M) for (const a of d.areas || []) { const A = M.byName[a.name], on = a.name === sel; if (!on && this.mode !== 'area' && !this.hooks.showAreas()) continue;
+        c.lineWidth = on ? 3 : 1.5; c.strokeStyle = on ? 'rgba(200,20,60,.95)' : `hsla(${(A.level * 70 + 210) % 360},70%,35%,.75)`; c.setLineDash(on ? [] : [5, 3]);
+        c.strokeRect(a.x * cw + 1, a.y * ch + 1, a.w * cw - 2, a.h * ch - 2); }
+      c.setLineDash([]); c.lineWidth = 1;
+      if (this.band) { const b = this.norm(this.band); c.fillStyle = 'rgba(200,20,60,.12)'; c.fillRect(b.x * cw, b.y * ch, b.w * cw, b.h * ch); c.strokeStyle = '#c8143c'; c.lineWidth = 2; c.strokeRect(b.x * cw + 1, b.y * ch + 1, b.w * cw - 2, b.h * ch - 2); c.lineWidth = 1; }
+      if (this.hover && this.mode === 'paint') { const n = this.brushSize, o = Math.floor((n - 1) / 2); c.strokeStyle = 'rgba(0,0,0,.6)'; c.strokeRect((this.hover.x - o) * cw + .5, (this.hover.y - o) * ch + .5, n * cw - 1, n * ch - 1); }
       c.lineWidth = 2; c.strokeStyle = document.activeElement === this.cv ? '#2f5d8a' : '#888'; c.strokeRect(this.cur.x * cw + 1, this.cur.y * ch + 1, cw - 2, ch - 2); c.lineWidth = 1;
       this.hooks.onCursor && this.hooks.onCursor(this.cur, d.grid[this.cur.y][this.cur.x]);
     }
@@ -43,6 +48,11 @@
       while (st.length) { const [x, y] = st.pop(); if (x < 0 || y < 0 || x >= d.W || y >= d.H || d.grid[y][x] !== from) continue; this.set(x, y, to); st.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]); } return true; }
     down(e) {
       const p = this.cellAt(e); if (!this.inside(p)) return; this.cv.focus(); this.cur = { x: p.x, y: p.y }; this.typeStartX = p.x;
+      if (this.mode === 'area') {
+        if (e.button === 2) { this.hooks.removeRectAt(p); this.draw(); return; }
+        if (e.button === 0) { this.band = { x0: p.x, y0: p.y, x1: p.x, y1: p.y }; this.cv.setPointerCapture(e.pointerId); this.draw(); }
+        return;
+      }
       if (e.button === 2) { this.hooks.pick(this.doc.grid[p.y][p.x]); this.draw(); return; }
       if (e.button !== 0) return;
       this.snapshot();
@@ -50,9 +60,12 @@
       this.drag = { last: p, changed: this.stamp(p) }; this.cv.setPointerCapture(e.pointerId); this.draw(); if (this.drag.changed) this.hooks.changed(true);
     }
     move(e) { const p = this.cellAt(e); this.hover = this.inside(p) ? p : null;
+      if (this.band) { this.band.x1 = Math.max(0, Math.min(this.doc.W - 1, p.x)); this.band.y1 = Math.max(0, Math.min(this.doc.H - 1, p.y)); this.draw(); return; }
       if (this.drag && this.inside(p) && (p.x !== this.drag.last.x || p.y !== this.drag.last.y)) { const ch = this.line(this.drag.last, p); this.drag.last = p; this.cur = { x: p.x, y: p.y }; if (ch) { this.drag.changed = true; this.hooks.changed(true); } }
       this.draw(); }
-    up() { if (!this.drag) return; if (!this.drag.changed) this.undo.pop(); else this.hooks.changed(); this.drag = null; }
+    norm(b) { const x = Math.min(b.x0, b.x1), y = Math.min(b.y0, b.y1); return { x, y, w: Math.abs(b.x1 - b.x0) + 1, h: Math.abs(b.y1 - b.y0) + 1 }; }
+    up() { if (this.band) { const r = this.norm(this.band); this.band = null; this.hooks.addRect(r); this.draw(); return; }
+      if (!this.drag) return; if (!this.drag.changed) this.undo.pop(); else this.hooks.changed(); this.drag = null; }
     doUndo() { if (!this.undo.length) return; this.redo.push(this.doc.grid.slice()); this.doc.grid = this.undo.pop(); this.draw(); this.hooks.changed(); }
     doRedo() { if (!this.redo.length) return; this.undo.push(this.doc.grid.slice()); this.doc.grid = this.redo.pop(); this.draw(); this.hooks.changed(); }
     moveCur(dx, dy, keepStart) { const d = this.doc; this.cur.x = Math.max(0, Math.min(d.W - 1, this.cur.x + dx)); this.cur.y = Math.max(0, Math.min(d.H - 1, this.cur.y + dy)); if (!keepStart) this.typeStartX = this.cur.x; this.scrollTo(); this.draw(); }

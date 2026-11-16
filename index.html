@@ -37,6 +37,13 @@
     <label class="row">Sivellin
       <select id="brush"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="5">5</option></select>
     </label>
+    <h3>Alueet</h3>
+    <div class="row tools"><button id="toolPaint" class="on" title="Piirrä maastoa">Maasto</button><button id="toolArea" title="Raahaa suorakulmio valitulle alueelle; oikea napsautus poistaa suorakulmion">Rajaa alue</button></div>
+    <label class="row"><input id="showAreas" type="checkbox" checked> Näytä alueet</label>
+    <select id="areaList" size="8"></select>
+    <div class="row"><input id="newArea" type="text" placeholder="Uusi alue, esim. Vaaravuori"><button id="btnNewArea">Lisää</button></div>
+    <div class="row"><button id="btnDelArea">Poista alue</button></div>
+    <div id="checks" class="checks"></div>
     <details class="help" open>
       <summary>Ohjeet</summary>
       <p><b>Hiiri:</b> vasen piirtää valitulla palalla, oikea poimii palan kartalta, Vaihto + napsautus täyttää alueen.</p>
@@ -109,14 +116,13 @@
   </div>
   <div id="tNames" class="tab">
     <label class="wide">Otsikko <input id="inTitle" type="text"></label>
-    <div class="row">
-      <input id="inLabel" type="text" placeholder="Nimi, esim. Norsusaari">
-      <label>Koko <input id="inLabelSize" type="number" value="10" min="4" max="40"></label>
-      <button id="btnAddLabel">Lisää kursorin kohtaan</button>
+    <div class="cols">
+      <div><p class="hint"><b>labels paper</b> – piirto-ohjeet: <code>level 0 size 11 spacing wide</code>, <code>NIMI size 9 place water|land|center</code>, <code>NIMI at x,y</code>, <code>NIMI hide</code>, <code>NIMI outline dotted</code></p>
+        <textarea id="rulesTa" rows="8" spellcheck="false"></textarea></div>
+      <div><p class="hint"><b>text <span id="langLbl">fi</span></b> – näkyvät nimet: <code>NIMI "Teksti"</code> (lainausmerkit vapaaehtoiset)</p>
+        <textarea id="textsTa" rows="8" spellcheck="false"></textarea></div>
     </div>
-    <p class="hint">Yksi nimi rivillä: <code>x,y NIMI size 10</code> (ruutukoordinaatit, 0,0 vasen yläkulma).</p>
-    <textarea id="labelsTa" rows="7" spellcheck="false"></textarea>
-    <button id="btnLabelsApply">Päivitä nimet</button>
+    <button id="btnNamesApply">Päivitä</button>
   </div>
   <div id="tSrc" class="tab">
     <textarea id="srcTa" rows="14" spellcheck="false"></textarea>
@@ -127,6 +133,7 @@
 <div id="printFrameHost" hidden></div>
 <script src="src/rlml.js"></script>
 <script src="src/font.js"></script>
+<script src="src/areas.js"></script>
 <script src="src/renderer.js"></script>
 <script src="src/generator.js"></script>
 <script src="src/print.js"></script>
