@@ -162,6 +162,11 @@
     nd.name = 'KARTTA' + n; nd.title = 'Kartta ' + n; nd.hasHeading = true;
     if (f.maps.length === 1 && !f.maps[0].hasHeading) { f.title = f.title || f.maps[0].title; f.maps[0].hasHeading = true; }
     f.maps.push(nd); KG.rlml.attach(nd, f); doc = nd; afterDocChange(); status(`Lisätty kartta ${nd.name}`); };
+  // esimerkit: koko tiedosto korvaa nykyisen (kysytään ensin)
+  (KG.examples || []).forEach(x => { const o = document.createElement('option'); o.value = x.id; o.textContent = x.name; $('exSel').appendChild(o); });
+  $('exSel').onchange = e => { const x = (KG.examples || []).find(v => v.id === e.target.value); e.target.value = ''; if (!x) return;
+    if (!confirm(`Avataanko esimerkki "${x.name}"? Nykyinen kartta korvataan – tallenna se ensin, jos haluat säilyttää sen.`)) return;
+    doc = KG.rlml.parse(x.text); store.set('kg.map', '0'); afterDocChange(); status(`Avattu esimerkki: ${x.name}`); };
   $('mapSel').onchange = e => { doc = doc.file.maps[+e.target.value]; store.set('kg.map', e.target.value); afterDocChange(); };
   $('styleSel').onchange = e => { doc.style = e.target.value; doc.styleSet = true; KG.rlml.refreshNames(doc); ed.undo = []; afterDocChange(); status(`Kartan tyyliksi asetettiin ${e.target.selectedOptions[0].textContent}`); };
   $('btnResize').onclick = () => { KG.rlml.resize(doc, +$('inW').value, +$('inH').value); ed.undo = []; afterDocChange(); };

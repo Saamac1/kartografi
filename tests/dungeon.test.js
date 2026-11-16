@@ -53,3 +53,12 @@ test('fitCell hyväksyy mitat', () => {
   const fit = print.fitCell(renderer.dims(m, renderer.DEFAULTS), 'A4', 'auto', 10);
   assert.ok(fit.cellMM > 1 && fit.cellMM < 10, JSON.stringify(fit));
 });
+
+test('esimerkkivalikon tiedostot ovat ajan tasalla', () => {
+  const ex = path.join(__dirname, '..', 'examples');
+  require('../src/examples.js');
+  const list = globalThis.KG.examples;
+  assert.strictEqual(list.find(x => x.id === 'aaltola').text, fs.readFileSync(path.join(ex, 'kapteeni-aaltola-kartat.rlml.md'), 'utf8'));
+  const f = rlml.parseFile(list.find(x => x.id === 'aaltola').text);
+  assert.deepStrictEqual(f.maps.map(m => m.style), ['ship', 'ship', 'cave', 'cave']);
+});

@@ -185,6 +185,13 @@ Lajit: `solid`, `floor`, `void`, `door`, `stairs`, `exit`; määreet `rough`,
 Tunnistamaton pala piirretään lattiana, jonka keskellä on sen merkki.
 Poistumat (`as TO_DEEP`) saavat nimen `text`-osiosta tai tunnisteesta.
 
+## Esimerkit
+
+*Esimerkit*-valikosta avautuvat Kapteeni Aaltolan seikkailun kartat
+(Meriskorpionin kansi ja ruuma, luola ja sen alin kerros) sekä merikartta.
+Ne ovat kansiossa `examples/`; valikon sisältö kootaan niistä komennolla
+`node tools/build-examples.js`.
+
 ## Monta karttaa yhdessä tiedostossa
 
 Tiedosto voi sisältää useita `## Otsikko` + `map`-lohkoja (esim. pelin
