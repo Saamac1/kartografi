@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Karttageneraattori</title>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<header class="bar">
+  <strong class="brand">Karttageneraattori</strong>
+  <span class="grp">
+    <button id="btnNew" title="Tyhjä kartta">Uusi</button>
+    <label>L <input id="inW" type="number" min="8" max="200" value="64"></label>
+    <label>K <input id="inH" type="number" min="8" max="200" value="44"></label>
+    <button id="btnResize" title="Muuta nykyisen kartan kokoa">Muuta kokoa</button>
+  </span>
+  <span class="grp">
+    <label>Siemen <input id="inSeed" type="number" value="7"></label>
+    <button id="btnGen">Generoi</button>
+    <button id="btnRnd" title="Satunnainen siemen">🎲</button>
+  </span>
+  <span class="grp">
+    <button id="btnOpen">Avaa…</button><input id="fileIn" type="file" accept=".md,.rlml,.txt" hidden>
+    <button id="btnSave">Tallenna RLML</button>
+  </span>
+  <span class="grp">
+    <button id="btnUndo" title="Ctrl+Z">↶</button><button id="btnRedo" title="Ctrl+Y">↷</button>
+  </span>
+  <span id="status" class="status"></span>
+</header>
+
+<main class="layout">
+  <aside class="palette">
+    <h3>Selite</h3>
+    <div id="palette"></div>
+    <label class="row">Sivellin
+      <select id="brush"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="5">5</option></select>
+    </label>
+    <details class="help" open>
+      <summary>Ohjeet</summary>
+      <p><b>Hiiri:</b> vasen piirtää valitulla palalla, oikea poimii palan kartalta, Vaihto + napsautus täyttää alueen.</p>
+      <p><b>Näppäimistö</b> (napsauta karttaa ensin): nuolet liikuttavat kursoria, merkin kirjoitus korvaa ruudun ja siirtyy oikealle, Enter seuraavalle riville, Askelpalautin vasemmalle, Ctrl+Z / Ctrl+Y kumoa ja tee uudelleen.</p>
+    </details>
+  </aside>
+
+  <section class="editor">
+    <div class="scroll" id="edScroll"><canvas id="ed" tabindex="0"></canvas></div>
+    <div class="statusline" id="cursorInfo"></div>
+  </section>
+
+  <section class="preview" id="previewPane">
+    <div class="bar small">
+      <button id="zOut">−</button><button id="zFit">Sovita</button><button id="zIn">+</button>
+      <label><input id="showSheets" type="checkbox"> Lehtijako</label>
+      <button id="btnPop" title="Avaa esikatselu omaan ikkunaansa">Irrota ikkunaksi</button>
+      <span id="renderInfo" class="status"></span>
+    </div>
+    <div class="scroll" id="pvScroll"><div id="pv"></div></div>
+    <div class="docked-msg" id="dockMsg" hidden>Esikatselu on omassa ikkunassaan. <button id="btnDock">Palauta tähän</button></div>
+  </section>
+</main>
+
+<section class="drawer">
+  <nav class="tabs"><button data-tab="tPrint" class="on">Tulostus</button><button data-tab="tNames">Nimet</button><button data-tab="tSrc">RLML-lähde</button></nav>
+  <div id="tPrint" class="tab on">
+    <fieldset>
+      <legend>Tila</legend>
+      <label><input type="radio" name="mode" value="whole" checked> Koko kuva yhdelle arkille</label>
+      <label><input type="radio" name="mode" value="tiles"> A4-lehdet liimausreunoin</label>
+    </fieldset>
+    <fieldset id="fsWhole">
+      <legend>Koko kuva</legend>
+      <label>Paperi <select id="paper"><option>A4</option><option selected>A3</option><option>A2</option><option>A1</option><option>A0</option></select></label>
+      <label>Suunta <select id="orientW"><option value="auto">automaattinen</option><option value="landscape">vaaka</option><option value="portrait">pysty</option></select></label>
+    </fieldset>
+    <fieldset id="fsTiles" disabled>
+      <legend>A4-lehdet</legend>
+      <label>Ruutu (mm) <input id="cellMM" type="number" step="0.5" min="2" max="30" value="6"></label>
+      <label>Suunta <select id="orientT"><option value="auto">vähiten lehtiä</option><option value="portrait">pysty</option><option value="landscape">vaaka</option></select></label>
+      <label>Liimausreuna (mm) <input id="overlap" type="number" step="1" min="0" max="60" value="12"></label>
+    </fieldset>
+    <fieldset>
+      <legend>Arkki ja viivat (mm)</legend>
+      <label>Marginaali <input id="margin" type="number" step="0.5" min="0" max="30" value="7"></label>
+      <label>Piirto <input id="wMain" type="number" step="0.05" min="0.05" value="0.3"></label>
+      <label>Ranta <input id="wCoast" type="number" step="0.05" min="0.05" value="0.6"></label>
+      <label>Ohut <input id="wThin" type="number" step="0.05" min="0.05" value="0.15"></label>
+      <label>Meri <input id="wSea" type="number" step="0.05" min="0.05" value="0.18"></label>
+      <label>Meriviivojen väli <input id="spSea" type="number" step="0.05" min="0.2" value="0.55"></label>
+      <label>Varjoviivojen väli <input id="spSym" type="number" step="0.05" min="0.2" value="0.45"></label>
+    </fieldset>
+    <fieldset>
+      <legend>Mukaan</legend>
+      <label><input id="optLegend" type="checkbox" checked> Selite</label>
+      <label><input id="optCompass" type="checkbox" checked> Kompassiruusu</label>
+      <label><input id="optTitle" type="checkbox" checked> Otsikko</label>
+      <label><input id="optFrame" type="checkbox" checked> Kehys</label>
+    </fieldset>
+    <fieldset>
+      <legend>Tuloste</legend>
+      <div id="printInfo" class="info"></div>
+      <button id="btnPrint">Tulosta…</button>
+      <button id="btnDlSvg">Lataa SVG</button>
+      <button id="btnDlHtml">Lataa tulostussivu (HTML)</button>
+      <button id="btnCopy">Kopioi SVG</button>
+      <div id="sheetLinks" class="links"></div>
+    </fieldset>
+  </div>
+  <div id="tNames" class="tab">
+    <label class="wide">Otsikko <input id="inTitle" type="text"></label>
+    <div class="row">
+      <input id="inLabel" type="text" placeholder="Nimi, esim. Norsusaari">
+      <label>Koko <input id="inLabelSize" type="number" value="10" min="4" max="40"></label>
+      <button id="btnAddLabel">Lisää kursorin kohtaan</button>
+    </div>
+    <p class="hint">Yksi nimi rivillä: <code>x,y NIMI size 10</code> (ruutukoordinaatit, 0,0 vasen yläkulma).</p>
+    <textarea id="labelsTa" rows="7" spellcheck="false"></textarea>
+    <button id="btnLabelsApply">Päivitä nimet</button>
+  </div>
+  <div id="tSrc" class="tab">
+    <textarea id="srcTa" rows="14" spellcheck="false"></textarea>
+    <button id="btnSrcApply">Lue lähteestä</button>
+  </div>
+</section>
+
+<div id="printFrameHost" hidden></div>
+<script src="src/rlml.js"></script>
+<script src="src/font.js"></script>
+<script src="src/renderer.js"></script>
+<script src="src/generator.js"></script>
+<script src="src/print.js"></script>
+<script src="src/editor.js"></script>
+<script src="src/main.js"></script>
+</body>
+</html>
