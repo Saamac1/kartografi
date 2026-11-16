@@ -10,6 +10,10 @@
 (function () {
   'use strict';
   const KG = globalThis.KG = globalThis.KG || {};
+  const KCOL = { void: '#cfe2f2', solid: '#8f897d', floor: '#f6f2e6', door: '#c99a5b', stairs: '#b6a6d8', exit: '#f5a3a3' };
+  // ruudun väri editorissa: merikartassa palan tyypin, luolissa ja laivoissa palaluokan mukaan
+  function colorMap(doc) { const m = {}; if (!doc.style || doc.style === 'sea') { const tm = KG.rlml.typeMap(doc); for (const e of doc.legend) m[e.ch] = COLORS[tm[e.ch]] || '#fff'; return m; }
+    const cm = KG.tiles.classMap(doc); for (const e of doc.legend) { const c = cm[e.ch]; m[e.ch] = c.symbols.length && c.kind === 'floor' ? '#f2e2a4' : c.pattern === 'planks' || c.pattern === 'boards' ? '#eadcbc' : c.pattern === 'moss' ? '#7f9070' : c.pattern === 'runes' ? '#9a8a78' : KCOL[c.kind] || '#fff'; } return m; }
   const COLORS = { water: '#cfe2f2', grass: '#eef2d4', shrubs: '#dbe6b2', conifer: '#9ec38a', deciduous: '#bedb98', palm: '#f2e2a4', mountain: '#c8c2b6', hill: '#e2d1ae', river: '#8ebfe8', treasure: '#f5c4c4', kraken: '#bba9de' };
 
   class Editor {
@@ -31,15 +35,16 @@
     setReadOnly(v) { this.readOnly = v; this.band = this.mv = this.rs = this.drag = null; this.cv.classList.toggle('read', v); this.draw(); }
     layout() { const d = this.doc, r = window.devicePixelRatio || 1; this.cv.width = d.W * this.cw * r; this.cv.height = d.H * this.ch * r; this.cv.style.width = d.W * this.cw + 'px'; this.cv.style.height = d.H * this.ch + 'px'; this.ctx.setTransform(r, 0, 0, r, 0, 0); }
     types() { return KG.rlml.typeMap(this.doc); }
-    fillChar() { const e = this.doc.legend.find(l => KG.rlml.typeOf(l.spec) === 'water'); return e ? e.ch : '~'; }
+    fillChar() { return KG.rlml.fillChar(this.doc); }
 
     draw() {
-      const d = this.doc, c = this.ctx, tm = this.types(), cw = this.cw, ch = this.ch;
+      const d = this.doc, c = this.ctx, cm = colorMap(d), sea = !d.style || d.style === 'sea', tm = sea ? this.types() : null, cw = this.cw, ch = this.ch;
       c.clearRect(0, 0, d.W * cw, d.H * ch);
       c.font = `${ch - 4}px ui-monospace, Menlo, Consolas, monospace`; c.textAlign = 'center'; c.textBaseline = 'middle';
-      for (let j = 0; j < d.H; j++) { const row = d.grid[j]; for (let i = 0; i < d.W; i++) { const k = row[i], t = tm[k];
-        c.fillStyle = COLORS[t] || '#fff'; c.fillRect(i * cw, j * ch, cw, ch);
-        c.fillStyle = !t ? '#c00' : (t === 'water' && k === '~') ? '#9db8d0' : '#222'; c.fillText(k, i * cw + cw / 2, j * ch + ch / 2 + 1); } }
+      for (let j = 0; j < d.H; j++) { const row = d.grid[j]; for (let i = 0; i < d.W; i++) { const k = row[i], t = tm ? tm[k] : null;
+        const known = cm[k] !== undefined; c.fillStyle = cm[k] || '#fff'; c.fillRect(i * cw, j * ch, cw, ch);
+        c.fillStyle = !known ? '#c00' : sea && t === 'water' && k === '~' ? '#9db8d0' : cm[k] === KCOL.solid ? '#f4f1ea' : '#222'; c.fillText(k, i * cw + cw / 2, j * ch + ch / 2 + 1); } }
+      for (const a of d.at || []) { const x = (a.x + .5) * cw, y = (a.y + .5) * ch; c.beginPath(); c.arc(x, y, 5.5, 0, 7); c.lineWidth = 2; c.strokeStyle = a.as ? '#c8143c' : '#2f5d8a'; c.stroke(); c.lineWidth = 1; }
       const M = this.hooks.getModel(), sel = this.hooks.selectedArea(), areaTool = !this.readOnly && (this.mode === 'area' || this.mode === 'move');
       for (const a of d.areas || []) { const A = M.byName[a.name], on = a.name === sel; if (!A || (!on && !areaTool && !this.hooks.showAreas())) continue;
         c.lineWidth = on ? 3 : 1.5; c.strokeStyle = on ? 'rgba(200,20,60,.95)' : `hsla(${(A.level * 70 + 210) % 360},70%,35%,.75)`; c.setLineDash(on ? [] : [5, 3]);
@@ -206,5 +211,5 @@
       }
     }
   }
-  KG.Editor = Editor; KG.EDITOR_COLORS = COLORS;
+  KG.Editor = Editor; KG.EDITOR_COLORS = COLORS; KG.editorColors = colorMap;
 })();

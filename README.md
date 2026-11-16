@@ -4,7 +4,8 @@ Selainpohjainen työkalu RLML-karttojen muokkaamiseen ja tulostettavien
 mustavalkoisten vektorikarttojen (SVG) tekemiseen. Tyyli on vanhan
 kaiverretun merikartan kaltainen: rosoinen rantaviiva, vaakaviivoitettu meri
 (matalikko tummin), vuoret, kukkulat, havu- ja lehtimetsä, pensaikko, palmut,
-joet, aarre ja kraken.
+joet, aarre ja kraken. Samalla työkalulla piirretään myös luolien ja laivojen
+pohjapiirrokset (ks. *Tyylit*).
 
 Pelin kevyempi visualisointi tehdään erikseen; tämä työkalu on paperille.
 
@@ -152,6 +153,50 @@ näytetään tunniste muokattuna (`SYNKKA_SYVA` → *Synkka syva*).
 Vanha `labels:`-osio (`- x,y TEKSTI size N`) luetaan edelleen ja muunnetaan
 yhden ruudun alueiksi.
 
+## Tyylit (`style paper`)
+
+Kartan piirtotyyli kirjoitetaan näkyviin kartan otsikon alle:
+
+```
+map CAVE size 40x30
+style paper cave
+```
+
+| tyyli  | piirto |
+|--------|--------|
+| `sea`  | merikartta (oletus, jos rivi puuttuu) |
+| `cave` | luola: luonnonseinät rosoisina, rakennetut (`WALL.ornament`, ovet) suorina, kallio viivoitettu seinän vierestä |
+| `ship` | laiva: runko umpiviivoitettuna, kansilankut, ympärillä vaakaviivoitettu meri |
+
+Editorin *Tyyli*-valinta kirjoittaa rivin karttaan. Jos kartassa on seinä-
+tai kansipaloja mutta tyylirivi puuttuu, editori varoittaa.
+
+Palan piirto päätellään legendan nimestä (`WALL.moss`, `FLOOR with CHEST`,
+`STAIR.down as TO_DEEP`, `HULL.port`…). Oletuksia voi ohittaa:
+
+```
+tiles paper
+- WALL.crystal solid straight pattern runes
+- FLOOR.bridge floor pattern planks
+```
+
+Lajit: `solid`, `floor`, `void`, `door`, `stairs`, `exit`; määreet `rough`,
+`straight`, `thin`, `pattern planks|boards|moss|runes`, `symbol NIMI`.
+Tunnistamaton pala piirretään lattiana, jonka keskellä on sen merkki.
+Poistumat (`as TO_DEEP`) saavat nimen `text`-osiosta tai tunnisteesta.
+
+## Monta karttaa yhdessä tiedostossa
+
+Tiedosto voi sisältää useita `## Otsikko` + `map`-lohkoja (esim. pelin
+kansi, ruuma ja luolat). Editorin *Kartta*-valinnalla vaihdetaan
+muokattavaa karttaa, *+ kartta* lisää uuden samalla legendalla, ja
+*Tallenna RLML* tallentaa koko tiedoston. Osiot, joita työkalu ei tunne
+(`at:`, `vars:`…), säilyvät sellaisinaan.
+
+*Generoi* tekee merikartalle saariston ja luolakartalle luolaston
+(soluautomaatti, portaat, aarteet, himmelisali). Laivoille ei ole
+generaattoria.
+
 ## Rakenne
 
 ```
@@ -160,13 +205,15 @@ css/app.css
 src/rlml.js         RLML-tiedoston luku ja kirjoitus
 src/font.js         päätteellinen kursiivi viivafontti
 src/areas.js        alueet: yhdisteet, hierarkia, tarkistukset
-src/renderer.js     kartta SVG:ksi (yksikkö 16 / ruutu, viivat millimetreinä)
-src/generator.js    satunnainen saaristo
+src/tiles.js        palojen luokittelu (luola/laiva) ja oletukset
+src/renderer.js     merikartta SVG:ksi (yksikkö 16 / ruutu, viivat millimetreinä)
+src/dungeon.js      luola- ja laivakartat SVG:ksi
+src/generator.js    satunnainen saaristo ja luolasto
 src/print.js        arkki- ja lehtijako, tulostus-HTML
 src/editor.js       ruudukkoeditori
 src/main.js         kytkennät
 tests/              yksikkötestit (node --test)
-examples/           esimerkkikartta
+examples/           esimerkkikartat (merikartta, pelin neljä karttaa)
 ```
 
 ## Testit

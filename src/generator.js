@@ -117,7 +117,65 @@
     doc.grid = M.map(r => r.join('')); doc.areas = areas; doc.rules = rules; doc.texts = texts; doc.name = 'MERIKARTTA';
     return doc;
   }
-  const api = { generate };
+  // ---- luola: solukkoautomaatti, suurin yhtenäinen tila, portaat, soihdut, aarteet ja salit
+  const CAVE_LEGEND = [['#', 'WALL'], ['M', 'WALL.moss'], ['R', 'WALL.ornament'], ['T', 'WALL.torch'], ['.', 'FLOOR'], ['<', 'STAIR.up as TO_UP'], ['>', 'STAIR.down as TO_DEEP'],
+    ['H', 'FLOOR with HIMMELI'], ['P', 'FLOOR with PILLAR'], ['k', 'FLOOR with KEY'], ['g', 'FLOOR with GOLD'], ['j', 'FLOOR with GEM'], ['u', 'FLOOR with GOBLET'], ['c', 'FLOOR with CHEST']];
+  const HALLS = ['Himmelisali', 'Aarrekammio', 'Kaikuluola', 'Lepakkoluola', 'Tippukivisali', 'Kristalliholvi', 'Huokausten sali'];
+  function generateCave(opt) {
+    const W = opt.W || 40, H = opt.H || 30, seed = (opt.seed | 0) || 1, R = rng(seed * 4513 + 7);
+    let M;
+    for (let attempt = 0; attempt < 8; attempt++) {
+      M = []; for (let j = 0; j < H; j++) { M.push([]); for (let i = 0; i < W; i++) M[j].push(i === 0 || j === 0 || i === W - 1 || j === H - 1 || R() < .46); }
+      const wallN = (i, j, r) => { let n = 0; for (let b = -r; b <= r; b++) for (let a = -r; a <= r; a++) { const x = i + a, y = j + b; if (x < 0 || y < 0 || x >= W || y >= H || M[y][x]) n++; } return n; };
+      for (let it = 0; it < 6; it++) { const N = M.map(r => r.slice()); for (let j = 1; j < H - 1; j++) for (let i = 1; i < W - 1; i++) { const n1 = wallN(i, j, 1), n2 = it < 3 ? wallN(i, j, 2) : 99; N[j][i] = n1 >= 5 || n2 <= 2; } M = N; }
+      // vain suurin yhtenäinen tila jää
+      const seen = M.map(r => r.map(() => false)); let best = [];
+      for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) if (!M[j][i] && !seen[j][i]) { const st = [[i, j]], c = []; seen[j][i] = true; while (st.length) { const [x, y] = st.pop(); c.push([x, y]); for (const [a, b] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const X = x + a, Y = y + b; if (!M[Y][X] && !seen[Y][X]) { seen[Y][X] = true; st.push([X, Y]); } } } if (c.length > best.length) best = c; }
+      const keep = new Set(best.map(([x, y]) => y * W + x));
+      for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) if (!M[j][i] && !keep.has(j * W + i)) M[j][i] = true;
+      if (best.length > W * H * .32) break;
+    }
+    const G = M.map(r => r.map(w => w ? '#' : '.')), floor = (i, j) => i >= 0 && j >= 0 && i < W && j < H && G[j][i] !== '#' && G[j][i] !== 'M' && G[j][i] !== 'R' && G[j][i] !== 'T';
+    const cells = []; for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) if (G[j][i] === '.') cells.push([i, j]);
+    // etäisyys seinään ja reitin pituus portaista
+    const dw = (i, j) => { let d = 9; for (let b = -3; b <= 3; b++) for (let a = -3; a <= 3; a++) if (!floor(i + a, j + b)) d = Math.min(d, Math.max(Math.abs(a), Math.abs(b))); return d; };
+    const bfs = (s) => { const D = new Map([[s[1] * W + s[0], 0]]), q = [s]; while (q.length) { const [x, y] = q.shift(), d = D.get(y * W + x); for (const [a, b] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const X = x + a, Y = y + b; if (floor(X, Y) && !D.has(Y * W + X)) { D.set(Y * W + X, d + 1); q.push([X, Y]); } } } return D; };
+    const nearWall = cells.filter(([i, j]) => dw(i, j) === 1);
+    const up = nearWall.slice().sort((a, b) => (a[0] + a[1]) - (b[0] + b[1]))[0];
+    const D = bfs(up); const down = cells.reduce((m, c) => (D.get(c[1] * W + c[0]) || 0) > (D.get(m[1] * W + m[0]) || 0) ? c : m, up);
+    G[up[1]][up[0]] = '<'; G[down[1]][down[0]] = '>';
+    const free = () => cells.filter(([i, j]) => G[j][i] === '.');
+    const put = (ch, list, n) => { for (let q = 0; q < n && list.length; q++) { const k = Math.floor(R() * list.length), [i, j] = list.splice(k, 1)[0]; if (G[j][i] === '.') G[j][i] = ch; } };
+    const dead = free().filter(([i, j]) => [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([a, b]) => floor(i + a, j + b)).length === 1);
+    put('c', dead.length ? dead : free(), 2); put('k', free().filter(([i, j]) => (D.get(j * W + i) || 0) > 8), 1); put('u', free(), 1);
+    put('g', free(), Math.max(2, Math.round(cells.length / 140))); put('j', free(), Math.max(1, Math.round(cells.length / 220)));
+    const open = free().filter(([i, j]) => dw(i, j) >= 3);
+    if (open.length) { const h = open[Math.floor(R() * open.length)]; G[h[1]][h[0]] = 'H'; for (const [a, b] of [[-2, -2], [2, -2], [-2, 2], [2, 2]]) if (G[h[1] + b] && G[h[1] + b][h[0] + a] === '.' && dw(h[0] + a, h[1] + b) >= 1) G[h[1] + b][h[0] + a] = 'P'; }
+    // seinät: soihdut, sammal ja riimut lattian vieressä
+    for (let j = 1; j < H - 1; j++) for (let i = 1; i < W - 1; i++) { if (G[j][i] !== '#') continue; const face = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([a, b]) => floor(i + a, j + b)); if (!face) continue;
+      const v = vn(i / 5, j / 5, seed * 13); if (v > .72) G[j][i] = 'M'; else if (v < .2 && R() < .5) G[j][i] = 'R'; else if (R() < .045) G[j][i] = 'T'; }
+    // salit: avarimmat kohdat alueiksi
+    const areas = [], texts = {}, used = [];
+    const wide = free().concat(cells.filter(([i, j]) => 'HP'.includes(G[j][i]))).filter(([i, j]) => dw(i, j) >= 2).sort((a, b) => dw(b[0], b[1]) - dw(a[0], a[1]));
+    const names = HALLS.slice(); for (let i = names.length - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); [names[i], names[j]] = [names[j], names[i]]; }
+    if (cells.some(([i, j]) => G[j][i] === 'H')) { names.splice(names.indexOf('Himmelisali'), 1); names.unshift('Himmelisali'); }
+    for (const [i, j] of wide) {
+      if (areas.length >= 3) break;
+      let x0 = i, x1 = i, y0 = j, y1 = j; const ok = (a, b, c, d) => { for (let y = b; y <= d; y++) for (let x = a; x <= c; x++) if (!floor(x, y)) return false; return true; };
+      for (let grow = true; grow;) { grow = false; if (ok(x0 - 1, y0, x1, y1)) { x0--; grow = true; } if (ok(x0, y0, x1 + 1, y1)) { x1++; grow = true; } if (ok(x0, y0 - 1, x1, y1)) { y0--; grow = true; } if (ok(x0, y0, x1, y1 + 1)) { y1++; grow = true; } if (x1 - x0 > 12 || y1 - y0 > 9) break; }
+      const r = { x: Math.max(1, x0 - 1), y: Math.max(1, y0 - 1), w: 0, h: 0 }; r.w = Math.min(W - 2, x1 + 1) - r.x + 1; r.h = Math.min(H - 2, y1 + 1) - r.y + 1;
+      if (r.w < 4 || r.h < 3 || used.some(u => r.x <= u.x + u.w && u.x <= r.x + r.w && r.y <= u.y + u.h && u.y <= r.y + r.h)) continue;
+      const nm = names[areas.length]; used.push(r); areas.push(Object.assign(r, { name: rlml.toId(nm) })); texts[rlml.toId(nm)] = nm;
+    }
+    const doc = rlml.blankDoc(W, H);
+    doc.style = 'cave'; doc.styleSet = true; doc.name = 'LUOLA'; doc.title = 'LUOLA';
+    doc.legend = CAVE_LEGEND.map(([ch, spec]) => ({ ch, spec, name: '' })); rlml.refreshNames(doc);
+    doc.grid = G.map(r => r.join('')); doc.areas = areas; doc.texts = texts; doc.rules = [{ level: 0, size: 9, spacing: 'wide' }];
+    doc.vars = { EDGE: 'WALL' }; doc.raw = [{ head: 'vars:', lines: ['- EDGE WALL'] }];
+    return doc;
+  }
+
+  const api = { generate, generateCave };
   KG.generator = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })();

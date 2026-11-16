@@ -50,6 +50,7 @@
   const DEFAULTS = { cellMM: 5, wMain: .3, wCoast: .6, wThin: .15, wSea: .18, spSea: .55, spSym: .45, legend: true, compass: true, title: true, frame: true };
 
   function scene(doc, opts) {
+    if (doc.style && doc.style !== 'sea') { const dg = KG.dungeon || (typeof require !== 'undefined' && require('./dungeon.js')); return dg.scene(doc, Object.assign({}, DEFAULTS, opts || {})); }
     const o = Object.assign({}, DEFAULTS, opts || {});
     const k = CS / o.cellMM, mm = v => v * k;
     const wM = mm(o.wMain), wC = mm(o.wCoast), wT = mm(o.wThin), wS = mm(o.wSea), spS = mm(o.spSea), spY = mm(o.spSym);
@@ -322,7 +323,13 @@
     return `<svg xmlns="http://www.w3.org/2000/svg" width="${f(sc.VW / sc.k)}mm" height="${f(sc.VH / sc.k)}mm" viewBox="0 0 ${sc.VW} ${sc.VH}" stroke-linecap="round" stroke-linejoin="round">${title ? `<title>${title}</title>` : ''}${wrap(sc)}</svg>`;
   }
 
-  const api = { scene, svgWhole, wrap, DEFAULTS, CS, MG };
+  // kuvan koko yksikköinä (riippumaton ruudun mm-koosta)
+  function dims(doc, opts) {
+    if (doc.style && doc.style !== 'sea') { const dg = KG.dungeon || (typeof require !== 'undefined' && require('./dungeon.js')); return dg.dims(doc, Object.assign({}, DEFAULTS, opts || {})); }
+    return { VW: doc.W * CS + 2 * MG, VH: doc.H * CS + 2 * MG };
+  }
+  const util = { h32, hf, rng, noise, f, pt, P, seg, smoothD, quadPts, chaikin, hatchD, ngon, N8 };
+  const api = { scene, svgWhole, wrap, dims, util, DEFAULTS, CS, MG };
   KG.renderer = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })();

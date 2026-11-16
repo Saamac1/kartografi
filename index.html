@@ -11,6 +11,11 @@
   <strong class="brand">Karttageneraattori</strong>
   <button id="btnMenu" class="only-mobile menu-btn" aria-label="Valikko">☰ Tiedosto ja kartta</button>
   <span class="grp">
+    <label>Kartta <select id="mapSel" title="Tiedoston kartat"></select></label>
+    <button id="btnAddMap" title="Lisää tiedostoon uusi tyhjä kartta">+ kartta</button>
+    <label>Tyyli <select id="styleSel" title="style paper"><option value="sea">merikartta</option><option value="cave">luola</option><option value="ship">laiva</option></select></label>
+  </span>
+  <span class="grp">
     <button id="btnNew" title="Tyhjä kartta">Uusi</button>
     <label>L <input id="inW" type="number" min="8" max="200" value="64"></label>
     <label>K <input id="inH" type="number" min="8" max="200" value="44"></label>
@@ -111,6 +116,7 @@
       <label><input id="optCompass" type="checkbox" checked> Kompassiruusu</label>
       <label><input id="optTitle" type="checkbox" checked> Otsikko</label>
       <label><input id="optFrame" type="checkbox" checked> Kehys</label>
+      <label title="Luola- ja laivakartoissa lattialle ohut ruudukko"><input id="optGrid" type="checkbox"> Ruudukko lattialle</label>
     </fieldset>
     <fieldset>
       <legend>Selitteessä</legend>
@@ -145,8 +151,10 @@
 <div id="printFrameHost" hidden></div>
 <script src="src/rlml.js"></script>
 <script src="src/font.js"></script>
+<script src="src/tiles.js"></script>
 <script src="src/areas.js"></script>
 <script src="src/renderer.js"></script>
+<script src="src/dungeon.js"></script>
 <script src="src/generator.js"></script>
 <script src="src/print.js"></script>
 <script src="src/editor.js"></script>

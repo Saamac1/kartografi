@@ -7,6 +7,7 @@
   const saved = store.get('kg.doc');
   try { doc = saved ? KG.rlml.parse(saved) : null; } catch (e) { doc = null; }
   if (!doc || !doc.W) doc = KG.generator.generate({ W: 64, H: 44, seed: 7 });
+  { const mi = +store.get('kg.map'); if (doc.file && mi > 0 && doc.file.maps[mi]) doc = doc.file.maps[mi]; }
 
   // ---- tila ja apurit
   let statusT = 0;
@@ -15,7 +16,8 @@
     try { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: mime })); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000); status('Ladattu ' + name); }
     catch (e) { status('Lataus estetty tässä ympäristössä – käytä Kopioi-painiketta'); }
   }
-  const fileBase = () => (doc.name || 'kartta').toLowerCase();
+  const fileBase = () => (doc.name || 'kartta').toLowerCase().replace(/[^a-z0-9._-]+/g, '_');
+  const fileName = () => KG.rlml.toId(doc.file && doc.file.title ? doc.file.title : doc.name || 'kartta').toLowerCase();
 
   // ---- alueet
   let setMode = null, endAreaTool = null, showTool = () => {};
@@ -37,10 +39,10 @@
     onCursor: (c, k) => { const e = doc.legend.find(l => l.ch === k), path = M.at(c.x, c.y).map(n => KG.areas.displayName(doc, n)).join(' › '); $('cursorInfo').textContent = `x ${c.x}, y ${c.y}   "${k}" ${e ? e.name : 'tuntematon merkki'}   ${path ? '▸ ' + path : ''}`; },
   });
   function buildPalette() {
-    const p = $('palette'); p.innerHTML = '';
+    const p = $('palette'); p.innerHTML = ''; const cmap = KG.editorColors(doc);
     for (const e of doc.legend) {
       const b = document.createElement('button'); b.className = 'pal' + (e.ch === ed.brush ? ' on' : ''); b.dataset.ch = e.ch;
-      b.innerHTML = `<span class="ch" style="background:${KG.EDITOR_COLORS[KG.rlml.typeOf(e.spec)] || '#fff'}">${e.ch.replace('<', '&lt;')}</span><span>${e.name}${e.decor ? ' <i>(koriste)</i>' : ''}</span>`;
+      b.innerHTML = `<span class="ch" style="background:${cmap[e.ch] || '#fff'}">${e.ch.replace('<', '&lt;')}</span><span>${e.name}${e.decor ? ' <i>(koriste)</i>' : ''}</span>`;
       b.title = e.spec; b.onclick = () => { setBrush(e.ch); setMode && setMode(false); endAreaTool && endAreaTool(); if (!matchMedia('(pointer: coarse)').matches) ed.cv.focus(); };
       p.appendChild(b);
     }
@@ -48,7 +50,8 @@
   // selitteeseen otettavat palat; koristeet (decor) jätetään pois
   function buildLegendPick() {
     const el = $('legendPick'); el.innerHTML = '';
-    for (const e of doc.legend) { const t = KG.rlml.typeOf(e.spec); if (t === 'water' || t === 'grass') continue;
+    const sea = !doc.style || doc.style === 'sea', cm = sea ? null : KG.tiles.classMap(doc);
+    for (const e of doc.legend) { if (sea) { const t = KG.rlml.typeOf(e.spec); if (t === 'water' || t === 'grass') continue; } else { const c = cm[e.ch]; if (!c || !(c.symbols.length || ['door', 'stairs', 'exit'].includes(c.kind) || ['moss', 'runes'].includes(c.pattern))) continue; }
       const l = document.createElement('label'); l.innerHTML = `<input type="checkbox"${e.decor ? '' : ' checked'}> ${e.name}`; l.title = e.decor ? 'koriste (decor)' : '';
       l.querySelector('input').onchange = ev => { if (ev.target.checked) delete e.decor; else e.decor = true; buildPalette(); touched(); };
       el.appendChild(l); }
@@ -61,8 +64,8 @@
   const num = id => parseFloat($(id).value);
   function settings() {
     const mode = document.querySelector('input[name=mode]:checked').value, margin = num('margin');
-    const base = { wMain: num('wMain'), wCoast: num('wCoast'), wThin: num('wThin'), wSea: num('wSea'), spSea: num('spSea'), spSym: num('spSym'), legend: $('optLegend').checked, compass: $('optCompass').checked, title: $('optTitle').checked, frame: $('optFrame').checked };
-    if (mode === 'whole') { const fit = KG.print.fitCell(doc.W, doc.H, $('paper').value, $('orientW').value, margin); return Object.assign(base, { mode, margin, cellMM: fit.cellMM, paper: $('paper').value, orient: fit.orient }); }
+    const base = { wMain: num('wMain'), wCoast: num('wCoast'), wThin: num('wThin'), wSea: num('wSea'), spSea: num('spSea'), spSym: num('spSym'), legend: $('optLegend').checked, compass: $('optCompass').checked, title: $('optTitle').checked, frame: $('optFrame').checked, grid: $('optGrid').checked };
+    if (mode === 'whole') { const fit = KG.print.fitCell(KG.renderer.dims(doc, base), $('paper').value, $('orientW').value, margin); return Object.assign(base, { mode, margin, cellMM: fit.cellMM, paper: $('paper').value, orient: fit.orient }); }
     return Object.assign(base, { mode, margin, cellMM: num('cellMM'), overlap: num('overlap'), orientT: $('orientT').value });
   }
   function layoutTiles(sc, s) {
@@ -137,16 +140,34 @@
   $('btnDlHtml').onclick = () => { if (!last) return; const { svgs, PW, PH } = printSvgs(); download(`${fileBase()}_tulostus.html`, KG.print.printHtml(svgs, PW, PH, doc.title), 'text/html'); };
   $('btnCopy').onclick = async () => { if (!last) return; try { await navigator.clipboard.writeText(KG.renderer.svgWhole(last.sc, doc.title)); status('SVG kopioitu leikepöydälle'); } catch (e) { status('Kopiointi estetty'); } };
   document.querySelectorAll('input[name=mode]').forEach(r => r.onchange = () => { const t = document.querySelector('input[name=mode]:checked').value === 'tiles'; $('fsTiles').disabled = !t; $('fsWhole').disabled = t; render(); });
-  ['paper', 'orientW', 'cellMM', 'orientT', 'overlap', 'margin', 'wMain', 'wCoast', 'wThin', 'wSea', 'spSea', 'spSym', 'optLegend', 'optCompass', 'optTitle', 'optFrame'].forEach(id => $(id).addEventListener('change', scheduleRender));
+  ['paper', 'orientW', 'cellMM', 'orientT', 'overlap', 'margin', 'wMain', 'wCoast', 'wThin', 'wSea', 'spSea', 'spSym', 'optLegend', 'optCompass', 'optTitle', 'optFrame', 'optGrid'].forEach(id => $(id).addEventListener('change', scheduleRender));
 
   // ---- tiedostot, generointi, koko
-  $('btnGen').onclick = () => { const W = +$('inW').value, H = +$('inH').value; const keepTitle = doc.title; doc = KG.generator.generate({ W, H, seed: +$('inSeed').value }); if (keepTitle) doc.title = keepTitle; afterDocChange(); status('Generoitu siemenellä ' + $('inSeed').value); };
+  // nykyinen kartta korvataan tiedostossa uudella (otsikko ja nimi säilyvät)
+  function replaceDoc(nd, keepNames) {
+    const f = doc.file, i = f ? f.maps.indexOf(doc) : -1;
+    if (keepNames !== false) { nd.title = doc.title || nd.title; nd.hasHeading = doc.hasHeading; nd.name = doc.name || nd.name; }
+    if (f && i >= 0) { f.maps[i] = nd; KG.rlml.attach(nd, f); }
+    doc = nd;
+  }
+  $('btnGen').onclick = () => { const W = +$('inW').value, H = +$('inH').value, seed = +$('inSeed').value;
+    if (doc.style === 'ship') { status('Laivakartoille ei ole generaattoria'); return; }
+    replaceDoc(doc.style === 'cave' ? KG.generator.generateCave({ W, H, seed }) : KG.generator.generate({ W, H, seed })); afterDocChange(); status('Generoitu siemenellä ' + seed); };
   $('btnRnd').onclick = () => { $('inSeed').value = Math.floor(Math.random() * 99999) + 1; $('btnGen').onclick(); };
-  $('btnNew').onclick = () => { const t = doc.title; doc = KG.rlml.blankDoc(+$('inW').value, +$('inH').value); doc.title = t; ed.undo = []; afterDocChange(); };
+  // tyhjä kartta samalla tyylillä ja legendalla, täytetty oletuspalalla
+  function blankLike(W, H) { const nd = KG.rlml.newMap(W, H, doc.style); nd.styleSet = doc.styleSet || doc.style !== 'sea'; nd.legend = doc.legend.map(e => Object.assign({}, e)); nd.tileRules = (doc.tileRules || []).slice(); nd.vars = Object.assign({}, doc.vars); nd.raw = (doc.raw || []).filter(r => /^vars:/i.test(r.head.trim())).map(r => ({ head: r.head, lines: r.lines.slice() }));
+    const fc = KG.rlml.fillChar(Object.assign({}, nd, { legend: nd.legend })); nd.grid = Array.from({ length: H }, () => fc.repeat(W)); return nd; }
+  $('btnNew').onclick = () => { replaceDoc(blankLike(+$('inW').value, +$('inH').value)); afterDocChange(); };
+  $('btnAddMap').onclick = () => { const f = doc.file, nd = blankLike(+$('inW').value, +$('inH').value); let n = f.maps.length + 1; while (f.maps.some(m => m.name === 'KARTTA' + n)) n++;
+    nd.name = 'KARTTA' + n; nd.title = 'Kartta ' + n; nd.hasHeading = true;
+    if (f.maps.length === 1 && !f.maps[0].hasHeading) { f.title = f.title || f.maps[0].title; f.maps[0].hasHeading = true; }
+    f.maps.push(nd); KG.rlml.attach(nd, f); doc = nd; afterDocChange(); status(`Lisätty kartta ${nd.name}`); };
+  $('mapSel').onchange = e => { doc = doc.file.maps[+e.target.value]; store.set('kg.map', e.target.value); afterDocChange(); };
+  $('styleSel').onchange = e => { doc.style = e.target.value; doc.styleSet = true; KG.rlml.refreshNames(doc); ed.undo = []; afterDocChange(); status(`Kartan tyyliksi asetettiin ${e.target.selectedOptions[0].textContent}`); };
   $('btnResize').onclick = () => { KG.rlml.resize(doc, +$('inW').value, +$('inH').value); ed.undo = []; afterDocChange(); };
-  $('btnSave').onclick = () => download(`${fileBase()}.rlml.md`, KG.rlml.serialize(doc), 'text/markdown');
+  $('btnSave').onclick = () => download(`${fileName()}.rlml.md`, KG.rlml.serialize(doc), 'text/markdown');
   $('btnOpen').onclick = () => $('fileIn').click();
-  $('fileIn').onchange = e => { const fl = e.target.files[0]; if (!fl) return; const rd = new FileReader(); rd.onload = () => { try { doc = KG.rlml.parse(rd.result); ed.undo = []; afterDocChange(); status('Avattu ' + fl.name); } catch (er) { status('Tiedostoa ei voitu lukea: ' + er.message); } }; rd.readAsText(fl); e.target.value = ''; };
+  $('fileIn').onchange = e => { const fl = e.target.files[0]; if (!fl) return; const rd = new FileReader(); rd.onload = () => { try { doc = KG.rlml.parse(rd.result); store.set('kg.map', '0'); ed.undo = []; afterDocChange(); status('Avattu ' + fl.name); } catch (er) { status('Tiedostoa ei voitu lukea: ' + er.message); } }; rd.readAsText(fl); e.target.value = ''; };
   $('btnUndo').onclick = $('mUndo').onclick = () => { ed.doUndo(); refreshUndo(); }; $('btnRedo').onclick = $('mRedo').onclick = () => { ed.doRedo(); refreshUndo(); };
   function refreshUndo() { const u = !ed.undo.length, r = !ed.redo.length; $('mUndo').disabled = $('btnUndo').disabled = u; $('mRedo').disabled = $('btnRedo').disabled = r; }
 
@@ -199,7 +220,7 @@
   $('inTitle').oninput = e => { doc.title = e.target.value; touched(); };
   $('btnNamesApply').onclick = () => { doc.rules = KG.rlml.parseRulesText($('rulesTa').value); doc.texts = KG.rlml.parseTextsText($('textsTa').value); areaChanged(); status('Nimet päivitetty'); };
   const fillNames = () => { $('inTitle').value = doc.title || ''; $('rulesTa').value = KG.rlml.rulesText(doc); $('textsTa').value = KG.rlml.textsText(doc); $('langLbl').textContent = doc.lang || 'fi'; };
-  $('btnSrcApply').onclick = () => { try { const d = KG.rlml.parse($('srcTa').value); if (!d.W || !d.H) throw new Error('map-rivi puuttuu'); doc = d; afterDocChange(); status('Lähde luettu'); } catch (e) { status('Virhe lähteessä: ' + e.message); } };
+  $('btnSrcApply').onclick = () => { try { const fl = KG.rlml.parseFile($('srcTa').value), i = doc.file ? Math.max(0, doc.file.maps.indexOf(doc)) : 0, d = fl.maps[Math.min(i, fl.maps.length - 1)]; if (!d.W || !d.H) throw new Error('map-rivi puuttuu'); doc = d; afterDocChange(); status('Lähde luettu'); } catch (e) { status('Virhe lähteessä: ' + e.message); } };
   document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => {
     document.querySelectorAll('.tabs button').forEach(x => x.classList.toggle('on', x === b));
     document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.id === b.dataset.tab));
@@ -207,7 +228,9 @@
     if (b.dataset.tab === 'tNames') fillNames();
   });
 
-  function afterDocChange() { ed.undo = []; ed.redo = []; { const n = KG.areas.normalize(doc); if (n) doc.warnings = (doc.warnings || []).concat(`Sisäkkäisiä rajauksia yhdistettiin: ${n}`); } buildLegendPick(); $('inW').value = doc.W; $('inH').value = doc.H; selArea = null; refreshModel(); fillNames(); buildPalette(); buildAreaList(); ed.setDoc(); touched(); if (doc.warnings && doc.warnings.length) status(doc.warnings[0]); }
+  function buildMapSel() { const f = doc.file; $('mapSel').innerHTML = (f ? f.maps : [doc]).map((m, i) => `<option value="${i}"${m === doc ? ' selected' : ''}>${(m.title && m.hasHeading ? m.title + ' – ' : '') + m.name}</option>`).join(''); $('styleSel').value = doc.style || 'sea'; }
+  function afterDocChange() { ed.undo = []; ed.redo = []; buildMapSel();
+    if (!doc.styleSet && (!doc.style || doc.style === 'sea') && doc.legend.some(e => /^(WALL|FLOOR|HULL|DECK|RAIL)\b/i.test(e.spec))) { const w = 'Kartalta puuttuu style paper -rivi: valitse tyyliksi luola tai laiva'; doc.warnings = (doc.warnings || []).filter(x => x !== w).concat(w); } { const n = KG.areas.normalize(doc); if (n) doc.warnings = (doc.warnings || []).concat(`Sisäkkäisiä rajauksia yhdistettiin: ${n}`); } buildLegendPick(); $('inW').value = doc.W; $('inH').value = doc.H; selArea = null; refreshModel(); fillNames(); buildPalette(); buildAreaList(); ed.setDoc(); touched(); if (doc.warnings && doc.warnings.length) status(doc.warnings[0]); }
   afterDocChange(); render();
   window.KG_APP = { get doc() { return doc; }, editor: ed, render };
 })();

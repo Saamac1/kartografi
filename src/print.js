@@ -9,8 +9,10 @@
 
   function paperSize(name, orient) { const [a, b] = PAPER[name] || PAPER.A4; return orient === 'landscape' ? [b, a] : [a, b]; }
   // Ruudun koko (mm), jolla koko kartta mahtuu arkille. orient 'auto' valitsee paremman.
+  // W, H ruutuina tai ensimmäisenä parametrina { VW, VH } yksikköinä (renderer.dims)
   function fitCell(W, H, paper, orient, margin) {
-    const VW = W * R.CS + 2 * R.MG, VH = H * R.CS + 2 * R.MG;
+    let VW, VH;
+    if (typeof W === 'object') { VW = W.VW; VH = W.VH; margin = orient; orient = paper; paper = H; } else { VW = W * R.CS + 2 * R.MG; VH = H * R.CS + 2 * R.MG; }
     const tryO = o => { const [pw, ph] = paperSize(paper, o); return Math.min((pw - 2 * margin) * R.CS / VW, (ph - 2 * margin) * R.CS / VH); };
     if (orient === 'auto') { const p = tryO('portrait'), l = tryO('landscape'); return l >= p ? { cellMM: l, orient: 'landscape' } : { cellMM: p, orient: 'portrait' }; }
     return { cellMM: tryO(orient), orient };
