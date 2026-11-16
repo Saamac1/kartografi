@@ -41,21 +41,24 @@
       <select id="brush"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="5">5</option></select>
     </label>
     <h3>Alueet</h3>
-    <div class="row tools"><button id="toolPaint" class="on" title="Piirrä valitulla palalla">Piirrä maastoa</button><button id="toolArea" title="Raahaa suorakulmio valitulle alueelle; oikea napsautus poistaa suorakulmion">Rajaa alue</button><button id="toolMove" title="Raahaa aluetta; oikean alakulman kahvasta muutat suorakulmion kokoa; nuolinäppäimet siirtävät valittua aluetta">Siirrä alue</button></div>
-    <label class="row"><input id="moveChildren" type="checkbox" checked> Sisemmät alueet siirtyvät mukana</label>
     <label class="row"><input id="showAreas" type="checkbox" checked> Näytä alueet</label>
     <select id="areaList" size="8"></select>
     <div class="row"><input id="newArea" type="text" placeholder="Uusi alue, esim. Vaaravuori"><button id="btnNewArea">Lisää</button></div>
-    <div class="row"><button id="btnDelArea">Poista alue</button></div>
+    <div class="row"><button id="toolArea" title="Rajaa valitun alueen suorakulmiot: raahaa uusi, kulmakahvasta koko, oikea napsautus poistaa">Rajaa</button><button id="toolMove" title="Siirrä alue sisältöineen kartalla: raahaa tai nuolinäppäimet">Siirrä</button><button id="btnDelArea">Poista</button></div>
     <div id="checks" class="checks"></div>
     <details class="help no-mobile" open>
       <summary>Ohjeet</summary>
-      <p><b>Hiiri:</b> vasen piirtää valitulla palalla, oikea poimii palan kartalta, Vaihto + napsautus täyttää alueen. Palan valinta palauttaa piirtotilan, alueen valinta vaihtaa rajaustilaan.</p>
+      <p><b>Lue karttaa:</b> vedä vierittääksesi, napsauta nähdäksesi ruudun tiedot.</p><p><b>Muokkaa karttaa:</b> vasen nappi piirtää valitulla palalla, oikea poimii palan kartalta, Vaihto + napsautus täyttää alueen.</p><p><b>Nimetyt alueet:</b> valitse alue ja Rajaa (suorakulmiot) tai Siirrä (alue sisältöineen; tyhjäksi jäävä osa täytetään vedellä). Valmis tai Esc palaa maaston piirtoon.</p>
       <p><b>Näppäimistö</b> (napsauta karttaa ensin): nuolet liikuttavat kursoria, merkin kirjoitus korvaa ruudun ja siirtyy oikealle, Enter seuraavalle riville, Askelpalautin vasemmalle, Ctrl+Z / Ctrl+Y kumoa ja tee uudelleen.</p>
     </details>
   </aside>
 
   <section class="editor">
+    <div class="bar small edbar">
+      <span class="seg"><button id="mRead">Lue karttaa</button><button id="mEdit">Muokkaa karttaa</button></span>
+      <span id="toolInfo" class="toolinfo"></span>
+      <button id="btnToolDone" hidden>Valmis</button>
+    </div>
     <div class="scroll" id="edScroll"><canvas id="ed" tabindex="0"></canvas></div>
     <div class="statusline" id="cursorInfo"></div>
   </section>

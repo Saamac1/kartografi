@@ -14,26 +14,29 @@ Avaa `index.html` selaimessa. Rakennusvaihetta tai palvelinta ei tarvita, ja
 tiedostot ovat tavallisia skriptejä, joten `file://` toimii.
 
 - **Selite (vasen):** valitse piirrettävä pala. Sivellinkoko 1–5 ruutua.
-- **Editori (keskellä):**
+- **Lue karttaa / Muokkaa karttaa (editorin yläpalkki):** lukutilassa
+  karttaa vieritetään vetämällä ja napsautus näyttää ruudun tiedot
+  (maasto ja aluepolku); mitään ei voi muuttaa vahingossa. Muokkaustilassa:
   - hiiren vasen nappi piirtää, oikea poimii palan kartalta, Vaihto + napsautus täyttää yhtenäisen alueen
   - näppäimistö toimii kuten vimin korvaustila: nuolet liikuttavat kursoria
     (Vaihto = 5 askelta), kirjoitettu merkki korvaa ruudun ja kursori siirtyy
     oikealle, Enter siirtää seuraavalle riville kirjoituksen aloitussarakkeeseen,
     Askelpalautin siirtää vasemmalle, Home/End/PageUp/PageDown, Ctrl+Z / Ctrl+Y
+  - palan valinta selitteestä vaihtaa muokkaustilaan ja maaston piirtoon
 - **Esikatselu (oikealla):** päivittyy muokatessa. *Irrota ikkunaksi* avaa sen
   omaan ikkunaansa (esim. toiselle näytölle); ikkunan sulkeminen palauttaa sen.
   *Lehtijako* näyttää A4-lehtien rajat.
 - **Generoi:** uusi saaristo annetulla siemenellä ja koolla. Sama siemen ja koko
   tuottavat aina saman kartan.
-- **Alueet (vasen):** *Lisää* luo alueen nimestä, ja alueen valinta listasta
-  vaihtaa rajaustilaan. *Rajaa alue* -tilassa
-  raahataan suorakulmio valitulle alueelle (oikea napsautus poistaa). Lista
-  näyttää hierarkian, ja alla näkyvät tarkistusten huomautukset.
-- **Siirrä alue:** raahaa aluetta kartalla; tarttuu kohdan tarkimpaan
-  alueeseen. Sisemmät alueet siirtyvät mukana (valinnan voi poistaa).
-  Suorakulmion oikean alakulman kahvasta raahaus muuttaa sen kokoa, ja
-  nuolinäppäimet siirtävät valittua aluetta (Vaihto = 5 ruutua). Alueiden
-  muutokset kumoutuvat Ctrl+Z:lla samoin kuin maaston muutokset.
+- **Nimetyt alueet (vasen):** *Lisää* luo alueen nimestä. Valitse alue
+  listasta ja
+  - *Rajaa*: raahaa suorakulmio alueelle, kulmakahvasta muutat kokoa, oikea
+    napsautus poistaa suorakulmion
+  - *Siirrä*: tartu alueeseen kartalla ja raahaa (tai nuolinäppäimet). Alue
+    siirtyy sisältöineen ja sisempine alueineen; tyhjäksi jäävä osa täytetään
+    vedellä (legendan ensimmäinen WATER-pala).
+  - *Valmis* tai Esc palaa maaston piirtoon ja poistaa valinnan.
+  Lista näyttää hierarkian, ja alla näkyvät tarkistusten huomautukset.
 - **Nimet-välilehti:** otsikko, piirto-ohjeet (`labels paper`) ja tekstit
   (`text fi`).
 - **RLML-lähde-välilehti:** kartta tekstinä; muokkaa ja lue takaisin.
@@ -44,9 +47,9 @@ tiedostot ovat tavallisia skriptejä, joten `file://` toimii.
 
 Kapealla näytöllä editori, esikatselu sekä tulostus ja nimet ovat omilla
 välilehdillään, ja tiedosto- ja generointipainikkeet ovat ☰-valikossa.
-Yksi sormi piirtää, kaksi sormea vierittää karttaa. Palan valinta selitteestä
-vaihtaa piirtotilaan ja alueen valinta listasta rajaustilaan. Esikatselua ei
-voi irrottaa omaksi ikkunakseen.
+Puhelin aloittaa lukutilassa, jossa yksi sormi vierittää. Muokkaustilassa yksi
+sormi piirtää ja kaksi sormea vierittää. Esikatselua ei voi irrottaa omaksi
+ikkunakseen.
 
 ## Tulostus
 

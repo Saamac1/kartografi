@@ -18,7 +18,7 @@
   const fileBase = () => (doc.name || 'kartta').toLowerCase();
 
   // ---- alueet
-  let setToolRef = null;
+  let setMode = null, endAreaTool = null, showTool = () => {};
   let M = KG.areas.model(doc), selArea = null;
   const refreshModel = () => { M = KG.areas.model(doc); };
 
@@ -28,7 +28,7 @@
     changed: () => { touched(); },
     pick: ch => setBrush(ch),
     getModel: () => M, selectedArea: () => selArea, showAreas: () => $('showAreas').checked,
-    selectArea: n => { selArea = n; buildAreaList(); }, moveChildren: () => $('moveChildren').checked,
+    selectArea: n => { selArea = n; buildAreaList(); showTool(); }, areaName: n => KG.areas.displayName(doc, n), endAreaTool: () => endAreaTool(),
     areasChanged: live => { refreshModel(); if (!live) { buildAreaList(); touched(); } else scheduleRender(); ed.draw(); },
     restored: () => { refreshModel(); buildAreaList(); touched(); },
     addRect: r => { if (!selArea) { status('Valitse tai luo alue ensin'); return; } ed.snapshot(); doc.areas.push(Object.assign(r, { name: selArea })); areaChanged(); },
@@ -41,11 +41,11 @@
     for (const e of doc.legend) {
       const b = document.createElement('button'); b.className = 'pal' + (e.ch === ed.brush ? ' on' : ''); b.dataset.ch = e.ch;
       b.innerHTML = `<span class="ch" style="background:${KG.EDITOR_COLORS[KG.rlml.typeOf(e.spec)] || '#fff'}">${e.ch.replace('<', '&lt;')}</span><span>${e.name}</span>`;
-      b.title = e.spec; b.onclick = () => { setBrush(e.ch); setToolRef && setToolRef('paint'); if (!matchMedia('(pointer: coarse)').matches) ed.cv.focus(); };
+      b.title = e.spec; b.onclick = () => { setBrush(e.ch); setMode && setMode(false); endAreaTool && endAreaTool(); if (!matchMedia('(pointer: coarse)').matches) ed.cv.focus(); };
       p.appendChild(b);
     }
   }
-  function setBrush(ch) { ed.brush = ch; document.querySelectorAll('.pal').forEach(b => b.classList.toggle('on', b.dataset.ch === ch)); ed.draw(); }
+  function setBrush(ch) { ed.brush = ch; document.querySelectorAll('.pal').forEach(b => b.classList.toggle('on', b.dataset.ch === ch)); showTool(); ed.draw(); }
   $('brush').onchange = e => { ed.brushSize = +e.target.value; };
   ed.brush = '.';
 
@@ -151,26 +151,40 @@
   function showChecks() { const v = KG.areas.validate(doc, M).concat((doc.warnings || []).map(m => ({ level: 'info', msg: m })));
     $('checks').innerHTML = v.slice(0, 10).map(x => `<div class="${x.level}">${x.level === 'error' ? '✖' : x.level === 'warn' ? '⚠' : 'ℹ'} ${x.msg.replace(/</g, '&lt;')}</div>`).join('') + (v.length > 10 ? `<div class="info">… ${v.length - 10} lisää</div>` : ''); }
   $('areaList').onchange = e => { selArea = e.target.value; setTool('area'); status(`Rajaustila: raahaa suorakulmio alueelle ${KG.areas.displayName(doc, selArea)}`); };
-  const setTool = setToolRef = t => { ed.mode = t; $('toolPaint').classList.toggle('on', t === 'paint'); $('toolArea').classList.toggle('on', t === 'area'); $('toolMove').classList.toggle('on', t === 'move'); ed.cv.style.cursor = t === 'area' ? 'cell' : t === 'move' ? 'move' : 'crosshair'; ed.draw(); };
-  $('toolMove').onclick = () => { setTool('move'); status('Raahaa aluetta; kulmakahvasta koko; nuolet siirtävät valittua aluetta'); };
-  $('btnMenu').onclick = () => document.querySelector('header.bar').classList.toggle('open');
+  // lukutila / muokkaustila ja työkalut
+  const setTool = t => { ed.mode = t; ed.band = null; $('toolArea').classList.toggle('on', t === 'area'); $('toolMove').classList.toggle('on', t === 'move'); ed.cv.style.cursor = ed.readOnly ? '' : t === 'area' ? 'cell' : t === 'move' ? 'move' : 'crosshair'; showTool(); ed.draw(); };
+  showTool = () => {
+    const nm = selArea ? KG.areas.displayName(doc, selArea) : null;
+    $('toolInfo').innerHTML = ed.readOnly ? 'Vedä vierittääksesi, napsauta nähdäksesi ruudun' :
+      ed.mode === 'area' ? (nm ? `Rajaus: <b>${nm}</b> – raahaa suorakulmio` : 'Rajaus: valitse alue listasta') :
+      ed.mode === 'move' ? (nm ? `Siirto: <b>${nm}</b> – raahaa kartalla` : 'Siirto: tartu alueeseen kartalla') :
+      `Maasto: sivellin "${ed.brush}"`;
+    $('btnToolDone').hidden = ed.readOnly || ed.mode === 'paint';
+  };
+  endAreaTool = () => { selArea = null; setTool('paint'); buildAreaList(); };
+  setMode = read => { ed.setReadOnly(read); $('mRead').classList.toggle('on', read); $('mEdit').classList.toggle('on', !read); if (read && ed.mode !== 'paint') endAreaTool(); store.set('kg.mode', read ? 'read' : 'edit'); setTool(ed.mode); };
+  $('mRead').onclick = () => setMode(true);
+  $('mEdit').onclick = () => setMode(false);
+  $('btnToolDone').onclick = () => endAreaTool();
+  $('toolArea').onclick = () => { setMode(false); setTool('area'); if (!selArea) status('Valitse alue listasta tai luo uusi'); };
+  $('toolMove').onclick = () => { setMode(false); setTool('move'); status('Tartu alueeseen kartalla ja raahaa; nuolinäppäimet siirtävät valittua'); };
+  $('areaList').onchange = e => { selArea = e.target.value; showTool(); ed.draw();
+    const A = M.byName[selArea]; if (A && A.bbox) { const sc = ed.cv.parentElement; sc.scrollLeft = A.bbox.x * ed.cw - 20; sc.scrollTop = A.bbox.y * ed.ch - 20; } };
+  $('showAreas').onchange = () => ed.draw();
   // puhelimessa: välilehdet editorille, esikatselulle ja asetuksille
-  const mobile = () => window.matchMedia('(max-width: 820px)').matches;
   document.querySelectorAll('#appTabs button').forEach(b => b.onclick = () => {
     document.querySelectorAll('#appTabs button').forEach(x => x.classList.toggle('on', x === b));
     document.body.className = 'pane-' + b.dataset.pane;
     if (b.dataset.pane === 'preview' && last) showSvg(last.svg);
     if (b.dataset.pane === 'settings' && $('tNames').classList.contains('on')) fillNames();
   });
-  if (matchMedia('(pointer: coarse)').matches) status('Yksi sormi piirtää, kaksi sormea vierittää karttaa');
-  $('toolPaint').onclick = () => setTool('paint');
-  $('toolArea').onclick = () => { setTool('area'); if (!selArea) status('Valitse alue listasta tai luo uusi'); };
-  $('showAreas').onchange = () => ed.draw();
+  $('btnMenu').onclick = () => document.querySelector('header.bar').classList.toggle('open');
+  { const pref = store.get('kg.mode'); setMode(pref ? pref === 'read' : matchMedia('(pointer: coarse)').matches); }
   $('btnNewArea').onclick = () => { const t = $('newArea').value.trim(); if (!t) { status('Kirjoita alueen nimi'); return; }
     let id = KG.rlml.toId(t), n = 2; const base = id; while (M.byName[id] || (doc.texts[id] && doc.texts[id] !== t)) id = base + '_' + n++;
-    doc.texts[id] = t; selArea = id; $('newArea').value = ''; setTool('area'); buildAreaList(); touched(); status(`Raahaa alueen ${t} suorakulmio kartalle`); };
+    doc.texts[id] = t; selArea = id; $('newArea').value = ''; setMode(false); setTool('area'); buildAreaList(); touched(); status(`Raahaa alueen ${t} suorakulmio kartalle`); };
   $('newArea').onkeydown = e => { if (e.key === 'Enter') $('btnNewArea').onclick(); };
-  $('btnDelArea').onclick = () => { if (!selArea) return; const n = selArea; ed.snapshot(); doc.areas = doc.areas.filter(a => a.name !== n); delete doc.texts[n]; doc.rules = doc.rules.filter(r => r.name !== n); selArea = null; areaChanged(); status(`Alue ${n} poistettu`); };
+  $('btnDelArea').onclick = () => { if (!selArea) return; const n = selArea; ed.snapshot(); doc.areas = doc.areas.filter(a => a.name !== n); delete doc.texts[n]; doc.rules = doc.rules.filter(r => r.name !== n); selArea = null; areaChanged(); showTool(); status(`Alue ${n} poistettu`); };
 
   // ---- nimet ja lähde
   $('inTitle').oninput = e => { doc.title = e.target.value; touched(); };
