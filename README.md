@@ -78,9 +78,19 @@ ikkunakseen.
 
 ## RLML
 
-Kartta on RLML-karttatiedosto (markdown). Tämä työkalu kokeilee kolmea uutta
-osiota: `areas:` (merkitys), `labels paper` (piirto-ohjeet) ja `text fi`
-(näkyvät nimet).
+Työkalu lukee ja kirjoittaa RLML-dataformaattia (`~/rlml/dataformaatit`).
+Kartta on kolmessa tiedostossa, koska RLML pitää merkityksen, tekstit ja
+ulkoasun erillään:
+
+| tiedosto | sisältö | luku |
+|----------|---------|------|
+| `NIMI.rlml.md` | kartat: `map`, piirros, `legend:`, alueet `areas:` | 8, 8.11 |
+| `NIMI.paper.rlml.md` | paperikartan tyyli: `maps.theme paper`, `tiles.glyphs paper`, `areas.labels paper` | 9.6 |
+| `NIMI.fi.rlml.md` | kielitiedosto: kartan ja alueiden näkyvät nimet | 10 |
+
+*Avaa…* hyväksyy yhden tai useamman tiedoston kerralla ja tunnistaa lajin
+sisällöstä; karttatiedosto on pakollinen. *Tallenna RLML* tallentaa kaikki
+kolme. *RLML-lähde*-välilehdellä voi muokata kutakin tiedostoa erikseen.
 
 ````
 # KAPTEENI AALTOLAN KARTTA
@@ -94,39 +104,38 @@ map MERIKARTTA size 64x44
 legend:
 - ~ WATER
 - . GRASS
-- , SHRUBS
 - T FOREST.conifer
-- D FOREST.deciduous
-- Y SAND with PALM
-- ^ MOUNTAIN
-- n HILL
-- r RIVER
-- X GRASS with TREASURE
-- K WATER with KRAKEN decor
+- K WATER with KRAKEN
 
 areas:
 - 8,6 size 26x17 as NORSUSAARI
 - 30,3 size 7x6 as NORSUSAARI
 - 14,9 size 7x5 as VAARAVUORI
-- 2,16 size 12x10 as SYNKKA_SYVA
-
-labels paper
-- level 0 size 11 spacing wide
-- level 1 size 8.5
-- SYNKKA_SYVA size 9 place water
-- VAARAVUORI outline dotted
-
-text fi
-- NORSUSAARI "Norsusaari"
-- VAARAVUORI "Vaaravuori"
-- SYNKKA_SYVA "Synkkä syvä"
 ````
 
-Piirtotyyppi päätellään legendan tile-kuvauksesta (`WATER`, `MOUNTAIN`,
-`FOREST.deciduous`, `… with PALM` jne.), joten merkit voi vaihtaa vapaasti.
-Määre `decor` legendarivin lopussa merkitsee palan koristeeksi (esim.
-kraken): se piirretään kartalle, mutta sitä ei listata selitteeseen.
-Tulostus-välilehden *Selitteessä*-valinnat asettavat saman määreen.
+```
+maps.theme paper
+- default sea
+
+tiles.glyphs paper
+- KRAKEN decor
+
+areas.labels paper
+- level 0 size 11 spacing wide
+- SYNKKA_SYVA size 9 place water
+- VAARAVUORI outline dotted
+```
+
+```
+language fi
+MERIKARTTA.NAME Kapteeni Aaltolan kartta
+MERIKARTTA.NORSUSAARI.NAME Norsusaari
+MERIKARTTA.VAARAVUORI.NAME Vaaravuori
+```
+
+Vanhat kokeilumuodot (kartan sisäiset `style paper`, `labels paper`,
+`tiles paper`, `text fi`, legendin `decor` ja `labels:`) luetaan edelleen
+ja tallennetaan uusiin muotoihin.
 
 ### Alueet (`areas:`)
 
@@ -138,64 +147,65 @@ Tulostus-välilehden *Selitteessä*-valinnat asettavat saman määreen.
 - Ruudun tarkin alue on pienin sen sisältävä; tasatilanteessa myöhemmin
   määritelty. Editorin tilarivi näyttää polun, esim. *Norsusaari › Vaaravuori*.
 - Osittaisesta päällekkäisyydestä varoitetaan; vanhempaa ei silloin synny.
-- Saman alueen rajaukset yhdistetään automaattisesti: toisen sisään jäävä
-  suorakulmio poistetaan, ja kaksi suorakulmiota, joiden yhdiste on
-  suorakulmio (sama rivi- tai sarakeväli, päällekkäin tai vierekkäin),
+- Editori yhdistää saman alueen rajaukset: toisen sisään jäävä suorakulmio
+  poistetaan, ja kaksi suorakulmiota, joiden yhdiste on suorakulmio,
   yhdistetään yhdeksi.
 
-### Piirto-ohjeet (`labels paper`)
+### Kartan piirtotapa (`maps.theme paper`)
 
-`- level N | NIMI` ja valinnaisesti `size N`, `spacing wide|normal`,
-`place land|water|center`, `at x,y`, `hide`, `outline dotted`.
-Oletus < tasosääntö < nimisääntö. `land` sijoittaa nimen alueen maaruutujen
-painopisteeseen, `water` syvimpään kohtaan; piirtäjä siirtää nimeä, jos se
-osuisi toiseen nimeen, selitteeseen tai vuoriin.
-
-### Tekstit (`text fi`)
-
-`- NIMI "Näkyvä teksti"`; lainausmerkit ovat vapaaehtoisia. Ilman tekstiä
-näytetään tunniste muokattuna (`SYNKKA_SYVA` → *Synkka syva*).
-
-Vanha `labels:`-osio (`- x,y TEKSTI size N`) luetaan edelleen ja muunnetaan
-yhden ruudun alueiksi.
-
-## Tyylit (`style paper`)
-
-Kartan piirtotyyli kirjoitetaan näkyviin kartan otsikon alle:
-
-```
-map CAVE size 40x30
-style paper cave
-```
-
-| tyyli  | piirto |
+| tapa   | piirto |
 |--------|--------|
-| `sea`  | merikartta (oletus, jos rivi puuttuu) |
+| `sea`  | merikartta (oletus) |
 | `cave` | luola: luonnonseinät rosoisina, rakennetut (`WALL.ornament`, ovet) suorina, kallio viivoitettu seinän vierestä |
 | `ship` | laiva: runko umpiviivoitettuna, kansilankut, ympärillä vaakaviivoitettu meri |
 
-Editorin *Tyyli*-valinta kirjoittaa rivin karttaan. Jos kartassa on seinä-
-tai kansipaloja mutta tyylirivi puuttuu, editori varoittaa.
+Editorin *Tyyli*-valinta kirjoittaa rivin tyylitiedostoon. Jos kartassa on
+seinä- tai kansipaloja mutta piirtotapa puuttuu, editori varoittaa.
+
+### Palojen piirto (`tiles.glyphs paper`)
 
 Palan piirto päätellään legendan nimestä (`WALL.moss`, `FLOOR with CHEST`,
-`STAIR.down as TO_DEEP`, `HULL.port`…). Oletuksia voi ohittaa:
+`STAIR.down as TO_DEEP`, `HULL.port`…). Rivi `- TILE [LAJI] [määreet] [decor]`
+ohittaa päättelyn:
 
 ```
-tiles paper
+tiles.glyphs paper
 - WALL.crystal solid straight pattern runes
 - FLOOR.bridge floor pattern planks
+- MARSH shrubs
+- KRAKEN decor
 ```
 
-Lajit: `solid`, `floor`, `void`, `door`, `stairs`, `exit`; määreet `rough`,
-`straight`, `thin`, `pattern planks|boards|moss|runes`, `symbol NIMI`.
+Lajit: merikartalla `water`, `grass`, `shrubs`, `conifer`, `deciduous`,
+`palm`, `mountain`, `hill`, `river`, `treasure`, `kraken`; luolassa ja
+laivassa `solid`, `floor`, `void`, `door`, `stairs`, `exit`. Määreet `rough`,
+`straight`, `thin`, `pattern planks|boards|gangplank|moss|runes`,
+`symbol NIMI`, `locked`, `up`, `down`. `decor` jättää palan pois
+selitteestä (Tulostus-välilehden *Selitteessä*-valinnat asettavat sen).
 Tunnistamaton pala piirretään lattiana, jonka keskellä on sen merkki.
-Poistumat (`as TO_DEEP`) saavat nimen `text`-osiosta tai tunnisteesta.
+Poistumat (`as TO_DEEP`) saavat nimen kielitiedoston avaimesta
+`KARTTA.TO_DEEP.NAME` tai tunnisteesta.
+
+### Alueiden nimet (`areas.labels paper`)
+
+`- level N` tai `- ALUE [in KARTTA]` ja valinnaisesti `size N` (16 = ruudun
+korkeus), `spacing wide|normal`, `place land|water|center`, `at x,y`, `hide`,
+`outline dotted`. Oletus < tasosääntö < nimisääntö. `land` sijoittaa nimen
+alueen maaruutujen painopisteeseen, `water` syvimpään kohtaan; piirtäjä
+siirtää nimeä, jos se osuisi toiseen nimeen, selitteeseen tai vuoriin.
+Ilman `in`-määrettä sääntö koskee tiedoston kaikkia karttoja.
+
+### Nimet (kielitiedosto)
+
+`KARTTA.NAME` on kartan otsikko ja `KARTTA.ALUE.NAME` alueen nimi. Ilman
+nimeä näytetään tunniste muokattuna (`SYNKKA_SYVA` → *Synkka syva*).
+Nimet-välilehdellä niitä muokataan kartta kerrallaan.
 
 ## Esimerkit
 
 *Esimerkit*-valikosta avautuvat Kapteeni Aaltolan seikkailun kartat
 (Meriskorpionin kansi ja ruuma, luola ja sen alin kerros) sekä merikartta.
-Ne ovat kansiossa `examples/`; valikon sisältö kootaan niistä komennolla
+Kumpikin on kolmena tiedostona kansiossa `examples/`; valikon sisältö kootaan niistä komennolla
 `node tools/build-examples.js`.
 
 ## Monta karttaa yhdessä tiedostossa

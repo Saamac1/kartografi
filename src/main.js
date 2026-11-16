@@ -4,8 +4,10 @@
   const KG = globalThis.KG, $ = id => document.getElementById(id);
   const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* ei tallennusta */ } } };
   let doc = null;
-  const saved = store.get('kg.doc');
-  try { doc = saved ? KG.rlml.parse(saved) : null; } catch (e) { doc = null; }
+  // projekti tallentuu selaimeen kolmena tiedostona (kartat, paperityyli, kieli)
+  const projText = () => KG.rlml.serializeProject(doc.file);
+  const openTexts = texts => KG.rlml.parseProject(texts).maps[0];
+  try { const pj = store.get('kg.proj'), old = store.get('kg.doc'); doc = pj ? openTexts(Object.values(JSON.parse(pj))) : old ? openTexts([old]) : null; } catch (e) { doc = null; }
   if (!doc || !doc.W) doc = KG.generator.generate({ W: 64, H: 44, seed: 7 });
   { const mi = +store.get('kg.map'); if (doc.file && mi > 0 && doc.file.maps[mi]) doc = doc.file.maps[mi]; }
 
@@ -21,13 +23,12 @@
   }
   function download(name, text, mime) {
     if (inArtifact) {
-      if (!saver) { status('Tallennus ei ole käytettävissä – kopioi teksti RLML-lähde-välilehdeltä tai Kopioi SVG -painikkeella'); return; }
-      saver.save({ filename: name, data: text }).then(() => status('Tallennettu ' + name))
-        .catch(e => status(e && e.code === 'declined' ? 'Tallennus peruttiin' : e && e.code === 'rate_limited' ? 'Edellinen tallennus on vielä kesken' : 'Tallennus ei onnistunut: ' + (e && (e.message || e.code))));
-      return;
+      if (!saver) { status('Tallennus ei ole käytettävissä – kopioi teksti RLML-lähde-välilehdeltä tai Kopioi SVG -painikkeella'); return Promise.resolve(false); }
+      return saver.save({ filename: name, data: text }).then(() => { status('Tallennettu ' + name); return true; })
+        .catch(e => { status(e && e.code === 'declined' ? 'Tallennus peruttiin' : e && e.code === 'rate_limited' ? 'Edellinen tallennus on vielä kesken' : 'Tallennus ei onnistunut: ' + (e && (e.message || e.code))); return false; });
     }
-    try { const a = document.createElement('a'); a.href = URL.createObjectURL(text instanceof Blob ? text : new Blob([text], { type: mime })); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000); status('Ladattu ' + name); }
-    catch (e) { status('Lataus estetty tässä ympäristössä – käytä Kopioi-painiketta'); }
+    try { const a = document.createElement('a'); a.href = URL.createObjectURL(text instanceof Blob ? text : new Blob([text], { type: mime })); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000); status('Ladattu ' + name); return new Promise(r => setTimeout(() => r(true), 300)); }
+    catch (e) { status('Lataus estetty tässä ympäristössä – käytä Kopioi-painiketta'); return Promise.resolve(false); }
   }
   const fileBase = () => (doc.name || 'kartta').toLowerCase().replace(/[^a-z0-9._-]+/g, '_');
   const fileName = () => KG.rlml.toId(doc.file && doc.file.title ? doc.file.title : doc.name || 'kartta').toLowerCase();
@@ -89,7 +90,7 @@
 
   // ---- piirto ja esikatselu
   let renderT = 0, last = null, zoom = 1, popup = null;
-  function touched() { refreshModel(); showChecks(); refreshUndo(); store.set('kg.doc', KG.rlml.serialize(doc)); scheduleRender(); if ($('tSrc').classList.contains('on')) $('srcTa').value = KG.rlml.serialize(doc); }
+  function touched() { refreshModel(); showChecks(); refreshUndo(); store.set('kg.proj', JSON.stringify(projText())); scheduleRender(); if ($('tSrc').classList.contains('on')) showSrc(); }
   function scheduleRender() { clearTimeout(renderT); $('renderInfo').textContent = 'piirretään…'; renderT = setTimeout(render, 280); }
   function render() {
     const s = settings(), t0 = performance.now();
@@ -200,16 +201,20 @@
   (KG.examples || []).forEach(x => { const o = document.createElement('option'); o.value = x.id; o.textContent = x.name; $('exSel').appendChild(o); });
   $('exSel').onchange = e => { const x = (KG.examples || []).find(v => v.id === e.target.value); e.target.value = ''; if (!x) return;
     // selaimen vahvistusikkunat on estetty artefaktissa, joten edellinen kartta säilytetään palautettavaksi
-    if (!prevFile) prevFile = { text: KG.rlml.serialize(doc), map: doc.file ? doc.file.maps.indexOf(doc) : 0 };
-    doc = KG.rlml.parse(x.text); store.set('kg.map', '0'); afterDocChange(); status(`Avattu esimerkki: ${x.name}`); $('btnPrev').hidden = false; };
+    if (!prevFile) prevFile = { texts: Object.values(projText()), map: doc.file ? doc.file.maps.indexOf(doc) : 0 };
+    doc = openTexts(x.files); store.set('kg.map', '0'); afterDocChange(); status(`Avattu esimerkki: ${x.name}`); $('btnPrev').hidden = false; };
   let prevFile = null;
-  $('btnPrev').onclick = () => { if (!prevFile) return; const f = KG.rlml.parseFile(prevFile.text); doc = f.maps[Math.max(0, Math.min(prevFile.map, f.maps.length - 1))]; prevFile = null; $('btnPrev').hidden = true; afterDocChange(); status('Edellinen kartta palautettu'); };
+  $('btnPrev').onclick = () => { if (!prevFile) return; const f = KG.rlml.parseProject(prevFile.texts); doc = f.maps[Math.max(0, Math.min(prevFile.map, f.maps.length - 1))]; prevFile = null; $('btnPrev').hidden = true; afterDocChange(); status('Edellinen kartta palautettu'); };
   $('mapSel').onchange = e => { doc = doc.file.maps[+e.target.value]; store.set('kg.map', e.target.value); afterDocChange(); };
   $('styleSel').onchange = e => { doc.style = e.target.value; doc.styleSet = true; KG.rlml.refreshNames(doc); ed.undo = []; afterDocChange(); status(`Kartan tyyliksi asetettiin ${e.target.selectedOptions[0].textContent}`); };
   $('btnResize').onclick = () => { KG.rlml.resize(doc, +$('inW').value, +$('inH').value); ed.undo = []; afterDocChange(); };
-  $('btnSave').onclick = () => download(`${fileName()}.rlml.md`, KG.rlml.serialize(doc), 'text/markdown');
+  // kolme tiedostoa peräkkäin (artefaktissa jokainen vahvistetaan erikseen)
+  $('btnSave').onclick = async () => { const p = projText(), b = fileName(), list = [[`${b}.rlml.md`, p.map], [`${b}.paper.rlml.md`, p.style], [`${b}.${(doc.file && doc.file.lang) || 'fi'}.rlml.md`, p.lang]].filter(x => x[1]);
+    for (const [n, t] of list) { const ok = await download(n, t, 'text/markdown'); if (ok === false) break; } };
   $('btnOpen').onclick = () => $('fileIn').click();
-  $('fileIn').onchange = e => { const fl = e.target.files[0]; if (!fl) return; const rd = new FileReader(); rd.onload = () => { try { doc = KG.rlml.parse(rd.result); store.set('kg.map', '0'); ed.undo = []; afterDocChange(); status('Avattu ' + fl.name); } catch (er) { status('Tiedostoa ei voitu lukea: ' + er.message); } }; rd.readAsText(fl); e.target.value = ''; };
+  $('fileIn').onchange = async e => { const fls = [...e.target.files]; e.target.value = ''; if (!fls.length) return;
+    try { const texts = await Promise.all(fls.map(f => f.text())); if (!texts.some(t => KG.rlml.kindOfText(t) === 'map')) { status('Valitse mukaan myös karttatiedosto (map …)'); return; }
+      doc = openTexts(texts); store.set('kg.map', '0'); ed.undo = []; afterDocChange(); status('Avattu ' + fls.map(f => f.name).join(', ')); } catch (er) { status('Tiedostoa ei voitu lukea: ' + er.message); } };
   $('btnUndo').onclick = $('mUndo').onclick = () => { ed.doUndo(); refreshUndo(); }; $('btnRedo').onclick = $('mRedo').onclick = () => { ed.doRedo(); refreshUndo(); };
   function refreshUndo() { const u = !ed.undo.length, r = !ed.redo.length; $('mUndo').disabled = $('btnUndo').disabled = u; $('mRedo').disabled = $('btnRedo').disabled = r; }
 
@@ -262,11 +267,13 @@
   $('inTitle').oninput = e => { doc.title = e.target.value; touched(); };
   $('btnNamesApply').onclick = () => { doc.rules = KG.rlml.parseRulesText($('rulesTa').value); doc.texts = KG.rlml.parseTextsText($('textsTa').value); areaChanged(); status('Nimet päivitetty'); };
   const fillNames = () => { $('inTitle').value = doc.title || ''; $('rulesTa').value = KG.rlml.rulesText(doc); $('textsTa').value = KG.rlml.textsText(doc); $('langLbl').textContent = doc.lang || 'fi'; };
-  $('btnSrcApply').onclick = () => { try { const fl = KG.rlml.parseFile($('srcTa').value), i = doc.file ? Math.max(0, doc.file.maps.indexOf(doc)) : 0, d = fl.maps[Math.min(i, fl.maps.length - 1)]; if (!d.W || !d.H) throw new Error('map-rivi puuttuu'); doc = d; afterDocChange(); status('Lähde luettu'); } catch (e) { status('Virhe lähteessä: ' + e.message); } };
+  function showSrc() { $('srcTa').value = projText()[$('srcSel').value] || ''; }
+  $('srcSel').onchange = showSrc;
+  $('btnSrcApply').onclick = () => { try { const p = projText(); p[$('srcSel').value] = $('srcTa').value; const fl = KG.rlml.parseProject([p.map, p.style, p.lang]), i = doc.file ? Math.max(0, doc.file.maps.indexOf(doc)) : 0, d = fl.maps[Math.min(i, fl.maps.length - 1)]; if (!d.W || !d.H) throw new Error('map-rivi puuttuu'); doc = d; afterDocChange(); status('Lähde luettu'); } catch (e) { status('Virhe lähteessä: ' + e.message); } };
   document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => {
     document.querySelectorAll('.tabs button').forEach(x => x.classList.toggle('on', x === b));
     document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.id === b.dataset.tab));
-    if (b.dataset.tab === 'tSrc') $('srcTa').value = KG.rlml.serialize(doc);
+    if (b.dataset.tab === 'tSrc') showSrc();
     if (b.dataset.tab === 'tNames') fillNames();
   });
 

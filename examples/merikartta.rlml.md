@@ -60,7 +60,7 @@ legend:
 - n HILL
 - r RIVER
 - X GRASS with TREASURE
-- K WATER with KRAKEN decor
+- K WATER with KRAKEN
 
 areas:
 - 20,6 size 34x25 as LOKKILUOTO
@@ -69,16 +69,3 @@ areas:
 - 54,21 size 7x12 as PALMUSAARI
 - 2,20 size 11x5 as SYNKKA_SYVA
 - 27,11 size 22x15 as KOTKANKALLIO
-
-labels paper
-- level 0 size 11 spacing wide
-- level 1 size 8.5
-- SYNKKA_SYVA size 9 place water
-
-text fi
-- LOKKILUOTO "Lokkiluoto"
-- RUMMUSAARI "Rummusaari"
-- MERIKOTKAN_SAARI "Merikotkan saari"
-- PALMUSAARI "Palmusaari"
-- SYNKKA_SYVA "Synkkä syvä"
-- KOTKANKALLIO "Kotkankallio"

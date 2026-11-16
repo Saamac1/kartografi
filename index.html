@@ -28,8 +28,8 @@
   </span>
   <span class="grp">
     <select id="exSel" title="Avaa esimerkkitiedosto"><option value="">Esimerkit…</option></select>
-    <button id="btnOpen">Avaa…</button><input id="fileIn" type="file" accept=".md,.rlml,.txt" hidden>
-    <button id="btnSave">Tallenna RLML</button>
+    <button id="btnOpen" title="Valitse kartta-, tyyli- ja kielitiedosto (yksi tai useampi)">Avaa…</button><input id="fileIn" type="file" accept=".md,.rlml,.txt" multiple hidden>
+    <button id="btnSave" title="Tallentaa karttatiedoston, paperityylin ja kielitiedoston">Tallenna RLML</button>
   </span>
   <span class="grp">
     <button id="btnUndo" title="Ctrl+Z">↶</button><button id="btnRedo" title="Ctrl+Y">↷</button>
@@ -145,6 +145,7 @@
     <button id="btnNamesApply">Päivitä</button>
   </div>
   <div id="tSrc" class="tab">
+    <div class="row"><label>Tiedosto <select id="srcSel"><option value="map">Kartat (.rlml.md)</option><option value="style">Paperityyli (.paper.rlml.md)</option><option value="lang">Kieli (.fi.rlml.md)</option></select></label></div>
     <textarea id="srcTa" rows="14" spellcheck="false"></textarea>
     <button id="btnSrcApply">Lue lähteestä</button>
   </div>

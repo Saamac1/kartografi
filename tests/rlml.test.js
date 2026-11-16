@@ -18,7 +18,12 @@ test('kirjoitus ja luku säilyttävät kartan, legendan, alueet, säännöt ja t
   doc.areas = [{ x: 0, y: 0, w: 5, h: 3, name: 'NORSUSAARI' }, { x: 1, y: 1, w: 2, h: 1, name: 'VAARAVUORI' }, { x: 4, y: 0, w: 1, h: 1, name: 'NORSUSAARI' }];
   doc.rules = [{ level: 0, size: 11, spacing: 'wide' }, { name: 'VAARAVUORI', place: 'center', at: [2, 1.5] }, { name: 'NORSUSAARI', hide: true, outline: 'dotted' }];
   doc.texts = { NORSUSAARI: 'Norsusaari', VAARAVUORI: 'Vaara "vuori"' };
-  const back = rlml.parse(rlml.serialize(doc));
+  const pj = rlml.serializeProject(doc.file);
+  assert.doesNotMatch(pj.map, /labels paper|text fi/);
+  assert.match(pj.style, /^areas\.labels paper$/m);
+  assert.match(pj.lang, /^language fi\nMERIKARTTA\.NAME /);
+  assert.match(pj.lang, /^MERIKARTTA\.VAARAVUORI\.NAME Vaara "vuori"$/m);
+  const back = rlml.parseProject([pj.lang, pj.style, pj.map]).maps[0];
   assert.deepEqual(back.grid, doc.grid);
   assert.deepEqual(back.areas, doc.areas);
   assert.deepEqual(back.rules, doc.rules);
@@ -62,6 +67,33 @@ test('decor-määre luetaan ja kirjoitetaan', () => {
   const doc = rlml.parse('map T size 2x1\n\n```\n~K\n```\n\nlegend:\n- ~ WATER\n- K WATER with KRAKEN decor\n- X GRASS with TREASURE\n');
   assert.deepEqual(doc.legend.map(e => [e.ch, e.spec, !!e.decor]), [['~', 'WATER', false], ['K', 'WATER with KRAKEN', true], ['X', 'GRASS with TREASURE', false]]);
   assert.equal(rlml.typeMap(doc).K, 'kraken');
-  assert.match(rlml.serialize(doc), /- K WATER with KRAKEN decor\n/);
+  const pj = rlml.serializeProject(doc.file);
+  assert.match(pj.map, /- K WATER with KRAKEN\n/);
+  assert.match(pj.style, /^tiles\.glyphs paper\n- KRAKEN decor$/m);
+  assert.ok(rlml.parseProject([pj.map, pj.style]).maps[0].legend.find(e => e.ch === 'K').decor);
   assert.ok(rlml.DEFAULT_LEGEND.find(e => e.ch === 'K').decor);
+});
+
+test('vanhan kokeilumuodon tiedosto muunnetaan speksin muotoon', () => {
+  const fs = require('fs'), path = require('path');
+  const old = fs.readFileSync(path.join(__dirname, 'vanha-merikartta.rlml.md'), 'utf8');
+  const a = rlml.parseProject([old]).maps[0];
+  const pj = rlml.serializeProject(a.file);
+  const b = rlml.parseProject([pj.map, pj.style, pj.lang]).maps[0];
+  assert.deepEqual(b.areas, a.areas); assert.deepEqual(b.rules, a.rules); assert.deepEqual(b.texts, a.texts);
+  assert.equal(b.title, a.title);
+  assert.deepEqual(b.legend.map(e => !!e.decor), a.legend.map(e => !!e.decor));
+});
+
+test('tiedoston laji päätellään sisällöstä', () => {
+  assert.equal(rlml.kindOfText('> kommentti\nlanguage fi\nA.NAME a'), 'lang');
+  assert.equal(rlml.kindOfText('# T\n\nareas.labels paper\n- level 0 size 9'), 'style');
+  assert.equal(rlml.kindOfText('map A size 1x1\n'), 'map');
+});
+
+test('in KARTTA rajaa piirto-ohjeen yhteen karttaan', () => {
+  const f = rlml.parseProject(['map A size 1x1\n\n```\n~\n```\n\nmap B size 1x1\n\n```\n~\n```\n', 'areas.labels paper\n- level 0 size 9\n- X in B hide\n']);
+  assert.deepEqual(f.maps[0].rules, [{ level: 0, size: 9 }]);
+  assert.deepEqual(f.maps[1].rules, [{ level: 0, size: 9 }, { name: 'X', hide: true }]);
+  assert.match(rlml.serializeStyle(f), /- X in B hide/);
 });

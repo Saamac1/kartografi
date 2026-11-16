@@ -5,7 +5,7 @@
 //          exit   poistuminen kartalta (luolan suu, lankun pää)
 // Valinnat: rough | straight (seinän muoto), pattern moss|runes|planks|boards|gangplank,
 //           symbol NIMI (esim. torch, chest), locked, up | down, thin.
-// Oletukset alla; karttatiedoston "tiles paper" -osio ohittaa ne.
+// Oletukset alla; tyylin "tiles.glyphs paper" -rivit ohittavat ne (dataformaatit 9.6).
 (function () {
   'use strict';
   const KG = globalThis.KG = globalThis.KG || {};

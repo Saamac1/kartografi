@@ -1,19 +1,15 @@
-// RLML-karttatiedoston (markdown) jäsennys ja kirjoitus.
+// RLML-karttatiedostojen (markdown) jäsennys ja kirjoitus.
 // Toimii sekä selaimessa (globaali KG) että Nodessa (require).
 //
-// Tiedosto:  [# Otsikko] [muuta tekstiä, game-rivi …] ja yksi tai useampi kartta,
-//            joista kukin voi alkaa otsikolla "## Nimi".
-// Kartta:
-//   map NIMI size LxK                 koko
-//   style paper sea|cave|ship          paperikartan tyyli (oletus sea)
-//   koodilohko                         ruudukko
-//   legend:                            - <merkki> <TILE> [with …] [as …] [decor]   (merkki voi olla lainattu: ' ')
-//   areas:                             - x,y size LxK as NIMI      (sama nimi useasti = yhdiste)
-//   labels paper                       - level N | NIMI  [size N] [spacing wide|normal] [place land|water|center] [at x,y] [hide] [outline dotted]
-//   tiles paper                        - TILE luokka [valinnat]     (luola- ja laivakarttojen piirto, ks. tiles.js)
-//   text fi                            - NIMI "Näkyvä teksti"      (lainausmerkit vapaaehtoiset)
-//   at:, vars: ja muut osiot           säilyvät sellaisinaan
-//   labels: (vanha)                    - x,y TEKSTI size N         -> muunnetaan alueiksi
+// Projekti on kolme RLML-tiedostoa (dataformaatit, luvut 8.11, 9.6 ja 10):
+//   karttatiedosto   map NIMI size LxK, koodilohko, legend:, areas: (- X,Y size LxK as ALUE), at:, vars: …
+//   tyylitiedosto    maps.theme paper      - KARTTA sea|cave|ship   (- default …)
+//                    tiles.glyphs paper    - TILE [LAJI] [määreet] [decor]
+//                    areas.labels paper    - level N | ALUE  [in KARTTA] [size N] [spacing …] [place …] [at x,y] [hide] [outline dotted]
+//   kielitiedosto    language fi           KARTTA.NAME Näkyvä nimi / KARTTA.ALUE.NAME Alueen nimi
+//
+// Vanhat kokeilumuodot karttatiedoston sisällä (style paper, labels paper, tiles paper, text fi,
+// legendin decor, labels:) luetaan edelleen ja kirjoitetaan uusiin muotoihin.
 (function () {
   'use strict';
   const KG = globalThis.KG = globalThis.KG || {};
@@ -85,11 +81,13 @@
       else if (t === 'at') { const m = (tok[++i] || '').match(/^(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)$/); if (m) r.at = [+m[1], +m[2]]; }
       else if (t === 'hide') r.hide = true;
       else if (t === 'outline') r.outline = (tok[++i] || 'dotted').toLowerCase();
+      else if (t === 'in') r.map = tok[++i];
     }
     return r;
   }
-  function ruleToString(r) {
+  function ruleToString(r, withMap) {
     let s = r.name != null ? r.name : `level ${r.level}`;
+    if (withMap && r.map) s += ` in ${r.map}`;
     if (r.size != null) s += ` size ${r.size}`;
     if (r.spacing) s += ` spacing ${r.spacing}`;
     if (r.place) s += ` place ${r.place}`;
@@ -113,7 +111,7 @@
     const e = { ch, spec, name: known ? known.name : (style && style !== 'sea' && tilesMod() ? tilesMod().nameOf(spec) : TYPE_NAMES[typeOf(spec)]) }; if (decor) e.decor = true;
     return e;
   }
-  const legendLine = e => `- ${/\s/.test(e.ch) || e.ch === "'" ? `'${e.ch}'` : e.ch} ${e.spec}${e.decor ? ' decor' : ''}`;
+  const legendLine = e => `- ${/\s/.test(e.ch) || e.ch === "'" ? `'${e.ch}'` : e.ch} ${e.spec}`;
 
   // ---- tiedosto
   function parseFile(text) {
@@ -213,15 +211,10 @@
     let s = '';
     if (m.hasHeading) s += `## ${m.title}\n\n`;
     s += `map ${m.name || 'MAP'} size ${m.W}x${m.H}\n`;
-    if (m.styleSet || (m.style && m.style !== 'sea')) s += `style paper ${m.style}\n`;
     s += `\n\`\`\`\n${m.grid.join('\n')}\n\`\`\`\n\nlegend:\n`;
     for (const e of m.legend) s += legendLine(e) + '\n';
     for (const r of m.raw || []) s += `\n${r.head}\n${r.lines.join('\n')}${r.lines.length ? '\n' : ''}`;
     if (m.areas && m.areas.length) { s += '\nareas:\n'; for (const a of m.areas) s += `- ${a.x},${a.y} size ${a.w}x${a.h} as ${a.name}\n`; }
-    if (m.rules && m.rules.length) { s += '\nlabels paper\n'; for (const r of m.rules) s += `- ${ruleToString(r)}\n`; }
-    if (m.tileRules && m.tileRules.length) { s += '\ntiles paper\n'; for (const r of m.tileRules) s += `- ${[r.tile, r.kind].concat(r.opts || []).join(' ')}\n`; }
-    const tk = Object.keys(m.texts || {});
-    if (tk.length) { s += `\ntext ${m.lang || 'fi'}\n`; for (const k of tk) s += `- ${k} ${quote(m.texts[k])}\n`; }
     return s;
   }
   function serializeFile(file) {
@@ -231,6 +224,115 @@
     s += file.maps.map(serializeMap).join('\n');
     return s;
   }
+  // ---- projekti: karttatiedosto + tyylitiedosto (paper) + kielitiedosto
+  const SEA_KINDS = ['water', 'grass', 'shrubs', 'conifer', 'deciduous', 'palm', 'mountain', 'hill', 'river', 'treasure', 'kraken'];
+  const DUNGEON_KINDS = ['solid', 'floor', 'void', 'door', 'stairs', 'exit'];
+  const STYLE_HEAD = /^(maps\.theme|tiles\.glyphs|areas\.labels)\s+paper\s*$/i;
+  // tiedoston laji sisällöstä: ensimmäinen määrittely ratkaisee kielitiedoston (luku 10)
+  function kindOfText(text) {
+    const lines = String(text).replace(/\r/g, '').split('\n');
+    let inCode = false;
+    for (const ln of lines) { const t = ln.trim(); if (t.startsWith('```')) { inCode = !inCode; continue; } if (inCode || !t || t.startsWith('#') || t.startsWith('>') || /^namespace\s/i.test(t)) continue; if (/^language\s+[a-z]{2,3}$/i.test(t)) return 'lang'; break; }
+    if (/^map\s+\S+/im.test(text)) return 'map';
+    if (lines.some(l => STYLE_HEAD.test(l.trim()))) return 'style';
+    return 'map';
+  }
+  function parseStyle(text) {
+    const st = { themes: {}, glyphs: [], labels: [], other: [] };
+    let sec = null, other = null;
+    const closeOther = () => { if (other) { while (other.length && !other[other.length - 1].trim()) other.pop(); st.other.push(other.join('\n')); } other = null; };
+    let inCode = false;
+    for (const ln of String(text).replace(/\r/g, '').split('\n')) {
+      const t = ln.trim(); let mm;
+      if (t.startsWith('```')) { inCode = !inCode; if (other) other.push(ln); continue; }
+      if (inCode) { if (other) other.push(ln); continue; }
+      if ((mm = t.match(STYLE_HEAD))) { closeOther(); sec = mm[1].toLowerCase(); continue; }
+      if (!t || t.startsWith('#') || t.startsWith('>')) { if (other) other.push(ln); continue; }
+      if (!t.startsWith('-')) { closeOther(); sec = null; other = [ln]; continue; }
+      if (other) { other.push(ln); continue; }
+      const body = t.slice(1).trim(), tk = body.split(/\s+/);
+      if (sec === 'maps.theme') { if (tk[0] && STYLES.includes((tk[1] || '').toLowerCase())) st.themes[tk[0]] = tk[1].toLowerCase(); }
+      else if (sec === 'tiles.glyphs') { if (!tk[0]) continue; const g = { tile: tk[0], kind: null, opts: [], decor: false }; let rest = tk.slice(1);
+        if (rest[0] && (DUNGEON_KINDS.includes(rest[0].toLowerCase()) || SEA_KINDS.includes(rest[0].toLowerCase()))) { g.kind = rest[0].toLowerCase(); rest = rest.slice(1); }
+        g.decor = rest.some(x => x.toLowerCase() === 'decor'); g.opts = rest.filter(x => x.toLowerCase() !== 'decor'); st.glyphs.push(g); }
+      else if (sec === 'areas.labels') { if (body) st.labels.push(parseRule(body)); }
+    }
+    closeOther();
+    return st;
+  }
+  function parseLang(text) {
+    const out = { lang: 'fi', keys: {} }; let inCode = false;
+    for (const ln of String(text).replace(/\r/g, '').split('\n')) {
+      const t = ln.trim(); let mm; if (t.startsWith('```')) { inCode = !inCode; continue; } if (inCode || !t || t.startsWith('>') || t.startsWith('#')) continue;
+      if ((mm = t.match(/^language\s+([a-z]{2,3})$/i))) { out.lang = mm[1].toLowerCase(); continue; }
+      if ((mm = t.match(/^([A-Z_][A-Za-z0-9_.]*)\s+(.+)$/))) out.keys[mm[1]] = mm[2];
+    }
+    return out;
+  }
+  // tilen nimen haku kuten tilen ominaisuuksissa: tarkin nimi, sitten perusnimi
+  const glyphFor = (rows, name) => { const parts = String(name).split('.'); for (let n = parts.length; n > 0; n--) { const k = parts.slice(0, n).join('.'); const r = rows.find(g => g.tile === k); if (r) return r; } return null; };
+  const specNames = spec => { const tk = String(spec).split(/\s+/), out = [tk[0]]; for (let i = 1; i < tk.length; i++) if (tk[i].toLowerCase() === 'with') { for (i++; i < tk.length && !/^(as|wire|with)$/i.test(tk[i]); i++) if (/^[A-Z]/.test(tk[i])) out.push(tk[i]); i--; } return out; };
+  function applyStyle(file, st) {
+    for (const m of file.maps) {
+      const th = st.themes[m.name] || st.themes.default; if (th) { m.style = th; m.styleSet = true; }
+      for (const e of m.legend) { const names = specNames(e.spec); if (names.some(n => { const g = glyphFor(st.glyphs, n); return g && g.decor; })) e.decor = true; }
+      const tr = st.glyphs.filter(g => g.kind).map(g => ({ tile: g.tile, kind: g.kind, opts: g.opts.slice() }));
+      if (tr.length) { const have = new Set(tr.map(r => r.tile)); m.tileRules = tr.concat((m.tileRules || []).filter(r => !have.has(r.tile))); }
+      const rules = st.labels.filter(r => !r.map || r.map === m.name).map(r => { const o = Object.assign({}, r); delete o.map; return o; });
+      if (rules.length) m.rules = (m.rules || []).concat(rules);
+      if (m.style !== 'sea' || m.styleSet) refreshNames(m);
+    }
+    file.styleOther = (file.styleOther || []).concat(st.other);
+  }
+  function applyLang(file, L) {
+    const maps = file.maps.slice().sort((a, b) => b.name.length - a.name.length), used = new Set();
+    for (const k of Object.keys(L.keys)) {
+      if (!k.endsWith('.NAME')) continue; const stem = k.slice(0, -5);
+      const m = maps.find(x => stem === x.name || stem.startsWith(x.name + '.')); if (!m) continue;
+      used.add(k);
+      if (stem === m.name) { m.title = L.keys[k]; m.hasHeading = m.hasHeading || file.maps.length > 1; }
+      else { m.texts[stem.slice(m.name.length + 1)] = L.keys[k]; }
+      m.lang = L.lang;
+    }
+    file.lang = L.lang;
+    file.langOther = (file.langOther || []).concat(Object.keys(L.keys).filter(k => !used.has(k)).map(k => `${k} ${L.keys[k]}`));
+  }
+  // texts: tiedostojen sisällöt missä järjestyksessä tahansa (kartta, tyyli, kieli)
+  function parseProject(texts) {
+    const list = (Array.isArray(texts) ? texts : [texts]).filter(t => t && String(t).trim());
+    const maps = list.filter(t => kindOfText(t) === 'map'), styles = list.filter(t => kindOfText(t) === 'style'), langs = list.filter(t => kindOfText(t) === 'lang');
+    const file = parseFile(maps[0] || '');
+    for (const extra of maps.slice(1)) { const f2 = parseFile(extra); for (const m of f2.maps) { attach(m, file); file.maps.push(m); } }
+    file.styleOther = []; file.langOther = []; file.lang = file.maps[0].lang || 'fi';
+    for (const t of styles) applyStyle(file, parseStyle(t));
+    for (const t of langs) applyLang(file, parseLang(t));
+    return file;
+  }
+  function serializeStyle(file) {
+    const maps = file.maps, multi = maps.length > 1; let s = '';
+    const themed = maps.filter(m => m.styleSet || m.style !== 'sea');
+    if (themed.length) { s += 'maps.theme paper\n'; for (const m of themed) s += `- ${m.name} ${m.style}\n`; }
+    const rows = new Map();
+    for (const m of maps) for (const r of m.tileRules || []) if (!rows.has(r.tile)) rows.set(r.tile, [r.tile, r.kind].concat(r.opts || []));
+    for (const m of maps) for (const e of m.legend) if (e.decor) { const names = specNames(e.spec), n = names[names.length - 1]; if (rows.has(n)) { if (!rows.get(n).includes('decor')) rows.get(n).push('decor'); } else rows.set(n, [n, 'decor']); }
+    if (rows.size) { s += (s ? '\n' : '') + 'tiles.glyphs paper\n'; for (const r of rows.values()) s += `- ${r.join(' ')}\n`; }
+    const lab = []; for (const m of maps) for (const r of m.rules || []) lab.push('- ' + ruleToString(Object.assign({}, r, { map: multi ? m.name : null }), true));
+    if (lab.length) s += (s ? '\n' : '') + 'areas.labels paper\n' + lab.join('\n') + '\n';
+    for (const o of file.styleOther || []) s += (s ? '\n' : '') + o + '\n';
+    if (!s) return '';
+    return `# ${file.title || (maps[0] && maps[0].title) || 'Kartat'}: paperikartan tyyli\n\n` + s;
+  }
+  function serializeLang(file) {
+    const lang = file.lang || (file.maps[0] && file.maps[0].lang) || 'fi', lines = [];
+    for (const m of file.maps) {
+      if (m.title && (m.hasHeading || file.maps.length === 1)) lines.push(`${m.name}.NAME ${m.title}`);
+      for (const k of Object.keys(m.texts || {})) lines.push(`${m.name}.${k}.NAME ${m.texts[k]}`);
+    }
+    for (const o of file.langOther || []) lines.push(o);
+    return lines.length ? `language ${lang}\n` + lines.join('\n') + '\n' : '';
+  }
+  function serializeProject(file) { return { map: serializeFile(file), style: serializeStyle(file), lang: serializeLang(file) }; }
+
   // yksittäisen kartan rajapinta (vanhat kutsut): ensimmäinen kartta, tiedosto mukana
   function parse(text) { return parseFile(text).maps[0]; }
   function serialize(doc) {
@@ -245,7 +347,7 @@
 
   // palojen nimet kartan tyylin mukaan (tyylin vaihtuessa)
   function refreshNames(doc) { for (const e of doc.legend) { const known = DEFAULT_LEGEND.find(d => d.ch === e.ch && d.spec === e.spec); e.name = known && doc.style === 'sea' ? known.name : (doc.style !== 'sea' && tilesMod() ? tilesMod().nameOf(e.spec) : TYPE_NAMES[typeOf(e.spec)]); } }
-  function typeMap(doc) { const m = {}; for (const e of doc.legend) m[e.ch] = typeOf(e.spec); return m; }
+  function typeMap(doc) { const m = {}; for (const e of doc.legend) { const r = glyphFor(doc.tileRules || [], specNames(e.spec)[0]); m[e.ch] = r && SEA_KINDS.includes(r.kind) ? r.kind : typeOf(e.spec); } return m; }
 
   function resize(doc, W, H) {
     const fc = fillChar(doc), g = [];
@@ -255,7 +357,7 @@
     return doc;
   }
 
-  const api = { attach, refreshNames, DEFAULT_LEGEND, TYPE_NAMES, STYLES, typeOf, toId, ID_RE, parse, parseFile, serialize, serializeFile, serializeMap, typeMap, blankDoc, newMap, normalize, resize, fillChar, parseRule, ruleToString, parseText, parseLegendLine, legendLine, rulesText, textsText, parseRulesText, parseTextsText };
+  const api = { parseProject, serializeProject, serializeStyle, serializeLang, parseStyle, parseLang, kindOfText, SEA_KINDS, DUNGEON_KINDS, attach, refreshNames, DEFAULT_LEGEND, TYPE_NAMES, STYLES, typeOf, toId, ID_RE, parse, parseFile, serialize, serializeFile, serializeMap, typeMap, blankDoc, newMap, normalize, resize, fillChar, parseRule, ruleToString, parseText, parseLegendLine, legendLine, rulesText, textsText, parseRulesText, parseTextsText };
   KG.rlml = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })();

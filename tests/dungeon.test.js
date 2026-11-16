@@ -24,13 +24,14 @@ test('luola- ja laivakartat piirtyvät pelkällä mustalla', () => {
   }
 });
 
-test('style-rivi kirjoitetaan näkyviin ja luetaan takaisin', () => {
+test('kartan piirtotapa kirjoitetaan tyylitiedostoon ja luetaan takaisin', () => {
   const f = rlml.parseFile(game);
   const m = f.maps.find(x => x.name === 'CAVE');
   m.style = 'cave'; m.styleSet = true;
-  const again = rlml.parseFile(rlml.serialize(m)).maps.find(x => x.name === 'CAVE');
-  assert.strictEqual(again.style, 'cave');
-  assert.match(rlml.serialize(m), /style paper cave/);
+  const pj = rlml.serializeProject(f);
+  assert.match(pj.style, /^maps\.theme paper\n- CAVE cave$/m);
+  assert.strictEqual(pj.map, game);
+  assert.strictEqual(rlml.parseProject([pj.map, pj.style]).maps.find(x => x.name === 'CAVE').style, 'cave');
 });
 
 test('luolageneraattori on deterministinen ja kierrättyy', () => {
@@ -57,8 +58,10 @@ test('fitCell hyväksyy mitat', () => {
 test('esimerkkivalikon tiedostot ovat ajan tasalla', () => {
   const ex = path.join(__dirname, '..', 'examples');
   require('../src/examples.js');
-  const list = globalThis.KG.examples;
-  assert.strictEqual(list.find(x => x.id === 'aaltola').text, fs.readFileSync(path.join(ex, 'kapteeni-aaltola-kartat.rlml.md'), 'utf8'));
-  const f = rlml.parseFile(list.find(x => x.id === 'aaltola').text);
+  const x = globalThis.KG.examples.find(v => v.id === 'aaltola');
+  assert.strictEqual(x.files[0], game);
+  assert.strictEqual(x.files[1], fs.readFileSync(path.join(ex, 'kapteeni-aaltola.paper.rlml.md'), 'utf8'));
+  const f = rlml.parseProject(x.files);
   assert.deepStrictEqual(f.maps.map(m => m.style), ['ship', 'ship', 'cave', 'cave']);
+  assert.deepStrictEqual(rlml.serializeProject(f), { map: x.files[0], style: x.files[1], lang: x.files[2] });
 });
