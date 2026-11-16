@@ -73,7 +73,7 @@
 
   // ---- piirto ja esikatselu
   let renderT = 0, last = null, zoom = 1, popup = null;
-  function touched() { refreshModel(); showChecks(); store.set('kg.doc', KG.rlml.serialize(doc)); scheduleRender(); if ($('tSrc').classList.contains('on')) $('srcTa').value = KG.rlml.serialize(doc); }
+  function touched() { refreshModel(); showChecks(); refreshUndo(); store.set('kg.doc', KG.rlml.serialize(doc)); scheduleRender(); if ($('tSrc').classList.contains('on')) $('srcTa').value = KG.rlml.serialize(doc); }
   function scheduleRender() { clearTimeout(renderT); $('renderInfo').textContent = 'piirretään…'; renderT = setTimeout(render, 280); }
   function render() {
     const s = settings(), t0 = performance.now();
@@ -147,7 +147,8 @@
   $('btnSave').onclick = () => download(`${fileBase()}.rlml.md`, KG.rlml.serialize(doc), 'text/markdown');
   $('btnOpen').onclick = () => $('fileIn').click();
   $('fileIn').onchange = e => { const fl = e.target.files[0]; if (!fl) return; const rd = new FileReader(); rd.onload = () => { try { doc = KG.rlml.parse(rd.result); ed.undo = []; afterDocChange(); status('Avattu ' + fl.name); } catch (er) { status('Tiedostoa ei voitu lukea: ' + er.message); } }; rd.readAsText(fl); e.target.value = ''; };
-  $('btnUndo').onclick = () => ed.doUndo(); $('btnRedo').onclick = () => ed.doRedo();
+  $('btnUndo').onclick = $('mUndo').onclick = () => { ed.doUndo(); refreshUndo(); }; $('btnRedo').onclick = $('mRedo').onclick = () => { ed.doRedo(); refreshUndo(); };
+  function refreshUndo() { const u = !ed.undo.length, r = !ed.redo.length; $('mUndo').disabled = $('btnUndo').disabled = u; $('mRedo').disabled = $('btnRedo').disabled = r; }
 
   // ---- alueet: lista, työkalu, tarkistukset
   function areaChanged() { refreshModel(); buildAreaList(); ed.draw(); touched(); }
@@ -170,7 +171,7 @@
     $('btnToolDone').hidden = ed.readOnly || ed.mode === 'paint';
   };
   endAreaTool = () => { selArea = null; setTool('paint'); buildAreaList(); };
-  setMode = read => { ed.setReadOnly(read); $('mRead').classList.toggle('on', read); $('mEdit').classList.toggle('on', !read); if (read && ed.mode !== 'paint') endAreaTool(); store.set('kg.mode', read ? 'read' : 'edit'); setTool(ed.mode); };
+  setMode = read => { ed.setReadOnly(read); document.body.classList.toggle('readmode', read); $('mRead').classList.toggle('on', read); $('mEdit').classList.toggle('on', !read); if (read && ed.mode !== 'paint') endAreaTool(); store.set('kg.mode', read ? 'read' : 'edit'); setTool(ed.mode); };
   $('mRead').onclick = () => setMode(true);
   $('mEdit').onclick = () => setMode(false);
   $('btnToolDone').onclick = () => endAreaTool();
@@ -182,7 +183,7 @@
   // puhelimessa: välilehdet editorille, esikatselulle ja asetuksille
   document.querySelectorAll('#appTabs button').forEach(b => b.onclick = () => {
     document.querySelectorAll('#appTabs button').forEach(x => x.classList.toggle('on', x === b));
-    document.body.className = 'pane-' + b.dataset.pane;
+    document.body.className = 'pane-' + b.dataset.pane + (ed.readOnly ? ' readmode' : '');
     if (b.dataset.pane === 'preview' && last) showSvg(last.svg);
     if (b.dataset.pane === 'settings' && $('tNames').classList.contains('on')) fillNames();
   });

@@ -48,7 +48,8 @@ tiedostot ovat tavallisia skriptejä, joten `file://` toimii.
 Kapealla näytöllä editori, esikatselu sekä tulostus ja nimet ovat omilla
 välilehdillään, ja tiedosto- ja generointipainikkeet ovat ☰-valikossa.
 Puhelin aloittaa lukutilassa, jossa yksi sormi vierittää. Muokkaustilassa yksi
-sormi piirtää ja kaksi sormea vierittää. Esikatselua ei voi irrottaa omaksi
+sormi piirtää ja kaksi sormea vierittää, ja editorin yläpalkissa ovat Kumoa- ja
+Tee uudelleen -painikkeet. Esikatselua ei voi irrottaa omaksi
 ikkunakseen.
 
 ## Tulostus
