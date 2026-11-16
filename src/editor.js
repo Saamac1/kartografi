@@ -35,6 +35,7 @@
         c.lineWidth = on ? 3 : 1.5; c.strokeStyle = on ? 'rgba(200,20,60,.95)' : `hsla(${(A.level * 70 + 210) % 360},70%,35%,.75)`; c.setLineDash(on ? [] : [5, 3]);
         c.strokeRect(a.x * cw + 1, a.y * ch + 1, a.w * cw - 2, a.h * ch - 2); }
       c.setLineDash([]); c.lineWidth = 1;
+      if (this.mode === 'move' && sel) for (const a of d.areas || []) if (a.name === sel && (a.w > 1 || a.h > 1)) { c.fillStyle = 'rgba(200,20,60,.95)'; c.fillRect((a.x + a.w) * cw - 8, (a.y + a.h) * ch - 8, 7, 7); }
       if (this.band) { const b = this.norm(this.band); c.fillStyle = 'rgba(200,20,60,.12)'; c.fillRect(b.x * cw, b.y * ch, b.w * cw, b.h * ch); c.strokeStyle = '#c8143c'; c.lineWidth = 2; c.strokeRect(b.x * cw + 1, b.y * ch + 1, b.w * cw - 2, b.h * ch - 2); c.lineWidth = 1; }
       if (this.hover && this.mode === 'paint') { const n = this.brushSize, o = Math.floor((n - 1) / 2); c.strokeStyle = 'rgba(0,0,0,.6)'; c.strokeRect((this.hover.x - o) * cw + .5, (this.hover.y - o) * ch + .5, n * cw - 1, n * ch - 1); }
       c.lineWidth = 2; c.strokeStyle = document.activeElement === this.cv ? '#2f5d8a' : '#888'; c.strokeRect(this.cur.x * cw + 1, this.cur.y * ch + 1, cw - 2, ch - 2); c.lineWidth = 1;
@@ -45,7 +46,8 @@
       if (e.pointerType !== 'touch') return false;
       this.touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (this.touches.size === 2) {
-        if (this.drag) { if (this.drag.changed && this.undo.length) { this.doc.grid = this.undo.pop(); this.hooks.changed(); } else if (!this.drag.changed) this.undo.pop(); this.drag = null; }
+        if (this.drag) { if (this.drag.changed && this.undo.length) { this.restore(this.undo.pop()); this.hooks.changed(); } else if (!this.drag.changed) this.undo.pop(); this.drag = null; }
+        if (this.mv) { if (this.undo.length) { this.restore(this.undo.pop()); this.hooks.restored(); } this.mv = null; }
         this.band = null;
         const s = this.cv.parentElement, m = this.mid(); this.pan = { x: m.x, y: m.y, sl: s.scrollLeft, st: s.scrollTop }; this.draw();
         return true;
@@ -66,9 +68,48 @@
       return false;
     }
     mid() { const v = [...this.touches.values()]; return { x: (v[0].x + v[1].x) / 2, y: (v[0].y + v[1].y) / 2 }; }
+    // ---- alueiden siirto ja koon muutos
+    areaTarget(p) {
+      const M = this.hooks.getModel(), sel = this.hooks.selectedArea(), inR = a => p.x >= a.x && p.y >= a.y && p.x < a.x + a.w && p.y < a.y + a.h;
+      // kulmakahva ensin (valittu alue, sitten tarkin), muuten tarkin alue kohdassa
+      const corner = a => (a.w > 1 || a.h > 1) && p.x === a.x + a.w - 1 && p.y === a.y + a.h - 1, l = M.at(p.x, p.y);
+      if (sel && (this.doc.areas || []).some(a => a.name === sel && corner(a))) return sel;
+      for (let i = l.length - 1; i >= 0; i--) if ((this.doc.areas || []).some(a => a.name === l[i] && corner(a))) return l[i];
+      return l.length ? l[l.length - 1] : null;
+    }
+    group(name) {
+      const M = this.hooks.getModel(), names = new Set([name]);
+      if (this.hooks.moveChildren()) { const walk = n => { for (const c of (M.byName[n] ? M.byName[n].children : [])) { names.add(c); walk(c); } }; walk(name); }
+      return names;
+    }
+    startMove(p, name) {
+      const d = this.doc; this.snapshot();
+      const corner = d.areas.find(a => a.name === name && (a.w > 1 || a.h > 1) && p.x === a.x + a.w - 1 && p.y === a.y + a.h - 1);
+      if (corner) { this.mv = { kind: 'resize', rect: corner, start: p, ow: corner.w, oh: corner.h, changed: false }; this.hooks.status('Kulmasta raahaus muuttaa suorakulmion kokoa'); return; }
+      const names = this.group(name), rects = d.areas.filter(a => names.has(a.name));
+      this.mv = { kind: 'move', start: p, rects, orig: rects.map(r => ({ x: r.x, y: r.y })), changed: false };
+    }
+    clampDelta(rects, orig, dx, dy) {
+      const d = this.doc; let lx = -Infinity, hx = Infinity, ly = -Infinity, hy = Infinity;
+      rects.forEach((r, i) => { lx = Math.max(lx, -orig[i].x); hx = Math.min(hx, d.W - (orig[i].x + r.w)); ly = Math.max(ly, -orig[i].y); hy = Math.min(hy, d.H - (orig[i].y + r.h)); });
+      return [Math.max(lx, Math.min(hx, dx)), Math.max(ly, Math.min(hy, dy))];
+    }
+    dragMove(p) {
+      const m = this.mv, d = this.doc, dx = p.x - m.start.x, dy = p.y - m.start.y;
+      if (m.kind === 'resize') { const r = m.rect, w = Math.max(1, Math.min(d.W - r.x, m.ow + dx)), h = Math.max(1, Math.min(d.H - r.y, m.oh + dy)); if (w !== r.w || h !== r.h) { r.w = w; r.h = h; m.changed = true; this.hooks.areasChanged(true); } return; }
+      const [cx, cy] = this.clampDelta(m.rects, m.orig, dx, dy);
+      if (m.rects[0].x !== m.orig[0].x + cx || m.rects[0].y !== m.orig[0].y + cy) { m.rects.forEach((r, i) => { r.x = m.orig[i].x + cx; r.y = m.orig[i].y + cy; }); m.changed = cx !== 0 || cy !== 0 || m.changed; this.hooks.areasChanged(true); }
+    }
+    nudge(dx, dy) {
+      const name = this.hooks.selectedArea(), names = this.group(name), rects = this.doc.areas.filter(a => names.has(a.name)); if (!rects.length) return;
+      const orig = rects.map(r => ({ x: r.x, y: r.y })), [cx, cy] = this.clampDelta(rects, orig, dx, dy); if (!cx && !cy) return;
+      this.snapshot(); rects.forEach((r, i) => { r.x = orig[i].x + cx; r.y = orig[i].y + cy; }); this.hooks.areasChanged(false); this.draw();
+    }
     cellAt(e) { const r = this.cv.getBoundingClientRect(); return { x: Math.floor((e.clientX - r.left) / this.cw), y: Math.floor((e.clientY - r.top) / this.ch) }; }
     inside(p) { return p.x >= 0 && p.y >= 0 && p.x < this.doc.W && p.y < this.doc.H; }
-    snapshot() { this.undo.push(this.doc.grid.slice()); if (this.undo.length > 300) this.undo.shift(); this.redo = []; }
+    state() { return { grid: this.doc.grid.slice(), areas: JSON.parse(JSON.stringify(this.doc.areas || [])) }; }
+    restore(s) { this.doc.grid = s.grid; this.doc.areas = s.areas; }
+    snapshot() { this.undo.push(this.state()); if (this.undo.length > 300) this.undo.shift(); this.redo = []; }
     set(x, y, k) { const d = this.doc; if (x < 0 || y < 0 || x >= d.W || y >= d.H) return false; const r = d.grid[y]; if (r[x] === k) return false; d.grid[y] = r.slice(0, x) + k + r.slice(x + 1); return true; }
     stamp(p) { const n = this.brushSize, o = Math.floor((n - 1) / 2); let ch = false; for (let b = 0; b < n; b++) for (let a = 0; a < n; a++) ch = this.set(p.x - o + a, p.y - o + b, this.brush) || ch; return ch; }
     line(p, q) { let ch = false; const n = Math.max(Math.abs(q.x - p.x), Math.abs(q.y - p.y)); for (let s = 0; s <= n; s++) ch = this.stamp({ x: Math.round(p.x + (q.x - p.x) * s / (n || 1)), y: Math.round(p.y + (q.y - p.y) * s / (n || 1)) }) || ch; return ch; }
@@ -77,6 +118,11 @@
     down(e) {
       const p = this.cellAt(e); if (!this.inside(p)) return;
       this.cv.focus(); this.cur = { x: p.x, y: p.y }; this.typeStartX = p.x;
+      if (this.mode === 'move') {
+        if (e.button !== 0) return;
+        const name = this.areaTarget(p); if (!name) { this.hooks.status('Kohdassa ei ole aluetta'); return; }
+        this.hooks.selectArea(name); this.startMove(p, name); this.cv.setPointerCapture(e.pointerId); this.draw(); return;
+      }
       if (this.mode === 'area') {
         if (e.button === 2) { this.hooks.removeRectAt(p); this.draw(); return; }
         if (e.button === 0) { this.band = { x0: p.x, y0: p.y, x1: p.x, y1: p.y }; this.cv.setPointerCapture(e.pointerId); this.draw(); }
@@ -90,13 +136,15 @@
     }
     move(e) { const p = this.cellAt(e); this.hover = this.inside(p) ? p : null;
       if (this.band) { this.band.x1 = Math.max(0, Math.min(this.doc.W - 1, p.x)); this.band.y1 = Math.max(0, Math.min(this.doc.H - 1, p.y)); this.draw(); return; }
+      if (this.mv) { this.dragMove(p); this.draw(); return; }
       if (this.drag && this.inside(p) && (p.x !== this.drag.last.x || p.y !== this.drag.last.y)) { const ch = this.line(this.drag.last, p); this.drag.last = p; this.cur = { x: p.x, y: p.y }; if (ch) { this.drag.changed = true; this.hooks.changed(true); } }
       this.draw(); }
     norm(b) { const x = Math.min(b.x0, b.x1), y = Math.min(b.y0, b.y1); return { x, y, w: Math.abs(b.x1 - b.x0) + 1, h: Math.abs(b.y1 - b.y0) + 1 }; }
-    up() { if (this.band) { const r = this.norm(this.band); this.band = null; this.hooks.addRect(r); this.draw(); return; }
+    up() { if (this.mv) { const m = this.mv; this.mv = null; if (!m.changed) this.undo.pop(); else this.hooks.areasChanged(false); this.draw(); return; }
+      if (this.band) { const r = this.norm(this.band); this.band = null; this.hooks.addRect(r); this.draw(); return; }
       if (!this.drag) return; if (!this.drag.changed) this.undo.pop(); else this.hooks.changed(); this.drag = null; }
-    doUndo() { if (!this.undo.length) return; this.redo.push(this.doc.grid.slice()); this.doc.grid = this.undo.pop(); this.draw(); this.hooks.changed(); }
-    doRedo() { if (!this.redo.length) return; this.undo.push(this.doc.grid.slice()); this.doc.grid = this.redo.pop(); this.draw(); this.hooks.changed(); }
+    doUndo() { if (!this.undo.length) return; this.redo.push(this.state()); this.restore(this.undo.pop()); this.hooks.restored(); this.draw(); }
+    doRedo() { if (!this.redo.length) return; this.undo.push(this.state()); this.restore(this.redo.pop()); this.hooks.restored(); this.draw(); }
     moveCur(dx, dy, keepStart) { const d = this.doc; this.cur.x = Math.max(0, Math.min(d.W - 1, this.cur.x + dx)); this.cur.y = Math.max(0, Math.min(d.H - 1, this.cur.y + dy)); if (!keepStart) this.typeStartX = this.cur.x; this.scrollTo(); this.draw(); }
     scrollTo() { const sc = this.cv.parentElement, x = this.cur.x * this.cw, y = this.cur.y * this.ch;
       if (x < sc.scrollLeft) sc.scrollLeft = x - 20; else if (x + this.cw > sc.scrollLeft + sc.clientWidth) sc.scrollLeft = x + this.cw - sc.clientWidth + 20;
@@ -107,6 +155,7 @@
       if ((e.ctrlKey || e.metaKey) && (k === 'y' || k === 'Y')) { e.preventDefault(); this.doRedo(); return; }
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       const mv = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[k];
+      if (mv && this.mode === 'move' && this.hooks.selectedArea()) { e.preventDefault(); this.nudge(mv[0], mv[1]); return; }
       if (mv) { e.preventDefault(); this.moveCur(mv[0], mv[1]); return; }
       if (k === 'Home') { e.preventDefault(); this.cur.x = 0; this.moveCur(0, 0); return; }
       if (k === 'End') { e.preventDefault(); this.cur.x = this.doc.W - 1; this.moveCur(0, 0); return; }

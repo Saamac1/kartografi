@@ -29,6 +29,11 @@ tiedostot ovat tavallisia skriptejä, joten `file://` toimii.
   vaihtaa rajaustilaan. *Rajaa alue* -tilassa
   raahataan suorakulmio valitulle alueelle (oikea napsautus poistaa). Lista
   näyttää hierarkian, ja alla näkyvät tarkistusten huomautukset.
+- **Siirrä alue:** raahaa aluetta kartalla; tarttuu kohdan tarkimpaan
+  alueeseen. Sisemmät alueet siirtyvät mukana (valinnan voi poistaa).
+  Suorakulmion oikean alakulman kahvasta raahaus muuttaa sen kokoa, ja
+  nuolinäppäimet siirtävät valittua aluetta (Vaihto = 5 ruutua). Alueiden
+  muutokset kumoutuvat Ctrl+Z:lla samoin kuin maaston muutokset.
 - **Nimet-välilehti:** otsikko, piirto-ohjeet (`labels paper`) ja tekstit
   (`text fi`).
 - **RLML-lähde-välilehti:** kartta tekstinä; muokkaa ja lue takaisin.

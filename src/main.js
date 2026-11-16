@@ -28,8 +28,11 @@
     changed: () => { touched(); },
     pick: ch => setBrush(ch),
     getModel: () => M, selectedArea: () => selArea, showAreas: () => $('showAreas').checked,
-    addRect: r => { if (!selArea) { status('Valitse tai luo alue ensin'); return; } doc.areas.push(Object.assign(r, { name: selArea })); areaChanged(); },
-    removeRectAt: p => { for (let i = doc.areas.length - 1; i >= 0; i--) { const a = doc.areas[i]; if ((!selArea || a.name === selArea) && p.x >= a.x && p.y >= a.y && p.x < a.x + a.w && p.y < a.y + a.h) { doc.areas.splice(i, 1); areaChanged(); status(`Suorakulmio poistettu alueesta ${a.name}`); return; } } },
+    selectArea: n => { selArea = n; buildAreaList(); }, moveChildren: () => $('moveChildren').checked,
+    areasChanged: live => { refreshModel(); if (!live) { buildAreaList(); touched(); } else scheduleRender(); ed.draw(); },
+    restored: () => { refreshModel(); buildAreaList(); touched(); },
+    addRect: r => { if (!selArea) { status('Valitse tai luo alue ensin'); return; } ed.snapshot(); doc.areas.push(Object.assign(r, { name: selArea })); areaChanged(); },
+    removeRectAt: p => { for (let i = doc.areas.length - 1; i >= 0; i--) { const a = doc.areas[i]; if ((!selArea || a.name === selArea) && p.x >= a.x && p.y >= a.y && p.x < a.x + a.w && p.y < a.y + a.h) { ed.snapshot(); doc.areas.splice(i, 1); areaChanged(); status(`Suorakulmio poistettu alueesta ${a.name}`); return; } } },
     status,
     onCursor: (c, k) => { const e = doc.legend.find(l => l.ch === k), path = M.at(c.x, c.y).map(n => KG.areas.displayName(doc, n)).join(' › '); $('cursorInfo').textContent = `x ${c.x}, y ${c.y}   "${k}" ${e ? e.name : 'tuntematon merkki'}   ${path ? '▸ ' + path : ''}`; },
   });
@@ -148,7 +151,8 @@
   function showChecks() { const v = KG.areas.validate(doc, M).concat((doc.warnings || []).map(m => ({ level: 'info', msg: m })));
     $('checks').innerHTML = v.slice(0, 10).map(x => `<div class="${x.level}">${x.level === 'error' ? '✖' : x.level === 'warn' ? '⚠' : 'ℹ'} ${x.msg.replace(/</g, '&lt;')}</div>`).join('') + (v.length > 10 ? `<div class="info">… ${v.length - 10} lisää</div>` : ''); }
   $('areaList').onchange = e => { selArea = e.target.value; setTool('area'); status(`Rajaustila: raahaa suorakulmio alueelle ${KG.areas.displayName(doc, selArea)}`); };
-  const setTool = setToolRef = t => { ed.mode = t; $('toolPaint').classList.toggle('on', t === 'paint'); $('toolArea').classList.toggle('on', t === 'area'); ed.cv.style.cursor = t === 'area' ? 'cell' : 'crosshair'; ed.draw(); };
+  const setTool = setToolRef = t => { ed.mode = t; $('toolPaint').classList.toggle('on', t === 'paint'); $('toolArea').classList.toggle('on', t === 'area'); $('toolMove').classList.toggle('on', t === 'move'); ed.cv.style.cursor = t === 'area' ? 'cell' : t === 'move' ? 'move' : 'crosshair'; ed.draw(); };
+  $('toolMove').onclick = () => { setTool('move'); status('Raahaa aluetta; kulmakahvasta koko; nuolet siirtävät valittua aluetta'); };
   $('btnMenu').onclick = () => document.querySelector('header.bar').classList.toggle('open');
   // puhelimessa: välilehdet editorille, esikatselulle ja asetuksille
   const mobile = () => window.matchMedia('(max-width: 820px)').matches;
@@ -166,7 +170,7 @@
     let id = KG.rlml.toId(t), n = 2; const base = id; while (M.byName[id] || (doc.texts[id] && doc.texts[id] !== t)) id = base + '_' + n++;
     doc.texts[id] = t; selArea = id; $('newArea').value = ''; setTool('area'); buildAreaList(); touched(); status(`Raahaa alueen ${t} suorakulmio kartalle`); };
   $('newArea').onkeydown = e => { if (e.key === 'Enter') $('btnNewArea').onclick(); };
-  $('btnDelArea').onclick = () => { if (!selArea) return; const n = selArea; doc.areas = doc.areas.filter(a => a.name !== n); delete doc.texts[n]; doc.rules = doc.rules.filter(r => r.name !== n); selArea = null; areaChanged(); status(`Alue ${n} poistettu`); };
+  $('btnDelArea').onclick = () => { if (!selArea) return; const n = selArea; ed.snapshot(); doc.areas = doc.areas.filter(a => a.name !== n); delete doc.texts[n]; doc.rules = doc.rules.filter(r => r.name !== n); selArea = null; areaChanged(); status(`Alue ${n} poistettu`); };
 
   // ---- nimet ja lähde
   $('inTitle').oninput = e => { doc.title = e.target.value; touched(); };
