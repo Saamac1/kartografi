@@ -12,7 +12,20 @@
   // ---- tila ja apurit
   let statusT = 0;
   function status(msg) { $('status').textContent = msg; clearTimeout(statusT); statusT = setTimeout(() => { $('status').textContent = ''; }, 4000); }
+  // claude.ai-artefaktissa tiedostot tallennetaan downloads-kyvyllä (sivu ei saa itse käynnistää latausta)
+  const inArtifact = !!(window.claude && typeof window.claude.use === 'function');
+  let saver = null;
+  if (inArtifact) {
+    $('btnPrint').hidden = true; $('btnPop').hidden = true;
+    window.claude.use('downloads').then(d => { saver = d; if (!d) status('Tallennus ei ole käytettävissä tässä näkymässä – käytä Kopioi-painiketta tai RLML-lähdettä'); }).catch(() => {});
+  }
   function download(name, text, mime) {
+    if (inArtifact) {
+      if (!saver) { status('Tallennus ei ole käytettävissä – kopioi teksti RLML-lähde-välilehdeltä tai Kopioi SVG -painikkeella'); return; }
+      saver.save({ filename: name, data: text }).then(() => status('Tallennettu ' + name))
+        .catch(e => status(e && e.code === 'declined' ? 'Tallennus peruttiin' : e && e.code === 'rate_limited' ? 'Edellinen tallennus on vielä kesken' : 'Tallennus ei onnistunut: ' + (e && (e.message || e.code))));
+      return;
+    }
     try { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: mime })); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000); status('Ladattu ' + name); }
     catch (e) { status('Lataus estetty tässä ympäristössä – käytä Kopioi-painiketta'); }
   }
