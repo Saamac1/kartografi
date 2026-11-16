@@ -26,7 +26,7 @@
         .catch(e => status(e && e.code === 'declined' ? 'Tallennus peruttiin' : e && e.code === 'rate_limited' ? 'Edellinen tallennus on vielä kesken' : 'Tallennus ei onnistunut: ' + (e && (e.message || e.code))));
       return;
     }
-    try { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: mime })); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000); status('Ladattu ' + name); }
+    try { const a = document.createElement('a'); a.href = URL.createObjectURL(text instanceof Blob ? text : new Blob([text], { type: mime })); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000); status('Ladattu ' + name); }
     catch (e) { status('Lataus estetty tässä ympäristössä – käytä Kopioi-painiketta'); }
   }
   const fileBase = () => (doc.name || 'kartta').toLowerCase().replace(/[^a-z0-9._-]+/g, '_');
@@ -150,6 +150,27 @@
     host.hidden = false; host.appendChild(fr); fr.srcdoc = html;
   };
   $('btnDlSvg').onclick = () => { if (!last) return; const s = last.s; download(`${fileBase()}.svg`, s.mode === 'whole' ? KG.print.wholeSvg(last.sc, s.paper, s.orient, s.margin) : KG.renderer.svgWhole(last.sc, doc.title), 'image/svg+xml'); };
+  // PNG: sama kuva kuin SVG-latauksessa, rasteroituna valitulla tarkkuudella valkoiselle pohjalle
+  const PNG_MAX = 16e6; // pikseleitä (mobiiliselainten kangasraja)
+  function svgToPng(svg, dpi) {
+    return new Promise((res, rej) => {
+      const m = svg.match(/^<svg[^>]*?\swidth="([\d.]+)mm"[^>]*?\sheight="([\d.]+)mm"/);
+      if (!m) { rej(new Error('kuvan kokoa ei löytynyt')); return; }
+      let sc = dpi / 25.4, w = +m[1] * sc, h = +m[2] * sc, shrunk = false;
+      if (w * h > PNG_MAX) { const f = Math.sqrt(PNG_MAX / (w * h)); w *= f; h *= f; shrunk = true; }
+      w = Math.round(w); h = Math.round(h);
+      const src = svg.replace(/^(<svg[^>]*?\s)width="[\d.]+mm"/, `$1width="${w}"`).replace(/^(<svg[^>]*?\s)height="[\d.]+mm"/, `$1height="${h}"`);
+      const url = URL.createObjectURL(new Blob([src], { type: 'image/svg+xml' })), img = new Image();
+      img.onload = () => { const cv = document.createElement('canvas'); cv.width = w; cv.height = h; const c = cv.getContext('2d'); c.fillStyle = '#fff'; c.fillRect(0, 0, w, h); c.drawImage(img, 0, 0, w, h); URL.revokeObjectURL(url);
+        cv.toBlob(bl => bl ? res({ blob: bl, w, h, shrunk }) : rej(new Error('kuvaa ei voitu muodostaa')), 'image/png'); };
+      img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('SVG:n rasterointi epäonnistui')); };
+      img.src = url;
+    });
+  }
+  $('btnDlPng').onclick = () => { if (!last) return; const s = last.s, svg = s.mode === 'whole' ? KG.print.wholeSvg(last.sc, s.paper, s.orient, s.margin) : KG.renderer.svgWhole(last.sc, doc.title);
+    status('Muodostetaan PNG…');
+    svgToPng(svg, +$('pngDpi').value).then(r => { download(`${fileBase()}.png`, r.blob, 'image/png'); if (r.shrunk) setTimeout(() => status(`PNG pienennettiin ${r.w}×${r.h} pikseliin (selaimen kokoraja)`), 1500); })
+      .catch(e => status('PNG-vienti epäonnistui: ' + e.message)); };
   $('btnDlHtml').onclick = () => { if (!last) return; const { svgs, PW, PH } = printSvgs(); download(`${fileBase()}_tulostus.html`, KG.print.printHtml(svgs, PW, PH, doc.title), 'text/html'); };
   $('btnCopy').onclick = async () => { if (!last) return; try { await navigator.clipboard.writeText(KG.renderer.svgWhole(last.sc, doc.title)); status('SVG kopioitu leikepöydälle'); } catch (e) { status('Kopiointi estetty'); } };
   document.querySelectorAll('input[name=mode]').forEach(r => r.onchange = () => { const t = document.querySelector('input[name=mode]:checked').value === 'tiles'; $('fsTiles').disabled = !t; $('fsWhole').disabled = t; render(); });

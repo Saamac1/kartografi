@@ -69,6 +69,12 @@ ikkunakseen.
 - *Tulosta…* avaa selaimen tulostusikkunan oikealla sivukoolla. *Lataa
   tulostussivu (HTML)* tekee tiedoston, jonka voi avata ja tulostaa myöhemmin.
   Tulosta 100 %:n koossa (ei "sovita sivulle").
+- *Lataa SVG* tallentaa vektorikuvan ja *Lataa PNG* saman kuvan rasterina
+  (96, 150 tai 300 dpi, valkoinen pohja). Hyvin suuri kuva pienennetään
+  16 megapikseliin, koska puhelinselaimet eivät piirrä isompaa.
+- claude.ai-artefaktissa tiedostot tallennetaan claude.ai:n
+  tallennusvahvistuksen kautta; *Tulosta…* ja *Irrota ikkunaksi* eivät ole
+  siellä käytettävissä (lataa tulostussivu ja tulosta se selaimesta).
 
 ## RLML
 
