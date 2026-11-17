@@ -82,9 +82,10 @@ ovat yläpalkissa aina näkyvissä.
 Kapealla näytöllä välilehtiä on yksi lisää: kartta ja esikatselu ovat eri
 välilehdillä (*Kartan muokkaus* ja *Esikatselu*; *Kartan luku* näyttää pelkän
 kartan). Kartan muokkaus- ja Alueet-välilehdillä paneeli
-on editorin yläpuolella, ja välilehtirivi vierii sivusuunnassa. Palat
-valitaan pudotusvalikosta (sen lopussa ovat legendasta puuttuvat
-oletuspalat), joten selitepalkki vie vain yhden rivin.
+on editorin yläpuolella, ja välilehtirivi vierii sivusuunnassa. Selitepalkki
+on yksi rivi, joka näyttää valitun palan; sen napautus avaa kartan päälle
+saman värillisen tiililistan kuin työpöydän selitepalkissa (lopussa legendasta
+puuttuvat oletuspalat). Palan valinta tai napautus muualle sulkee listan.
 Puhelin aloittaa lukutilassa, jossa yksi sormi vierittää. Muokkaustilassa yksi
 sormi piirtää ja kaksi sormea vierittää. Kumoa ja Tee uudelleen ovat
 yläpalkissa. Esikatselua ei voi irrottaa omaksi

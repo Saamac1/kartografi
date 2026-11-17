@@ -207,7 +207,8 @@ test('kartta pysyy ruudulla paikallaan siirryttäessä Kartan luvusta Kartan muo
     await tab(page, 'edit');
     assert.deepEqual(await at(), a, `${w}px: kartta ei siirry ruudulla`);
     // palan valinta ei vieritä karttaa
-    if (w > 800) await page.click('#palette .pal[data-ch="T"]'); else await page.select('#palSel', 'T');
+    if (w <= 800) { await page.click('#brushBox .bname'); await wait(100); }
+    await page.click('#palette .pal[data-ch="T"]');
     await wait(100);
     assert.deepEqual(await at(), a, `${w}px: palan valinta ei siirrä karttaa`);
     await tab(page, 'read');
@@ -217,25 +218,40 @@ test('kartta pysyy ruudulla paikallaan siirryttäessä Kartan luvusta Kartan muo
   }
 });
 
-test('mobiilissa palat valitaan pudotusvalikosta', async () => {
+test('mobiilissa palat valitaan avattavasta listasta, jossa on värilliset tiilet', async () => {
   const { page, errors, close } = await open(390, 800);
   await tab(page, 'edit');
-  assert.ok(await visible(page, '#palSel'), 'pudotusvalikko näkyy');
-  assert.ok(!(await visible(page, '#palette')), 'painikelista piilossa');
+  assert.ok(!(await visible(page, '#palList')), 'lista on aluksi kiinni');
   const panelH = await page.$eval('.palette', el => el.getBoundingClientRect().height);
   assert.ok(panelH < 80, `selitepalkki on matala (${panelH} px)`);
-  await page.select('#palSel', 'T');
+  const edTop = await page.$eval('#ed', el => el.getBoundingClientRect().top);
+  await page.click('#brushBox .bname'); await wait(150);
+  assert.ok(await visible(page, '#palList'), 'napautus avaa listan');
+  assert.equal(await page.$eval('#ed', el => el.getBoundingClientRect().top), edTop, 'lista aukeaa kartan päälle eikä siirrä karttaa');
+  // listan rivit näyttävät samalta kuin selitepalkissa: värillinen tiili ja nimi
+  const rows = await page.$$eval('#palette .pal', bs => bs.map(b => { const c = b.querySelector('.ch'); return [c.textContent, getComputedStyle(c).backgroundColor, b.getBoundingClientRect().width]; }));
+  assert.ok(rows.length >= 10);
+  assert.ok(new Set(rows.map(r => r[1])).size >= 8, 'tiilillä on eri värit');
+  assert.ok(rows.every(r => r[2] > 300), 'rivit koko leveydeltä');
+  await shot(page, 'mobiili-tiililista');
+  await page.click('#palette .pal[data-ch="T"]'); await wait(100);
   assert.equal(await page.evaluate(() => KG_APP.editor.brush), 'T');
   assert.equal(await page.$eval('#brushCh', el => el.textContent), 'T');
-  // esimerkki, jonka legendasta puuttuu uusia paloja: lisäys pudotusvalikon kautta
+  assert.ok(!(await visible(page, '#palList')), 'valinta sulkee listan');
+  // napautus kartalle sulkee avoimen listan valitsematta mitään
+  await page.click('#brushBox .bname'); await wait(100);
+  await page.mouse.click(200, 700); await wait(100);
+  assert.ok(!(await visible(page, '#palList')), 'napautus muualle sulkee listan');
+  // esimerkki, jonka legendasta puuttuu uusia paloja: lisäys listan lopusta
   await tab(page, 'file'); await page.select('#exSel', 'meri'); await wait(500); await tab(page, 'edit');
-  const add = await page.$$eval('#palSel optgroup option', os => os.map(o => [o.value, o.textContent]));
-  assert.ok(add.length > 0, 'puuttuvat palat ovat valikon lopussa');
+  await page.click('#brushBox .bname'); await wait(100);
+  const add = await page.$$('#palAdd .pal.add');
+  assert.ok(add.length > 0, 'puuttuvat palat ovat listan lopussa');
   const n0 = await page.evaluate(() => KG_APP.doc.legend.length);
-  await page.select('#palSel', add[0][0]); await wait(200);
+  await add[0].click(); await wait(200);
   assert.equal(await page.evaluate(() => KG_APP.doc.legend.length), n0 + 1, 'pala lisättiin legendaan');
-  assert.equal(await page.$eval('#palSel', el => el.value), await page.evaluate(() => KG_APP.editor.brush), 'lisätty pala on valittuna');
-  await shot(page, 'mobiili-pudotusvalikko');
+  assert.equal(await page.$eval('#brushCh', el => el.textContent), await page.evaluate(() => KG_APP.editor.brush), 'lisätty pala on valittuna');
+  assert.ok(!(await visible(page, '#palList')));
   assert.deepEqual(errors, []);
   await close();
 });
@@ -243,6 +259,8 @@ test('mobiilissa palat valitaan pudotusvalikosta', async () => {
 test('työpöydällä palat ovat painikkeina eikä pudotusvalikkoa näytetä', async () => {
   const { page, close } = await open(1440, 860);
   await tab(page, 'edit');
-  assert.ok(await visible(page, '#palette')); assert.ok(!(await visible(page, '#palSel')));
+  assert.ok(await visible(page, '#palette')); assert.ok(!(await visible(page, '#brushBox .bopen')));
+  await page.click('#brushBox .bname'); await wait(100);
+  assert.ok(await visible(page, '#palette'), 'sivellinruudun napsautus ei piilota työpöydän listaa');
   await close();
 });

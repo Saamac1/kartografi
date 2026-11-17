@@ -21,10 +21,9 @@
     <div class="palhead" id="palHead" title="Kelluvana: vedä tästä siirtääksesi"><h3 id="sideTitle">Selite</h3><button id="btnFloat" class="no-mobile" title="Irrota paneeli kelluvaksi tai kiinnitä takaisin">⧉ Kelluva</button></div>
 
     <div class="panel" data-for="edit">
-      <div class="brushbox" title="Valittu pala ja siveltimen koko"><span class="ch" id="brushCh"></span><span id="brushName" class="bname"></span><select id="palSel" class="bsel only-mobile" aria-label="Piirrettävä pala"></select>
+      <div class="brushbox" id="brushBox" title="Valittu pala ja siveltimen koko"><span class="ch" id="brushCh"></span><span id="brushName" class="bname"></span><span class="bopen only-mobile" aria-hidden="true">▾</span>
         <label>Koko <select id="brush"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="5">5</option></select></label></div>
-      <div id="palette"></div>
-      <div id="palAdd"></div>
+      <div id="palList"><div id="palette"></div><div id="palAdd"></div></div>
     </div>
 
     <div class="panel" data-for="areas">
@@ -129,7 +128,7 @@
       <h4>Kartan luku</h4>
       <p>Vedä karttaa vierittääksesi ja napsauta ruutua nähdäksesi sen maaston ja aluepolun. Mitään ei voi muuttaa vahingossa. Puhelimessa yksi sormi vierittää.</p>
       <h4>Kartan muokkaus</h4>
-      <p>Valitse pala selitepalkista; valittu pala ja siveltimen koko näkyvät palkin yläreunassa. Hiiren vasen nappi piirtää, oikea poimii palan kartalta, Vaihto + napsautus täyttää yhtenäisen alueen. <b>⧉ Kelluva</b> irrottaa selitepalkin siirrettäväksi ikkunaksi kartan päälle (vedä otsikosta, kulmasta muutat kokoa). Puhelimessa palat valitaan pudotusvalikosta; yksi sormi piirtää ja kaksi sormea vierittää. Kun siirryt Kartan luvusta Kartan muokkaukseen, kartta pysyy ruudulla samassa kohdassa.</p>
+      <p>Valitse pala selitepalkista; valittu pala ja siveltimen koko näkyvät palkin yläreunassa. Hiiren vasen nappi piirtää, oikea poimii palan kartalta, Vaihto + napsautus täyttää yhtenäisen alueen. <b>⧉ Kelluva</b> irrottaa selitepalkin siirrettäväksi ikkunaksi kartan päälle (vedä otsikosta, kulmasta muutat kokoa). Puhelimessa sivellinruudun napautus avaa tiililistan, josta pala valitaan; yksi sormi piirtää ja kaksi sormea vierittää. Kun siirryt Kartan luvusta Kartan muokkaukseen, kartta pysyy ruudulla samassa kohdassa.</p>
       <p><b>Näppäimistö</b> (napsauta karttaa ensin): nuolet liikuttavat kursoria (Vaihto = 5 askelta), kirjoitettu merkki korvaa ruudun ja siirtyy oikealle, Enter siirtää seuraavalle riville, Askelpalautin vasemmalle, Home/End/PageUp/PageDown, Ctrl+Z / Ctrl+Y kumoa ja tee uudelleen.</p>
       <p><b>Lisää selitteeseen</b> näyttää merikartan palat, joita kartan legendassa ei vielä ole.</p>
       <h4>Alueet</h4>

@@ -57,26 +57,26 @@
     for (const e of doc.legend) {
       const b = document.createElement('button'); b.className = 'pal' + (e.ch === ed.brush ? ' on' : ''); b.dataset.ch = e.ch;
       b.innerHTML = `<span class="ch" style="background:${cmap[e.ch] || '#fff'}">${e.ch.replace('<', '&lt;')}</span><span>${e.name}${e.decor ? ' <i>(koriste)</i>' : ''}</span>`;
-      b.title = e.spec; b.onclick = () => { setBrush(e.ch); setMode && setMode(false); endAreaTool && endAreaTool(); if (!matchMedia('(pointer: coarse)').matches) ed.cv.focus({ preventScroll: true }); };
+      b.title = e.spec; b.onclick = () => { setBrush(e.ch); palOpen(false); setMode && setMode(false); endAreaTool && endAreaTool(); if (!matchMedia('(pointer: coarse)').matches) ed.cv.focus({ preventScroll: true }); };
       p.appendChild(b);
     }
-    buildPalAdd(); buildPalSel();
+    buildPalAdd();
   }
-  // puhelimessa palat ovat pudotusvalikossa (sivellinruudussa); lopussa legendasta puuttuvat oletuspalat
+  // puhelimessa palat ovat avattavassa listassa: sivellinruudun napautus avaa, valinta tai napautus muualle sulkee
   const missingDefaults = () => { if (doc.style && doc.style !== 'sea') return []; const have = new Set(Object.values(KG.rlml.typeMap(doc))); return KG.rlml.DEFAULT_LEGEND.filter(e => !have.has(KG.rlml.typeOf(e.spec))); };
-  function buildPalSel() {
-    const sel = $('palSel'), esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;'), miss = missingDefaults();
-    sel.innerHTML = doc.legend.map(e => `<option value="${esc(e.ch)}">${esc(e.ch)}  ${esc(e.name)}${e.decor ? ' (koriste)' : ''}</option>`).join('')
-      + (miss.length ? `<optgroup label="Lisää selitteeseen">${miss.map((e, i) => `<option value="+${i}">+ ${esc(e.name)}${e.decor ? ' (koriste)' : ''}</option>`).join('')}</optgroup>` : '');
-    sel.value = ed.brush;
+  const mobileUI = () => matchMedia('(max-width: 820px)').matches;
+  function palOpen(on) {
+    document.body.classList.toggle('pal-open', on);
+    if (on) { const r = $('brushBox').getBoundingClientRect(), L = $('palList'); L.style.top = (r.bottom + 4) + 'px'; L.style.maxHeight = Math.max(160, innerHeight - r.bottom - 14) + 'px';
+      const cur = L.querySelector('.pal.on'); if (cur) cur.scrollIntoView({ block: 'nearest' }); }
   }
-  $('palSel').onchange = e => { const v = e.target.value;
-    if (v.length > 1 && v[0] === '+') { const d = missingDefaults()[+v.slice(1)]; if (d) addDefault(d); else e.target.value = ed.brush; return; }
-    setBrush(v); endAreaTool && endAreaTool(); };
+  $('brushBox').addEventListener('click', e => { if (!mobileUI() || e.target.closest('label, select')) return; palOpen(!document.body.classList.contains('pal-open')); });
+  document.addEventListener('pointerdown', e => { if (document.body.classList.contains('pal-open') && !e.target.closest('#palList, #brushBox')) palOpen(false); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') palOpen(false); });
   function addDefault(e) {
     const used = new Set(doc.legend.map(l => l.ch)), pool = e.ch + 'CshRSVABEFGHIJLMNOPQUWZabcdefgijklmopqtuvwxyz0123456789';
     const ch = [...pool].find(c => !used.has(c)); if (!ch) { status('Vapaita merkkejä ei ole'); return; }
-    doc.legend.push(Object.assign({}, e, { ch })); buildPalette(); buildLegendPick(); touched(); setBrush(ch); setMode && setMode(false);
+    doc.legend.push(Object.assign({}, e, { ch })); buildPalette(); buildLegendPick(); touched(); setBrush(ch); setMode && setMode(false); palOpen(false);
     status(`Lisätty legendaan: ${ch} ${e.spec}`);
   }
   // merikartan oletuspalat, joita kartan legendassa ei vielä ole: napsautus lisää legendaan
@@ -113,7 +113,7 @@
       l.querySelector('input').onchange = ev => { if (ev.target.checked) delete e.decor; else e.decor = true; buildPalette(); touched(); };
       el.appendChild(l); }
   }
-  function setBrush(ch) { ed.brush = ch; document.querySelectorAll('.pal').forEach(b => b.classList.toggle('on', b.dataset.ch === ch)); $('palSel').value = ch; showTool(); ed.draw(); }
+  function setBrush(ch) { ed.brush = ch; document.querySelectorAll('.pal').forEach(b => b.classList.toggle('on', b.dataset.ch === ch)); showTool(); ed.draw(); }
   $('brush').onchange = e => { ed.brushSize = +e.target.value; };
   ed.brush = '.';
 
@@ -353,6 +353,7 @@
     if (t === 'preview' && !mobile) t = 'edit';
     // kartta pysyy ruudulla paikallaan, vaikka sivupaneeli ilmestyy viereen tai yläpuolelle
     const sv = $('edScroll'), was = sv.offsetParent ? sv.getBoundingClientRect() : null, wasL = sv.scrollLeft, wasT = sv.scrollTop;
+    palOpen(false);
     document.body.dataset.tab = t; store.set('kg.tab', t);
     document.querySelectorAll('#mainTabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
     $('sideTitle').textContent = TAB_TITLES[t];

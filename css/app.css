@@ -153,9 +153,14 @@ body.pv-off.float-pal:is([data-tab=edit],[data-tab=areas]) .layout { grid-templa
   body:is([data-tab=read],[data-tab=edit],[data-tab=areas]) .preview { display: none; }
   body[data-tab=read] .layout { grid-template-rows: 1fr; }
   .brushbox { margin: -6px -6px 6px; top: -6px; }
-  /* palat pudotusvalikossa: selitepalkki on yksi rivi ja kartta saa tilan */
-  .brushbox .bname, .panel[data-for=edit] :is(#palette, #palAdd) { display: none; }
-  .brushbox .bsel { display: block; flex: 1; min-width: 0; font-size: 16px; padding: 4px; }
+  /* palat avattavassa listassa: sivellinruudun napautus avaa saman värillisen tiililistan kuin selitepalkissa */
+  .brushbox { cursor: pointer; }
+  .brushbox .bopen { font-size: 18px; color: #555; padding: 0 4px; }
+  .panel[data-for=edit] #palList { display: none; }
+  body.pal-open .panel[data-for=edit] #palList { display: block; position: fixed; left: 6px; right: 6px; z-index: 30; overflow: auto; padding: 6px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 6px 22px rgba(0,0,0,.28); }
+  #palList #palette { display: block; }
+  #palList .pal { width: 100%; margin: 0 0 3px; padding: 6px 8px; }
+  #palList .pal .ch { width: 30px; height: 26px; font-size: 17px; }
   body[data-tab=edit] .panel[data-for=edit] { margin-bottom: -6px; }
   body:is([data-tab=file],[data-tab=print],[data-tab=names],[data-tab=help]) .layout { grid-template-rows: 1fr; }
   body:is([data-tab=file],[data-tab=print],[data-tab=names],[data-tab=help]) :is(.editor, .preview) { display: none; }
