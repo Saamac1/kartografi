@@ -10,7 +10,7 @@
 <header class="bar top">
   <strong class="brand">Karttageneraattori</strong>
   <nav class="maintabs" id="mainTabs">
-    <button data-tab="file">Tiedosto</button><button data-tab="read">Kartan luku</button><button data-tab="edit" class="on">Kartan muokkaus</button><button data-tab="preview" class="only-mobile">Esikatselu</button><button data-tab="src">Lähdekoodi</button><button data-tab="areas">Alueet</button><button data-tab="names">Nimet</button><button data-tab="print">Tulostus</button><button data-tab="help">Ohje</button>
+    <button data-tab="file">Tiedosto</button><button data-tab="read">Kartan luku</button><button data-tab="edit" class="on">Kartan muokkaus</button><button data-tab="preview" class="only-mobile">Esikatselu</button><button data-tab="areas">Alueet</button><button data-tab="names">Nimet</button><button data-tab="print">Tulostus</button><button data-tab="help">Ohje</button>
   </nav>
   <span class="grp undo"><button id="btnUndo" title="Kumoa (Ctrl+Z)">↶</button><button id="btnRedo" title="Tee uudelleen (Ctrl+Y)">↷</button></span>
   <span id="status" class="status"></span><button id="btnPrev" hidden title="Palauta kartta, joka oli auki ennen esimerkkiä">Palauta edellinen</button>
@@ -36,7 +36,7 @@
       <div id="checks" class="checks"></div>
     </div>
 
-    <div class="panel" data-for="file">
+    <div class="panel filepanel" data-for="file">
       <fieldset><legend>Kartta</legend>
         <label>Kartta <select id="mapSel" title="Tiedoston kartat"></select></label>
         <button id="btnAddMap" title="Lisää tiedostoon uusi tyhjä kartta">+ kartta</button>
@@ -120,8 +120,8 @@
       <button id="btnNamesApply">Päivitä</button>
     </div>
 
-    <div class="panel" data-for="src" id="tSrc">
-      <div class="row"><label>Tiedosto <select id="srcSel"><option value="map">Kartat (.rlml.md)</option><option value="style">Paperityyli (.paper.rlml.md)</option><option value="lang">Kieli (.fi.rlml.md)</option></select></label><button id="btnSrcApply">Lue lähteestä</button></div>
+    <div class="panel srcpanel" data-for="file" id="tSrc">
+      <div class="row"><b>Lähdekoodi</b> <label><select id="srcSel"><option value="map">Kartat (.rlml.md)</option><option value="style">Paperityyli (.paper.rlml.md)</option><option value="lang">Kieli (.fi.rlml.md)</option></select></label><button id="btnSrcApply">Lue lähteestä</button></div>
       <textarea id="srcTa" spellcheck="false"></textarea>
     </div>
 
@@ -135,27 +135,27 @@
       <h4>Alueet</h4>
       <p><b>Lisää</b> luo alueen nimestä. Valitse alue listasta ja <b>Rajaa</b> (raahaa suorakulmio, kulmakahvasta koko, oikea napsautus poistaa) tai <b>Siirrä</b> (tartu alueeseen ja raahaa tai käytä nuolinäppäimiä; alue siirtyy sisältöineen ja tyhjäksi jäävä osa täytetään vedellä). <b>Valmis</b> tai Esc palaa maaston piirtoon.</p>
       <h4>Esikatselu</h4>
-      <p>Päivittyy muokatessa. Kun kartta on zoomattu niin, ettei se mahdu kerralla näkyviin, esikatselu seuraa editorin kursoria (punainen ruutu). Esikatselua voi siirrellä vetämällä. <b>Lehtijako</b> näyttää A4-lehtien rajat.</p>
-      <h4>Tiedosto, Lähdekoodi, Nimet ja Tulostus</h4>
-      <p><b>Tiedosto</b>: kartan valinta ja tyyli, koko, generointi siemenestä, esimerkit, avaus ja tallennus (kartta, paperityyli ja kielitiedosto). <b>Tulostus</b>: koko kuva yhdelle arkille tai A4-lehdet liimausreunoin, viivavahvuudet, selitteen sisältö sekä SVG-, PNG- ja HTML-vienti. <b>Nimet</b>: otsikko, piirto-ohjeet ja näkyvät nimet. <b>Lähdekoodi</b>: tiedostot tekstinä; muokkaa ja lue takaisin.</p>
+      <p>Kartan luku-, Kartan muokkaus- ja Alueet-välilehdillä editorin alalaidan <b>Esikatselu</b>-valinta näyttää tai piilottaa esikatselun; valinta muistetaan kullekin välilehdelle erikseen. Zoom-painikkeet ovat esikatselun alalaidassa. Esikatselu päivittyy muokatessa. Kun kartta on zoomattu niin, ettei se mahdu kerralla näkyviin, esikatselu seuraa editorin kursoria (punainen ruutu). Esikatselua voi siirrellä vetämällä. <b>Lehtijako</b> näyttää A4-lehtien rajat.</p>
+      <h4>Tiedosto, Nimet ja Tulostus</h4>
+      <p><b>Tiedosto</b>: kartan valinta ja tyyli, koko, generointi siemenestä, esimerkit, avaus ja tallennus (kartta, paperityyli ja kielitiedosto) sekä lähdekoodi: tiedostot tekstinä, muokkaa ja lue takaisin. <b>Tulostus</b>: koko kuva yhdelle arkille tai A4-lehdet liimausreunoin, viivavahvuudet, selitteen sisältö sekä SVG-, PNG- ja HTML-vienti. <b>Nimet</b>: otsikko, piirto-ohjeet ja näkyvät nimet.</p>
       <p>Kartta tallentuu selaimen muistiin automaattisesti.</p>
     </div>
   </aside>
 
   <section class="editor">
     <div class="scroll" id="edScroll"><canvas id="ed" tabindex="0"></canvas></div>
-    <div class="statusline" id="cursorInfo"></div>
+    <div class="statusline edfoot"><span id="cursorInfo"></span><label class="pvtoggle no-mobile" title="Näytä esikatselu tällä välilehdellä"><input type="checkbox" id="pvToggle" checked> Esikatselu</label></div>
   </section>
 
   <section class="preview" id="previewPane">
-    <div class="bar small">
-      <button id="zOut">−</button><button id="zFit">Sovita</button><button id="zIn">+</button>
+    <div class="scroll" id="pvScroll"><div id="pv"></div></div>
+    <div class="docked-msg" id="dockMsg" hidden>Esikatselu on omassa ikkunassaan. <button id="btnDock">Palauta tähän</button></div>
+    <div class="bar small pvbar">
+      <button id="zOut" title="Pienennä">−</button><button id="zFit">Sovita</button><button id="zIn" title="Suurenna">+</button>
       <label><input id="showSheets" type="checkbox"> Lehtijako</label>
       <button id="btnPop" class="no-mobile" title="Avaa esikatselu omaan ikkunaansa">Irrota ikkunaksi</button>
       <span id="renderInfo" class="status"></span>
     </div>
-    <div class="scroll" id="pvScroll"><div id="pv"></div></div>
-    <div class="docked-msg" id="dockMsg" hidden>Esikatselu on omassa ikkunassaan. <button id="btnDock">Palauta tähän</button></div>
   </section>
 </main>
 

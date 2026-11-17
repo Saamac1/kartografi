@@ -15,13 +15,18 @@ Avaa `index.html` selaimessa. Rakennusvaihetta tai palvelinta ei tarvita, ja
 tiedostot ovat tavallisia skriptejä, joten `file://` toimii.
 
 Yläpalkin välilehdet ovat järjestyksessä **Tiedosto** (kartan valinta,
-tyyli, koko, generointi, esimerkit, avaus ja tallennus), **Kartan luku**
-(vain editori ja esikatselu), **Kartan muokkaus** (selite ja sivellin),
-**Lähdekoodi** (RLML-tiedostot tekstinä), **Alueet** (nimetyt alueet),
-**Nimet**, **Tulostus** ja **Ohje**. Tiedosto-, Kartan luku-, Kartan
-muokkaus- ja Alueet-välilehdillä näkyvät editori ja esikatselu, Lähdekoodi-,
-Nimet- ja Tulostus-välilehdillä teksti tai asetukset ja esikatselu. Kumoa ja
-Tee uudelleen ovat yläpalkissa aina näkyvissä.
+tyyli, koko, generointi, esimerkit, avaus ja tallennus sekä RLML-lähdekoodi
+tekstinä), **Kartan luku** (editori lukutilassa), **Kartan muokkaus** (selite
+ja sivellin), **Alueet** (nimetyt alueet), **Nimet**, **Tulostus** ja
+**Ohje**. Sovellus avautuu ensimmäisellä kerralla Tiedosto-välilehdelle ja
+sen jälkeen viimeksi käytetylle välilehdelle.
+
+Kartan luku-, Kartan muokkaus- ja Alueet-välilehdillä editorin alalaidassa on
+valinta *Esikatselu*: kun se ei ole valittuna, esikatselu piilotetaan ja
+kartta saa koko tilan. Valinta muistetaan kullekin näistä välilehdistä
+erikseen. Nimet- ja Tulostus-välilehdillä esikatselu näkyy aina asetusten
+vieressä; Tiedosto-välilehdellä esikatselua ei ole. Kumoa ja Tee uudelleen
+ovat yläpalkissa aina näkyvissä.
 
 - **Selite (Kartan muokkaus -välilehti):** valitse piirrettävä pala. Valittu
   pala ja siveltimen koko näkyvät selitepalkin yläreunassa. Sivellinkoko 1–5 ruutua.
@@ -46,7 +51,9 @@ Tee uudelleen ovat yläpalkissa aina näkyvissä.
     oikealle, Enter siirtää seuraavalle riville kirjoituksen aloitussarakkeeseen,
     Askelpalautin siirtää vasemmalle, Home/End/PageUp/PageDown, Ctrl+Z / Ctrl+Y
   - palan valinta selitteestä vaihtaa muokkaustilaan ja maaston piirtoon
-- **Esikatselu (oikealla):** päivittyy muokatessa. *Irrota ikkunaksi* avaa sen
+- **Esikatselu (oikealla):** päivittyy muokatessa; piilossa olevaa
+  esikatselua ei piirretä. Zoom-painikkeet (−, Sovita, +), *Lehtijako* ja
+  *Irrota ikkunaksi* ovat esikatselun alalaidassa. *Irrota ikkunaksi* avaa sen
   omaan ikkunaansa (esim. toiselle näytölle); ikkunan sulkeminen palauttaa sen.
   *Lehtijako* näyttää A4-lehtien rajat.
 - **Generoi (Tiedosto-välilehti):** uusi saaristo annetulla siemenellä ja koolla. Sama siemen ja koko
@@ -65,7 +72,7 @@ Tee uudelleen ovat yläpalkissa aina näkyvissä.
   Lista näyttää hierarkian, ja alla näkyvät tarkistusten huomautukset.
 - **Nimet-välilehti:** otsikko, piirto-ohjeet (`labels paper`) ja tekstit
   (`text fi`).
-- **Lähdekoodi-välilehti:** kartta tekstinä; muokkaa ja lue takaisin.
+- **Lähdekoodi (Tiedosto-välilehti):** kartta, paperityyli ja kielitiedosto tekstinä; muokkaa ja lue takaisin.
 - Kartta tallentuu selaimen muistiin automaattisesti; *Tallenna RLML* lataa
   sen tiedostona.
 
@@ -117,7 +124,7 @@ ulkoasun erillään:
 
 *Avaa…* hyväksyy yhden tai useamman tiedoston kerralla ja tunnistaa lajin
 sisällöstä; karttatiedosto on pakollinen. *Tallenna RLML* tallentaa kaikki
-kolme. *Lähdekoodi*-välilehdellä voi muokata kutakin tiedostoa erikseen.
+kolme. Tiedosto-välilehden lähdekoodissa voi muokata kutakin tiedostoa erikseen.
 
 ````
 # KAPTEENI AALTOLAN KARTTA

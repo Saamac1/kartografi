@@ -120,9 +120,14 @@
 
   // ---- piirto ja esikatselu
   let renderT = 0, last = null, zoom = 1, popup = null;
-  function touched() { refreshModel(); showChecks(); refreshUndo(); store.set('kg.proj', JSON.stringify(projText())); scheduleRender(); if (document.body.dataset.tab === 'src') showSrc(); }
-  function scheduleRender() { clearTimeout(renderT); $('renderInfo').textContent = 'piirretään…'; renderT = setTimeout(render, 280); }
+  function touched() { refreshModel(); showChecks(); refreshUndo(); store.set('kg.proj', JSON.stringify(projText())); scheduleRender(); if (document.body.dataset.tab === 'file') showSrc(); }
+  // piilossa olevaa esikatselua ei piirretä; piirto tehdään, kun esikatselu tulee näkyviin tai kuvaa tarvitaan
+  let pvDirty = false;
+  const pvShown = () => (popup && !popup.closed) || $('previewPane').offsetParent !== null;
+  function scheduleRender() { clearTimeout(renderT); if (!pvShown()) { pvDirty = true; return; } $('renderInfo').textContent = 'piirretään…'; renderT = setTimeout(render, 280); }
+  function fresh() { if (pvDirty || !last) { clearTimeout(renderT); render(); } }
   function render() {
+    pvDirty = false;
     const s = settings(), t0 = performance.now();
     let sc;
     try { sc = KG.renderer.scene(doc, s); } catch (e) { console.error(e); $('renderInfo').textContent = 'Virhe: ' + e.message; return; }
@@ -197,12 +202,12 @@
     return { svgs: L.sheets.map(sh => KG.print.sheetSvg(sc, L, sh)), PW: L.PW, PH: L.PH };
   }
   $('btnPrint').onclick = () => {
-    if (!last) return; const { svgs, PW, PH } = printSvgs(), html = KG.print.printHtml(svgs, PW, PH, doc.title);
+    fresh(); if (!last) return; const { svgs, PW, PH } = printSvgs(), html = KG.print.printHtml(svgs, PW, PH, doc.title);
     const host = $('printFrameHost'); host.innerHTML = ''; const fr = document.createElement('iframe'); fr.style.cssText = 'position:fixed;right:0;bottom:0;width:1px;height:1px;border:0;opacity:0';
     fr.onload = () => { try { fr.contentWindow.focus(); fr.contentWindow.print(); } catch (e) { status('Tulostus estetty – lataa tulostussivu ja tulosta se'); } };
     host.hidden = false; host.appendChild(fr); fr.srcdoc = html;
   };
-  $('btnDlSvg').onclick = () => { if (!last) return; const s = last.s; download(`${fileBase()}.svg`, s.mode === 'whole' ? KG.print.wholeSvg(last.sc, s.paper, s.orient, s.margin) : KG.renderer.svgWhole(last.sc, doc.title), 'image/svg+xml'); };
+  $('btnDlSvg').onclick = () => { fresh(); if (!last) return; const s = last.s; download(`${fileBase()}.svg`, s.mode === 'whole' ? KG.print.wholeSvg(last.sc, s.paper, s.orient, s.margin) : KG.renderer.svgWhole(last.sc, doc.title), 'image/svg+xml'); };
   // PNG: sama kuva kuin SVG-latauksessa, rasteroituna valitulla tarkkuudella valkoiselle pohjalle
   const PNG_MAX = 16e6; // pikseleitä (mobiiliselainten kangasraja)
   function svgToPng(svg, dpi) {
@@ -220,12 +225,12 @@
       img.src = url;
     });
   }
-  $('btnDlPng').onclick = () => { if (!last) return; const s = last.s, svg = s.mode === 'whole' ? KG.print.wholeSvg(last.sc, s.paper, s.orient, s.margin) : KG.renderer.svgWhole(last.sc, doc.title);
+  $('btnDlPng').onclick = () => { fresh(); if (!last) return; const s = last.s, svg = s.mode === 'whole' ? KG.print.wholeSvg(last.sc, s.paper, s.orient, s.margin) : KG.renderer.svgWhole(last.sc, doc.title);
     status('Muodostetaan PNG…');
     svgToPng(svg, +$('pngDpi').value).then(r => { download(`${fileBase()}.png`, r.blob, 'image/png'); if (r.shrunk) setTimeout(() => status(`PNG pienennettiin ${r.w}×${r.h} pikseliin (selaimen kokoraja)`), 1500); })
       .catch(e => status('PNG-vienti epäonnistui: ' + e.message)); };
-  $('btnDlHtml').onclick = () => { if (!last) return; const { svgs, PW, PH } = printSvgs(); download(`${fileBase()}_tulostus.html`, KG.print.printHtml(svgs, PW, PH, doc.title), 'text/html'); };
-  $('btnCopy').onclick = async () => { if (!last) return; try { await navigator.clipboard.writeText(KG.renderer.svgWhole(last.sc, doc.title)); status('SVG kopioitu leikepöydälle'); } catch (e) { status('Kopiointi estetty'); } };
+  $('btnDlHtml').onclick = () => { fresh(); if (!last) return; const { svgs, PW, PH } = printSvgs(); download(`${fileBase()}_tulostus.html`, KG.print.printHtml(svgs, PW, PH, doc.title), 'text/html'); };
+  $('btnCopy').onclick = async () => { fresh(); if (!last) return; try { await navigator.clipboard.writeText(KG.renderer.svgWhole(last.sc, doc.title)); status('SVG kopioitu leikepöydälle'); } catch (e) { status('Kopiointi estetty'); } };
   document.querySelectorAll('input[name=mode]').forEach(r => r.onchange = () => { const t = document.querySelector('input[name=mode]:checked').value === 'tiles'; $('fsTiles').disabled = !t; $('fsWhole').disabled = t; render(); });
   ['paper', 'orientW', 'cellMM', 'orientT', 'overlap', 'margin', 'wMain', 'wCoast', 'wThin', 'wSea', 'spSea', 'spSym', 'optLegend', 'optCompass', 'optTitle', 'optFrame', 'optGrid'].forEach(id => $(id).addEventListener('change', scheduleRender));
 
@@ -316,10 +321,21 @@
   $('btnSrcApply').onclick = () => { try { const p = projText(); p[$('srcSel').value] = $('srcTa').value; const fl = KG.rlml.parseProject([p.map, p.style, p.lang]), i = doc.file ? Math.max(0, doc.file.maps.indexOf(doc)) : 0, d = fl.maps[Math.min(i, fl.maps.length - 1)]; if (!d.W || !d.H) throw new Error('map-rivi puuttuu'); doc = d; afterDocChange(); status('Lähde luettu'); } catch (e) { status('Virhe lähteessä: ' + e.message); } };
 
   // ---- yläpalkin välilehdet: kukin valitsee sivupaneelin sisällön ja näkyvät osat (CSS: body[data-tab])
-  const TAB_TITLES = { read: '', edit: 'Selite', areas: 'Alueet', file: 'Tiedosto', print: 'Tulostus', names: 'Nimet', src: 'Lähdekoodi', help: 'Ohje', preview: 'Selite' };
+  const TAB_TITLES = { read: '', edit: 'Selite', areas: 'Alueet', file: 'Tiedosto', print: 'Tulostus', names: 'Nimet', help: 'Ohje', preview: 'Selite' };
+  // esikatselun valinta on oma kullekin karttavälilehdelle (luku, muokkaus, alueet); puhelimessa esikatselu on omalla välilehdellään
+  const PV_TABS = ['read', 'edit', 'areas'], pvKey = t => 'kg.pv.' + t;
+  function applyPv() {
+    const t = document.body.dataset.tab, mobile = matchMedia('(max-width: 820px)').matches, on = store.get(pvKey(t)) !== '0';
+    $('pvToggle').checked = on;
+    document.body.classList.toggle('pv-off', PV_TABS.includes(t) && !on && !mobile);
+    if (pvShown()) { if (pvDirty) render(); else if (last && !(popup && !popup.closed)) showSvg(last.svg); }
+  }
+  $('pvToggle').onchange = e => { store.set(pvKey(document.body.dataset.tab), e.target.checked ? '1' : '0'); applyPv(); };
+  window.addEventListener('resize', () => applyPv());
   function setTab(t) {
     if (t === 'map') t = 'edit';
-    if (TAB_TITLES[t] === undefined) t = 'edit';
+    if (t === 'src') t = 'file';
+    if (TAB_TITLES[t] === undefined) t = 'file';
     const mobile = matchMedia('(max-width: 820px)').matches;
     if (t === 'preview' && !mobile) t = 'edit';
     document.body.dataset.tab = t; store.set('kg.tab', t);
@@ -327,9 +343,9 @@
     $('sideTitle').textContent = TAB_TITLES[t];
     if (t !== 'areas' && ed.mode !== 'paint') endAreaTool();
     if (t === 'read') setMode(true); else if (t === 'edit' || t === 'areas') setMode(false);
-    if (t === 'src') showSrc();
+    if (t === 'file') showSrc();
     if (t === 'names') fillNames();
-    if (last && !(popup && !popup.closed)) showSvg(last.svg);
+    applyPv();
     ed.draw();
   }
   document.querySelectorAll('#mainTabs button').forEach(b => b.onclick = () => setTab(b.dataset.tab));
@@ -337,6 +353,6 @@
   function buildMapSel() { const f = doc.file; $('mapSel').innerHTML = (f ? f.maps : [doc]).map((m, i) => `<option value="${i}"${m === doc ? ' selected' : ''}>${(m.title && m.hasHeading ? m.title + ' – ' : '') + m.name}</option>`).join(''); $('styleSel').value = doc.style || 'sea'; }
   function afterDocChange() { ed.undo = []; ed.redo = []; buildMapSel();
     if (!doc.styleSet && (!doc.style || doc.style === 'sea') && doc.legend.some(e => /^(WALL|FLOOR|HULL|DECK|RAIL)\b/i.test(e.spec))) { const w = 'Kartalta puuttuu style paper -rivi: valitse tyyliksi luola tai laiva'; doc.warnings = (doc.warnings || []).filter(x => x !== w).concat(w); } { const n = KG.areas.normalize(doc); if (n) doc.warnings = (doc.warnings || []).concat(`Sisäkkäisiä rajauksia yhdistettiin: ${n}`); } buildLegendPick(); $('inW').value = doc.W; $('inH').value = doc.H; selArea = null; refreshModel(); fillNames(); buildPalette(); buildAreaList(); ed.setDoc(); touched(); if (doc.warnings && doc.warnings.length) status(doc.warnings[0]); }
-  afterDocChange(); render(); setTab(store.get('kg.tab') || (matchMedia('(pointer: coarse)').matches ? 'read' : 'edit'));
+  afterDocChange(); setTab(store.get('kg.tab') || 'file');
   window.KG_APP = { get doc() { return doc; }, editor: ed, render };
 })();
