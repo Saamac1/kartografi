@@ -136,7 +136,7 @@
     // ---- hiiri ja yksi sormi
     down(e) {
       const p = this.cellAt(e); if (!this.inside(p)) return;
-      this.cv.focus(); this.cur = { x: p.x, y: p.y }; this.typeStartX = p.x;
+      this.cv.focus({ preventScroll: true }); this.cur = { x: p.x, y: p.y }; this.typeStartX = p.x;
       if (this.readOnly) { if (e.button === 0) { const s = this.cv.parentElement; this.mpan = { x: e.clientX, y: e.clientY, sl: s.scrollLeft, st: s.scrollTop }; this.cv.setPointerCapture(e.pointerId); } this.draw(); return; }
       if (this.mode === 'move') {
         if (e.button !== 0) return;

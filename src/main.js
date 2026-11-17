@@ -57,25 +57,38 @@
     for (const e of doc.legend) {
       const b = document.createElement('button'); b.className = 'pal' + (e.ch === ed.brush ? ' on' : ''); b.dataset.ch = e.ch;
       b.innerHTML = `<span class="ch" style="background:${cmap[e.ch] || '#fff'}">${e.ch.replace('<', '&lt;')}</span><span>${e.name}${e.decor ? ' <i>(koriste)</i>' : ''}</span>`;
-      b.title = e.spec; b.onclick = () => { setBrush(e.ch); setMode && setMode(false); endAreaTool && endAreaTool(); if (!matchMedia('(pointer: coarse)').matches) ed.cv.focus(); };
+      b.title = e.spec; b.onclick = () => { setBrush(e.ch); setMode && setMode(false); endAreaTool && endAreaTool(); if (!matchMedia('(pointer: coarse)').matches) ed.cv.focus({ preventScroll: true }); };
       p.appendChild(b);
     }
-    buildPalAdd();
+    buildPalAdd(); buildPalSel();
+  }
+  // puhelimessa palat ovat pudotusvalikossa (sivellinruudussa); lopussa legendasta puuttuvat oletuspalat
+  const missingDefaults = () => { if (doc.style && doc.style !== 'sea') return []; const have = new Set(Object.values(KG.rlml.typeMap(doc))); return KG.rlml.DEFAULT_LEGEND.filter(e => !have.has(KG.rlml.typeOf(e.spec))); };
+  function buildPalSel() {
+    const sel = $('palSel'), esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;'), miss = missingDefaults();
+    sel.innerHTML = doc.legend.map(e => `<option value="${esc(e.ch)}">${esc(e.ch)}  ${esc(e.name)}${e.decor ? ' (koriste)' : ''}</option>`).join('')
+      + (miss.length ? `<optgroup label="Lisää selitteeseen">${miss.map((e, i) => `<option value="+${i}">+ ${esc(e.name)}${e.decor ? ' (koriste)' : ''}</option>`).join('')}</optgroup>` : '');
+    sel.value = ed.brush;
+  }
+  $('palSel').onchange = e => { const v = e.target.value;
+    if (v.length > 1 && v[0] === '+') { const d = missingDefaults()[+v.slice(1)]; if (d) addDefault(d); else e.target.value = ed.brush; return; }
+    setBrush(v); endAreaTool && endAreaTool(); };
+  function addDefault(e) {
+    const used = new Set(doc.legend.map(l => l.ch)), pool = e.ch + 'CshRSVABEFGHIJLMNOPQUWZabcdefgijklmopqtuvwxyz0123456789';
+    const ch = [...pool].find(c => !used.has(c)); if (!ch) { status('Vapaita merkkejä ei ole'); return; }
+    doc.legend.push(Object.assign({}, e, { ch })); buildPalette(); buildLegendPick(); touched(); setBrush(ch); setMode && setMode(false);
+    status(`Lisätty legendaan: ${ch} ${e.spec}`);
   }
   // merikartan oletuspalat, joita kartan legendassa ei vielä ole: napsautus lisää legendaan
   function buildPalAdd() {
     const el = $('palAdd'); el.innerHTML = ''; if (doc.style && doc.style !== 'sea') return;
-    const have = new Set(Object.values(KG.rlml.typeMap(doc))), miss = KG.rlml.DEFAULT_LEGEND.filter(e => !have.has(KG.rlml.typeOf(e.spec)));
+    const miss = missingDefaults();
     if (!miss.length) return;
     el.innerHTML = '<h4>Lisää selitteeseen</h4>';
     for (const e of miss) {
       const b = document.createElement('button'); b.className = 'pal add'; b.title = 'Lisää legendaan: ' + e.spec;
       b.innerHTML = `<span class="ch" style="background:${KG.EDITOR_COLORS[KG.rlml.typeOf(e.spec)] || '#fff'}">+</span><span>${e.name}${e.decor ? ' <i>(koriste)</i>' : ''}</span>`;
-      b.onclick = () => {
-        const used = new Set(doc.legend.map(l => l.ch)), pool = e.ch + 'CshRSVABEFGHIJLMNOPQUWZabcdefgijklmopqtuvwxyz0123456789';
-        const ch = [...pool].find(c => !used.has(c)); if (!ch) { status('Vapaita merkkejä ei ole'); return; }
-        doc.legend.push(Object.assign({}, e, { ch })); buildPalette(); buildLegendPick(); touched(); setBrush(ch); setMode && setMode(false);
-        status(`Lisätty legendaan: ${ch} ${e.spec}`); };
+      b.onclick = () => addDefault(e);
       el.appendChild(b);
     }
   }
@@ -100,7 +113,7 @@
       l.querySelector('input').onchange = ev => { if (ev.target.checked) delete e.decor; else e.decor = true; buildPalette(); touched(); };
       el.appendChild(l); }
   }
-  function setBrush(ch) { ed.brush = ch; document.querySelectorAll('.pal').forEach(b => b.classList.toggle('on', b.dataset.ch === ch)); showTool(); ed.draw(); }
+  function setBrush(ch) { ed.brush = ch; document.querySelectorAll('.pal').forEach(b => b.classList.toggle('on', b.dataset.ch === ch)); $('palSel').value = ch; showTool(); ed.draw(); }
   $('brush').onchange = e => { ed.brushSize = +e.target.value; };
   ed.brush = '.';
 
@@ -338,6 +351,8 @@
     if (TAB_TITLES[t] === undefined) t = 'file';
     const mobile = matchMedia('(max-width: 820px)').matches;
     if (t === 'preview' && !mobile) t = 'edit';
+    // kartta pysyy ruudulla paikallaan, vaikka sivupaneeli ilmestyy viereen tai yläpuolelle
+    const sv = $('edScroll'), was = sv.offsetParent ? sv.getBoundingClientRect() : null, wasL = sv.scrollLeft, wasT = sv.scrollTop;
     document.body.dataset.tab = t; store.set('kg.tab', t);
     document.querySelectorAll('#mainTabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
     $('sideTitle').textContent = TAB_TITLES[t];
@@ -346,9 +361,20 @@
     if (t === 'file') showSrc();
     if (t === 'names') fillNames();
     applyPv();
+    if (was && sv.offsetParent) keepMapPlace(sv, was, wasL, wasT);
     ed.draw();
   }
   document.querySelectorAll('#mainTabs button').forEach(b => b.onclick = () => setTab(b.dataset.tab));
+  // editorin alue siirtyi ruudulla (paneeli tuli viereen tai yläpuolelle): vieritetään saman verran, jotta kartta
+  // pysyy paikallaan; jos kartta ei riitä vieritykseen, oikealle ja alas lisätään tyhjää vieritysvaraa
+  const slack = { x: 0, y: 0 };
+  function keepMapPlace(sv, was, wasL, wasT) {
+    const now = sv.getBoundingClientRect(), wantL = Math.max(0, wasL + now.left - was.left), wantT = Math.max(0, wasT + now.top - was.top);
+    const baseW = sv.scrollWidth - slack.x, baseH = sv.scrollHeight - slack.y;
+    slack.x = Math.max(0, Math.ceil(wantL - (baseW - sv.clientWidth))); slack.y = Math.max(0, Math.ceil(wantT - (baseH - sv.clientHeight)));
+    ed.cv.style.marginRight = slack.x + 'px'; ed.cv.style.marginBottom = slack.y + 'px';
+    sv.scrollLeft = wantL; sv.scrollTop = wantT;
+  }
 
   function buildMapSel() { const f = doc.file; $('mapSel').innerHTML = (f ? f.maps : [doc]).map((m, i) => `<option value="${i}"${m === doc ? ' selected' : ''}>${(m.title && m.hasHeading ? m.title + ' – ' : '') + m.name}</option>`).join(''); $('styleSel').value = doc.style || 'sea'; }
   function afterDocChange() { ed.undo = []; ed.redo = []; buildMapSel();

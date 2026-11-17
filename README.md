@@ -42,7 +42,8 @@ ovat yläpalkissa aina näkyvissä.
 - **Esikatselu seuraa kursoria:** kun kartta on zoomattu niin, ettei se mahdu
   kerralla näkyviin, esikatselu vierittää editorin kursorin kohdan näkyviin
   (punainen ruutu). Esikatselua voi myös siirrellä vetämällä.
-- **Kartan luku / Kartan muokkaus (välilehdet):** lukutilassa
+- **Kartan luku / Kartan muokkaus (välilehdet):** kartta pysyy ruudulla
+  samassa kohdassa, kun välilehteä vaihdetaan. Lukutilassa
   karttaa vieritetään vetämällä ja napsautus näyttää ruudun tiedot
   (maasto ja aluepolku); mitään ei voi muuttaa vahingossa. Muokkaustilassa:
   - hiiren vasen nappi piirtää, oikea poimii palan kartalta, Vaihto + napsautus täyttää yhtenäisen alueen
@@ -81,7 +82,9 @@ ovat yläpalkissa aina näkyvissä.
 Kapealla näytöllä välilehtiä on yksi lisää: kartta ja esikatselu ovat eri
 välilehdillä (*Kartan muokkaus* ja *Esikatselu*; *Kartan luku* näyttää pelkän
 kartan). Kartan muokkaus- ja Alueet-välilehdillä paneeli
-on editorin yläpuolella, ja välilehtirivi vierii sivusuunnassa.
+on editorin yläpuolella, ja välilehtirivi vierii sivusuunnassa. Palat
+valitaan pudotusvalikosta (sen lopussa ovat legendasta puuttuvat
+oletuspalat), joten selitepalkki vie vain yhden rivin.
 Puhelin aloittaa lukutilassa, jossa yksi sormi vierittää. Muokkaustilassa yksi
 sormi piirtää ja kaksi sormea vierittää. Kumoa ja Tee uudelleen ovat
 yläpalkissa. Esikatselua ei voi irrottaa omaksi

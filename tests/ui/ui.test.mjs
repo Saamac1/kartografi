@@ -196,3 +196,53 @@ test('zoom-painikkeet ovat esikatselun alalaidassa', async () => {
   assert.ok(await page.$eval('.pvbar', el => el.contains(document.getElementById('zIn')) && el.contains(document.getElementById('zFit'))));
   await close();
 });
+
+test('kartta pysyy ruudulla paikallaan siirryttäessä Kartan luvusta Kartan muokkaukseen', async () => {
+  for (const [w, h] of [[1440, 860], [390, 800]]) {
+    const { page, errors, close } = await open(w, h);
+    await tab(page, 'read');
+    await page.evaluate(() => { const s = document.getElementById('edScroll'); s.scrollLeft = 400; s.scrollTop = 300; });
+    const at = () => page.$eval('#ed', el => { const r = el.getBoundingClientRect(); return [Math.round(r.left), Math.round(r.top)]; });
+    const a = await at();
+    await tab(page, 'edit');
+    assert.deepEqual(await at(), a, `${w}px: kartta ei siirry ruudulla`);
+    // palan valinta ei vieritä karttaa
+    if (w > 800) await page.click('#palette .pal[data-ch="T"]'); else await page.select('#palSel', 'T');
+    await wait(100);
+    assert.deepEqual(await at(), a, `${w}px: palan valinta ei siirrä karttaa`);
+    await tab(page, 'read');
+    assert.deepEqual(await at(), a, `${w}px: takaisin lukuun`);
+    assert.deepEqual(errors, []);
+    await close();
+  }
+});
+
+test('mobiilissa palat valitaan pudotusvalikosta', async () => {
+  const { page, errors, close } = await open(390, 800);
+  await tab(page, 'edit');
+  assert.ok(await visible(page, '#palSel'), 'pudotusvalikko näkyy');
+  assert.ok(!(await visible(page, '#palette')), 'painikelista piilossa');
+  const panelH = await page.$eval('.palette', el => el.getBoundingClientRect().height);
+  assert.ok(panelH < 80, `selitepalkki on matala (${panelH} px)`);
+  await page.select('#palSel', 'T');
+  assert.equal(await page.evaluate(() => KG_APP.editor.brush), 'T');
+  assert.equal(await page.$eval('#brushCh', el => el.textContent), 'T');
+  // esimerkki, jonka legendasta puuttuu uusia paloja: lisäys pudotusvalikon kautta
+  await tab(page, 'file'); await page.select('#exSel', 'meri'); await wait(500); await tab(page, 'edit');
+  const add = await page.$$eval('#palSel optgroup option', os => os.map(o => [o.value, o.textContent]));
+  assert.ok(add.length > 0, 'puuttuvat palat ovat valikon lopussa');
+  const n0 = await page.evaluate(() => KG_APP.doc.legend.length);
+  await page.select('#palSel', add[0][0]); await wait(200);
+  assert.equal(await page.evaluate(() => KG_APP.doc.legend.length), n0 + 1, 'pala lisättiin legendaan');
+  assert.equal(await page.$eval('#palSel', el => el.value), await page.evaluate(() => KG_APP.editor.brush), 'lisätty pala on valittuna');
+  await shot(page, 'mobiili-pudotusvalikko');
+  assert.deepEqual(errors, []);
+  await close();
+});
+
+test('työpöydällä palat ovat painikkeina eikä pudotusvalikkoa näytetä', async () => {
+  const { page, close } = await open(1440, 860);
+  await tab(page, 'edit');
+  assert.ok(await visible(page, '#palette')); assert.ok(!(await visible(page, '#palSel')));
+  await close();
+});
