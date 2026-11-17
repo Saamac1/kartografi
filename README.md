@@ -42,7 +42,8 @@ tiedostot ovat tavallisia skriptejä, joten `file://` toimii.
 - **Generoi:** uusi saaristo annetulla siemenellä ja koolla. Sama siemen ja koko
   tuottavat aina saman kartan. Rannoille tulee yhtenäisinä pätkinä
   rantakallioita (etenkin ylänköjen ja vuorten vierellä) ja hiekkarantoja
-  (matalilla rannoilla).
+  (matalilla rannoilla). Suurimmille saarille tulee kylä (2–5 taloa) rannan
+  tuntumaan, mieluiten joen varteen, ja kukkuloille linnan rauniot.
 - **Nimetyt alueet (vasen):** *Lisää* luo alueen nimestä. Valitse alue
   listasta ja
   - *Rajaa*: raahaa suorakulmio alueelle, kulmakahvasta muutat kokoa, oikea

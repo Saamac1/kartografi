@@ -21,7 +21,7 @@
       if (blobs.some(b => Math.hypot((b[0] - x) / (b[2] + rx), (b[1] - y) / (b[3] + ry)) < .85)) continue;
       blobs.push([x, y, rx, ry, .32 + R() * .3]);
     }
-    const free = opt.reserve === false ? [] : [[W - 31, H - 12, W - 1, H - 1], [0, H - 6, Math.floor(W * .55), H - 1]];
+    const free = opt.reserve === false ? [] : [[W - 31, H - 14, W - 1, H - 1], [0, H - 6, Math.floor(W * .55), H - 1]];
     const inFree = (i, j) => free.some(([a, b, c, d]) => i >= a && i <= c && j >= b && j <= d);
     const h = [];
     for (let j = 0; j < H; j++) { h.push([]); for (let i = 0; i < W; i++) {
@@ -80,6 +80,29 @@
     if (order.length) { const main = comps[order[0]]; let best = null, bd = -1;
       for (const [i, j] of main) { if (M[j][i] !== '.' && M[j][i] !== ',') continue; let d = 99; for (let b = -6; b <= 6; b++) for (let a = -6; a <= 6; a++) if (!land(i + a, j + b)) d = Math.min(d, Math.hypot(a, b)); const sc = Math.min(d, 3.5) + R() * .5; if (sc > bd) { bd = sc; best = [i, j]; } }
       if (best) M[best[1]][best[0]] = 'X'; }
+    // kylät ja linnan rauniot omalla satunnaislähteellä, jotta muu kartta pysyy ennallaan
+    { const R2 = rng(seed * 31 + 5), open = (i, j) => land(i, j) && '.,TD'.includes(M[j][i]);
+      const nearWater = (i, j, r) => { for (let b = -r; b <= r; b++) for (let a = -r; a <= r; a++) if (!land(i + a, j + b)) return true; return false; };
+      const near = (i, j, ch, r) => { let n = 0; for (let b = -r; b <= r; b++) for (let a = -r; a <= r; a++) { const x = i + a, y = j + b; if (land(x, y) && M[y][x] === ch) n++; } return n; };
+      const taken = [];
+      const far = (i, j, d) => taken.every(([x, y]) => Math.hypot(x - i, y - j) >= d);
+      // kylä: rannan tuntumaan, mieluiten joen varteen; 2–5 taloa saaren koon mukaan
+      for (const n of order.filter(n => comps[n].length >= 40).slice(0, 3)) {
+        let best = null, bs = -1;
+        for (const [i, j] of comps[n]) { if (!open(i, j) || nearWater(i, j, 0) || !nearWater(i, j, 2) || near(i, j, 'X', 2) || !far(i, j, 8)) continue;
+          const sc = Math.min(3, near(i, j, 'r', 2)) * .8 + near(i, j, '.', 1) * .15 - near(i, j, '^', 2) * .3 + R2() * .8; if (sc > bs) { bs = sc; best = [i, j]; } }
+        if (!best) continue;
+        const want = Math.min(5, 2 + Math.floor(comps[n].length / 90)), [ci, cj] = best; let put = 0;
+        const ring = [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, 1], [1, -1], [-1, -1], [2, 0], [-2, 0]].sort((a, b) => (Math.abs(a[0]) + Math.abs(a[1])) - (Math.abs(b[0]) + Math.abs(b[1])) + (R2() - .5) * .8);
+        for (const [a, b] of ring) { if (put >= want) break; const x = ci + a, y = cj + b; if (open(x, y) && !nearWater(x, y, 0)) { M[y][x] = 'h'; put++; } }
+        taken.push(best);
+      }
+      // rauniot: kukkuloiden keskelle (ylänkö), kauas kylistä ja aarteesta
+      let best = null, bs = -1;
+      for (const n of order.slice(0, 3)) for (const [i, j] of comps[n]) {
+        if (!(open(i, j) || M[j][i] === 'n') || nearWater(i, j, 1) || near(i, j, 'X', 3) || !far(i, j, 7)) continue;
+        const sc = near(i, j, 'n', 1) + near(i, j, '^', 2) * .3 + R2() * 1.5; if (sc > bs) { bs = sc; best = [i, j]; } }
+      if (best && bs >= 2) { const [i, j] = best; M[j][i] = 'R'; const nb = [[1, 0], [-1, 0]].find(([a]) => land(i + a, j) && (open(i + a, j) || M[j][i + a] === 'n') && !nearWater(i + a, j, 1)); if (nb && R2() < .7) M[j][i + nb[0]] = 'R'; } }
     // syvyys, kraken ja syvänteen nimi
     const D = h.map((r, j) => r.map((_, i) => land(i, j) ? 0 : 99));
     for (let it = 0; it < 60; it++) for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) { if (!D[j][i]) continue; let m = D[j][i]; for (const [a, b] of N8) { const x = i + a, y = j + b; if (x >= 0 && y >= 0 && x < W && y < H) m = Math.min(m, D[y][x] + (a && b ? 1.41 : 1)); } D[j][i] = m; }
