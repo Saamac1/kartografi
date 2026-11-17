@@ -50,7 +50,7 @@
     addRect: r => { if (!selArea) { status('Valitse tai luo alue ensin'); return; } ed.snapshot(); doc.areas.push(Object.assign(r, { name: selArea })); const n = KG.areas.normalize(doc); areaChanged(); if (n) status(`Alueen ${KG.areas.displayName(doc, selArea)} rajaukset yhdistettiin (${n} vähemmän)`); },
     removeRectAt: p => { for (let i = doc.areas.length - 1; i >= 0; i--) { const a = doc.areas[i]; if ((!selArea || a.name === selArea) && p.x >= a.x && p.y >= a.y && p.x < a.x + a.w && p.y < a.y + a.h) { ed.snapshot(); doc.areas.splice(i, 1); areaChanged(); status(`Suorakulmio poistettu alueesta ${a.name}`); return; } } },
     status,
-    onCursor: (c, k) => { const e = doc.legend.find(l => l.ch === k), path = M.at(c.x, c.y).map(n => KG.areas.displayName(doc, n)).join(' › '); $('cursorInfo').textContent = `x ${c.x}, y ${c.y}   "${k}" ${e ? e.name : 'tuntematon merkki'}   ${path ? '▸ ' + path : ''}`; },
+    onCursor: (c, k) => { const e = doc.legend.find(l => l.ch === k), path = M.at(c.x, c.y).map(n => KG.areas.displayName(doc, n)).join(' › '); $('cursorInfo').textContent = `x ${c.x}, y ${c.y}   "${k}" ${e ? e.name : 'tuntematon merkki'}   ${path ? '▸ ' + path : ''}`; followCursor(false); },
   });
   function buildPalette() {
     const p = $('palette'); p.innerHTML = ''; const cmap = KG.editorColors(doc);
@@ -60,7 +60,37 @@
       b.title = e.spec; b.onclick = () => { setBrush(e.ch); setMode && setMode(false); endAreaTool && endAreaTool(); if (!matchMedia('(pointer: coarse)').matches) ed.cv.focus(); };
       p.appendChild(b);
     }
+    buildPalAdd();
   }
+  // merikartan oletuspalat, joita kartan legendassa ei vielä ole: napsautus lisää legendaan
+  function buildPalAdd() {
+    const el = $('palAdd'); el.innerHTML = ''; if (doc.style && doc.style !== 'sea') return;
+    const have = new Set(Object.values(KG.rlml.typeMap(doc))), miss = KG.rlml.DEFAULT_LEGEND.filter(e => !have.has(KG.rlml.typeOf(e.spec)));
+    if (!miss.length) return;
+    el.innerHTML = '<h4>Lisää selitteeseen</h4>';
+    for (const e of miss) {
+      const b = document.createElement('button'); b.className = 'pal add'; b.title = 'Lisää legendaan: ' + e.spec;
+      b.innerHTML = `<span class="ch" style="background:${KG.EDITOR_COLORS[KG.rlml.typeOf(e.spec)] || '#fff'}">+</span><span>${e.name}${e.decor ? ' <i>(koriste)</i>' : ''}</span>`;
+      b.onclick = () => {
+        const used = new Set(doc.legend.map(l => l.ch)), pool = e.ch + 'CshRSVABEFGHIJLMNOPQUWZabcdefgijklmopqtuvwxyz0123456789';
+        const ch = [...pool].find(c => !used.has(c)); if (!ch) { status('Vapaita merkkejä ei ole'); return; }
+        doc.legend.push(Object.assign({}, e, { ch })); buildPalette(); buildLegendPick(); touched(); setBrush(ch); setMode && setMode(false);
+        status(`Lisätty legendaan: ${ch} ${e.spec}`); };
+      el.appendChild(b);
+    }
+  }
+  // kelluva selitepalkki: sijainti muistetaan selaimessa
+  { const pn = $('palPanel'), hd = $('palHead');
+    const place = (x, y) => { const w = pn.offsetWidth || 230; x = Math.max(0, Math.min(innerWidth - Math.min(w, 120), x)); y = Math.max(0, Math.min(innerHeight - 40, y)); pn.style.left = x + 'px'; pn.style.top = y + 'px'; return [x, y]; };
+    const setFloat = on => { document.body.classList.toggle('float-pal', on); store.set('kg.floatPal', on ? '1' : '0');
+      if (on) { let p = null; try { p = JSON.parse(store.get('kg.palPos')); } catch (e) { p = null; } place(...(p || [60, 110])); } else { pn.style.left = pn.style.top = pn.style.width = pn.style.height = ''; } };
+    $('btnFloat').onclick = () => setFloat(!document.body.classList.contains('float-pal'));
+    let drag = null;
+    hd.addEventListener('pointerdown', e => { if (!document.body.classList.contains('float-pal') || e.target.closest('button') || e.button !== 0) return; const r = pn.getBoundingClientRect(); drag = { dx: e.clientX - r.left, dy: e.clientY - r.top }; hd.setPointerCapture(e.pointerId); e.preventDefault(); });
+    hd.addEventListener('pointermove', e => { if (drag) place(e.clientX - drag.dx, e.clientY - drag.dy); });
+    hd.addEventListener('pointerup', e => { if (!drag) return; drag = null; const r = pn.getBoundingClientRect(); store.set('kg.palPos', JSON.stringify([r.left, r.top])); });
+    window.addEventListener('resize', () => { if (document.body.classList.contains('float-pal')) place(pn.offsetLeft, pn.offsetTop); });
+    if (store.get('kg.floatPal') === '1') setFloat(true); }
   // selitteeseen otettavat palat; koristeet (decor) jätetään pois
   function buildLegendPick() {
     const el = $('legendPick'); el.innerHTML = '';
@@ -115,12 +145,31 @@
   }
   function showSvg(svg) {
     if (popup && !popup.closed) { const v = popup.document.getElementById('v'); if (v) { v.innerHTML = svg; sizeSvg(v); } }
-    else { $('pv').innerHTML = svg; sizeSvg($('pv')); }
+    else { $('pv').innerHTML = svg + '<div id="pvCur" hidden></div>'; sizeSvg($('pv')); followCursor(false); }
   }
   function sizeSvg(host) { const el = host.querySelector('svg'); if (!el) return; el.removeAttribute('width'); el.removeAttribute('height'); el.style.width = (zoom * 100) + '%'; }
-  $('zIn').onclick = () => { zoom = Math.min(8, zoom * 1.4); sizeSvg($('pv')); };
-  $('zOut').onclick = () => { zoom = Math.max(.25, zoom / 1.4); sizeSvg($('pv')); };
-  $('zFit').onclick = () => { zoom = 1; sizeSvg($('pv')); };
+  $('zIn').onclick = () => { zoom = Math.min(8, zoom * 1.4); sizeSvg($('pv')); followCursor(true); };
+  $('zOut').onclick = () => { zoom = Math.max(.25, zoom / 1.4); sizeSvg($('pv')); followCursor(true); };
+  $('zFit').onclick = () => { zoom = 1; sizeSvg($('pv')); followCursor(true); };
+  // esikatselu seuraa editorin kursoria, kun kartta ei mahdu kerralla näkyviin
+  let lastCur = null;
+  function followCursor(force) {
+    const sv = $('pvScroll'), el = $('pv').querySelector('svg'), mk = $('pvCur'); if (!el || !last || sv.hidden) return;
+    const c = ed.cur, s = el.clientWidth / last.sc.VW, cs = 16 * s, x = el.offsetLeft + (last.sc.MG + c.x * 16) * s, y = el.offsetTop + (last.sc.MG + (last.sc.oy || 0) + c.y * 16) * s;
+    Object.assign(mk.style, { left: x + 'px', top: y + 'px', width: cs + 'px', height: cs + 'px' }); mk.hidden = false;
+    const moved = !lastCur || lastCur.x !== c.x || lastCur.y !== c.y; lastCur = { x: c.x, y: c.y };
+    if (!moved && !force) return;
+    const pad = Math.min(sv.clientWidth, sv.clientHeight) * .15;
+    if (x < sv.scrollLeft + pad || x + cs > sv.scrollLeft + sv.clientWidth - pad) sv.scrollLeft = x + cs / 2 - sv.clientWidth / 2;
+    if (y < sv.scrollTop + pad || y + cs > sv.scrollTop + sv.clientHeight - pad) sv.scrollTop = y + cs / 2 - sv.clientHeight / 2;
+  }
+  // esikatselun siirtely vetämällä (kosketuksessa selain vierittää itse)
+  { const sv = $('pvScroll'); let pan = null;
+    sv.addEventListener('pointerdown', e => { if (e.pointerType === 'touch' || e.button !== 0) return; pan = { x: e.clientX, y: e.clientY, sl: sv.scrollLeft, st: sv.scrollTop }; sv.setPointerCapture(e.pointerId); sv.classList.add('panning'); e.preventDefault(); });
+    sv.addEventListener('pointermove', e => { if (!pan) return; sv.scrollLeft = pan.sl - (e.clientX - pan.x); sv.scrollTop = pan.st - (e.clientY - pan.y); });
+    const end = () => { pan = null; sv.classList.remove('panning'); };
+    sv.addEventListener('pointerup', end); sv.addEventListener('pointercancel', end); }
+  window.addEventListener('resize', () => followCursor(false));
   $('showSheets').onchange = render;
 
   // irrotettava esikatselu
@@ -251,7 +300,7 @@
   // puhelimessa: välilehdet editorille, esikatselulle ja asetuksille
   document.querySelectorAll('#appTabs button').forEach(b => b.onclick = () => {
     document.querySelectorAll('#appTabs button').forEach(x => x.classList.toggle('on', x === b));
-    document.body.className = 'pane-' + b.dataset.pane + (ed.readOnly ? ' readmode' : '');
+    document.body.className = 'pane-' + b.dataset.pane + (ed.readOnly ? ' readmode' : '') + (store.get('kg.floatPal') === '1' ? ' float-pal' : '');
     if (b.dataset.pane === 'preview' && last) showSvg(last.svg);
     if (b.dataset.pane === 'settings' && $('tNames').classList.contains('on')) fillNames();
   });

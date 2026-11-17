@@ -26,10 +26,17 @@
     { ch: 'r', spec: 'RIVER', name: 'joki' },
     { ch: 'X', spec: 'GRASS with TREASURE', name: 'aarre' },
     { ch: 'K', spec: 'WATER with KRAKEN', name: 'kraken', decor: true },
+    { ch: 'C', spec: 'CLIFF', name: 'rantakallio' },
+    { ch: 's', spec: 'SAND', name: 'hiekkaranta' },
+    { ch: 'h', spec: 'GRASS with HOUSE', name: 'rakennukset' },
+    { ch: 'R', spec: 'GRASS with CASTLE_RUINS', name: 'linnan rauniot' },
+    { ch: 'S', spec: 'ROCK with SKULL_CAVE', name: 'luurankoluola', decor: true },
+    { ch: 'V', spec: 'VOLCANO', name: 'tulivuori', decor: true },
   ];
   const TYPE_NAMES = {
     water: 'vesi', grass: 'niitty', shrubs: 'pensaikko', conifer: 'havumetsä', deciduous: 'lehtimetsä',
     palm: 'palmu', mountain: 'vuori', hill: 'kukkula', river: 'joki', treasure: 'aarre', kraken: 'kraken',
+    cliff: 'rantakallio', beach: 'hiekkaranta', building: 'rakennukset', ruins: 'linnan rauniot', skullcave: 'luurankoluola', volcano: 'tulivuori',
   };
   const STYLES = ['sea', 'cave', 'ship'];
   const tilesMod = () => KG.tiles || (typeof require !== 'undefined' ? (() => { try { return require('./tiles.js'); } catch (e) { return null; } })() : null);
@@ -39,6 +46,10 @@
     const s = String(spec || '').toUpperCase();
     if (s.includes('KRAKEN')) return 'kraken';
     if (s.includes('TREASURE')) return 'treasure';
+    if (s.includes('VOLCANO')) return 'volcano';
+    if (s.includes('SKULL')) return 'skullcave';
+    if (s.includes('RUIN')) return 'ruins';
+    if (s.includes('HOUSE') || s.includes('BUILDING')) return 'building';
     if (s.includes('PALM')) return 'palm';
     if (s.includes('RIVER')) return 'river';
     if (s.includes('MOUNTAIN')) return 'mountain';
@@ -46,6 +57,8 @@
     if (s.includes('DECIDUOUS')) return 'deciduous';
     if (s.includes('FOREST') || s.includes('CONIFER')) return 'conifer';
     if (s.includes('SHRUB') || s.includes('BUSH')) return 'shrubs';
+    if (s.includes('CLIFF')) return 'cliff';
+    if (s.startsWith('SAND') || s.includes('BEACH')) return 'beach';
     if (s.startsWith('WATER') || s.startsWith('SEA')) return 'water';
     return 'grass';
   }
@@ -225,7 +238,7 @@
     return s;
   }
   // ---- projekti: karttatiedosto + tyylitiedosto (paper) + kielitiedosto
-  const SEA_KINDS = ['water', 'grass', 'shrubs', 'conifer', 'deciduous', 'palm', 'mountain', 'hill', 'river', 'treasure', 'kraken'];
+  const SEA_KINDS = ['water', 'grass', 'shrubs', 'conifer', 'deciduous', 'palm', 'mountain', 'hill', 'river', 'treasure', 'kraken', 'cliff', 'beach', 'building', 'ruins', 'skullcave', 'volcano'];
   const DUNGEON_KINDS = ['solid', 'floor', 'void', 'door', 'stairs', 'exit'];
   const STYLE_HEAD = /^(maps\.theme|tiles\.glyphs|areas\.labels)\s+paper\s*$/i;
   // tiedoston laji sisällöstä: ensimmäinen määrittely ratkaisee kielitiedoston (luku 10)

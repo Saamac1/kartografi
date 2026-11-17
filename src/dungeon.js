@@ -233,7 +233,7 @@
       }
     }
     const body = top.join('') + `<g transform="translate(0 ${TH})">${out.join('\n')}</g>` + below;
-    return { body, VW: dm.VW, VH: dm.VH, MG, k, cellMM: o.cellMM, W, H };
+    return { body, VW: dm.VW, VH: dm.VH, MG, oy: TH, k, cellMM: o.cellMM, W, H };
   }
   const api = { scene, dims, legendEntries };
   KG.dungeon = api;

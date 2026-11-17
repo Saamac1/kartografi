@@ -40,9 +40,10 @@
 <nav class="apptabs" id="appTabs"><button data-pane="editor" class="on">Editori</button><button data-pane="preview">Esikatselu</button><button data-pane="settings">Tulostus ja nimet</button></nav>
 
 <main class="layout">
-  <aside class="palette">
-    <h3>Selite</h3>
+  <aside class="palette" id="palPanel">
+    <div class="palhead" id="palHead" title="Kelluvana: vedä tästä siirtääksesi"><h3>Selite</h3><button id="btnFloat" class="no-mobile" title="Irrota selitepalkki kelluvaksi tai kiinnitä takaisin">⧉ Kelluva</button></div>
     <div id="palette"></div>
+    <div id="palAdd"></div>
     <label class="row">Sivellin
       <select id="brush"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="5">5</option></select>
     </label>

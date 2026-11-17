@@ -15,6 +15,18 @@ Avaa `index.html` selaimessa. Rakennusvaihetta tai palvelinta ei tarvita, ja
 tiedostot ovat tavallisia skriptejä, joten `file://` toimii.
 
 - **Selite (vasen):** valitse piirrettävä pala. Sivellinkoko 1–5 ruutua.
+  *⧉ Kelluva* irrottaa selitepalkin siirrettäväksi ikkunaksi editorin päälle
+  (vedä otsikosta, kulmasta muutat kokoa). Merikartalla *Lisää selitteeseen*
+  näyttää oletuspalat, joita kartan legendassa ei vielä ole.
+- **Uudet merikartan palat:** rantakallio `C` (`CLIFF`), hiekkaranta `s`
+  (`SAND`), rakennukset `h` (`GRASS with HOUSE`), linnan rauniot `R`
+  (`GRASS with CASTLE_RUINS`) sekä koristeet luurankoluola `S`
+  (`ROCK with SKULL_CAVE`) ja tulivuori `V` (`VOLCANO`). Koristeesta piirretään
+  yksi kuva yhtenäistä aluetta kohden, ja kuva kasvaa alueen mukana. Vuoriston
+  sisäosan huiput piirretään korkeampina kuin reunojen.
+- **Esikatselu seuraa kursoria:** kun kartta on zoomattu niin, ettei se mahdu
+  kerralla näkyviin, esikatselu vierittää editorin kursorin kohdan näkyviin
+  (punainen ruutu). Esikatselua voi myös siirrellä vetämällä.
 - **Lue karttaa / Muokkaa karttaa (editorin yläpalkki):** lukutilassa
   karttaa vieritetään vetämällä ja napsautus näyttää ruudun tiedot
   (maasto ja aluepolku); mitään ei voi muuttaa vahingossa. Muokkaustilassa:
@@ -177,7 +189,8 @@ tiles.glyphs paper
 ```
 
 Lajit: merikartalla `water`, `grass`, `shrubs`, `conifer`, `deciduous`,
-`palm`, `mountain`, `hill`, `river`, `treasure`, `kraken`; luolassa ja
+`palm`, `mountain`, `hill`, `river`, `treasure`, `kraken`, `cliff`, `beach`,
+`building`, `ruins`, `skullcave`, `volcano`; luolassa ja
 laivassa `solid`, `floor`, `void`, `door`, `stairs`, `exit`. Määreet `rough`,
 `straight`, `thin`, `pattern planks|boards|gangplank|moss|runes`,
 `symbol NIMI`, `locked`, `up`, `down`. `decor` jättää palan pois

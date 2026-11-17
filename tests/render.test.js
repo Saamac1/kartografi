@@ -54,3 +54,15 @@ test('koristeet (decor) eivät tule selitteeseen', () => {
   d.legend.find(e => e.ch === 'K').decor = false;
   assert.ok(rows(d) > withDecor, 'ilman decor-määrettä kraken lisää selitteeseen rivin');
 });
+
+test('uudet palat ja koristeet piirtyvät mustavalkoisina ja selitteeseen', () => {
+  const d = rlml.blankDoc(36, 24);
+  const rows = ['~~~CCCCC~~~~~~~~~~~~~~~~~~~~~~~~~~~~', '~~C..hh.s~~~~^^^^^~~~~~~~~~~~~~~~~~~', '~~C..RR.ss~~^^^^^^^~~~~~~~~~~~~~~~~~', '~~~C....s~~~~^^^^^~~~~~~~~~~~~~~~~~~', '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~', '~~~~....VV...S...~~~~~~~~~~~~~~~~~~~', '~~~~....VV.......~~~~~~~~~~~~~~~~~~~'];
+  rows.forEach((r, j) => { d.grid[j + 2] = r; });
+  for (const e of d.legend) if (e.ch === 'V' || e.ch === 'S') delete e.decor;
+  const svg = renderer.svgWhole(renderer.scene(d, { cellMM: 6 }));
+  assert.ok(!svg.includes('NaN'));
+  for (const c of new Set(svg.match(/#[0-9a-fA-F]{3,6}\b/g))) assert.ok(['#000', '#fff'].includes(c.toLowerCase()), 'väri ' + c);
+  const tm = rlml.typeMap(d);
+  assert.deepEqual(['C', 's', 'h', 'R', 'S', 'V'].map(c => tm[c]), ['cliff', 'beach', 'building', 'ruins', 'skullcave', 'volcano']);
+});

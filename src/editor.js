@@ -14,7 +14,7 @@
   // ruudun väri editorissa: merikartassa palan tyypin, luolissa ja laivoissa palaluokan mukaan
   function colorMap(doc) { const m = {}; if (!doc.style || doc.style === 'sea') { const tm = KG.rlml.typeMap(doc); for (const e of doc.legend) m[e.ch] = COLORS[tm[e.ch]] || '#fff'; return m; }
     const cm = KG.tiles.classMap(doc); for (const e of doc.legend) { const c = cm[e.ch]; m[e.ch] = c.symbols.length && c.kind === 'floor' ? '#f2e2a4' : c.pattern === 'planks' || c.pattern === 'boards' ? '#eadcbc' : c.pattern === 'moss' ? '#7f9070' : c.pattern === 'runes' ? '#9a8a78' : KCOL[c.kind] || '#fff'; } return m; }
-  const COLORS = { water: '#cfe2f2', grass: '#eef2d4', shrubs: '#dbe6b2', conifer: '#9ec38a', deciduous: '#bedb98', palm: '#f2e2a4', mountain: '#c8c2b6', hill: '#e2d1ae', river: '#8ebfe8', treasure: '#f5c4c4', kraken: '#bba9de' };
+  const COLORS = { water: '#cfe2f2', grass: '#eef2d4', shrubs: '#dbe6b2', conifer: '#9ec38a', deciduous: '#bedb98', palm: '#f2e2a4', mountain: '#c8c2b6', hill: '#e2d1ae', river: '#8ebfe8', treasure: '#f5c4c4', kraken: '#bba9de', cliff: '#a9a397', beach: '#f7ecc4', building: '#e8b98f', ruins: '#b9a48c', skullcave: '#d8d2c4', volcano: '#6e5a52' };
 
   class Editor {
     constructor(canvas, hooks) {

@@ -96,7 +96,7 @@
     // selitteeseen vain kartalla esiintyvät, ei-koristeelliset palat (legendan 'decor' jää pois)
     const decorCh = new Set(doc.legend.filter(e => e.decor).map(e => e.ch)), present = new Set();
     for (let j = 0; j < H; j++) { const r = doc.grid[j] || ''; for (let i = 0; i < W; i++) if (!decorCh.has(r[i])) present.add(T[j][i]); }
-    const legendItems = ['conifer', 'deciduous', 'shrubs', 'palm', 'mountain', 'hill', 'river', 'treasure', 'kraken'].filter(t => present.has(t));
+    const legendItems = ['conifer', 'deciduous', 'shrubs', 'palm', 'mountain', 'hill', 'river', 'beach', 'cliff', 'building', 'ruins', 'volcano', 'skullcave', 'treasure', 'kraken'].filter(t => present.has(t));
     legendItems.push('shallow', 'deep');
     const LGrows = Math.ceil(legendItems.length / 2);
     const LG = o.legend ? { w: 19.5 * CS, h: 2.6 * CS + LGrows * 19 } : null;
@@ -153,8 +153,79 @@
     // ---- symbolit (piirtojärjestys ylhäältä alas, valkoinen täyttö piilottaa takana olevat viivat)
     const SYM = [];
     const S = {
-      mountain(cx, b, s, r) { const h = 19 * s, w = 11 * s, L = [cx - w, b], Pk = [cx + (r() - .5) * 3 * s, b - h], R = [cx + w, b], M = [Pk[0] + (R[0] - Pk[0]) * .15 + 2 * s, b];
-        return white(P([L, Pk, R], true)) + el(hatchD([Pk, R, M], spY), wT) + el(P([L, Pk, R])); },
+      // rosoinen vuori: kylkiin pykäliä ja olkapäitä; hk kasvattaa vuoriston keskiosan huippuja
+      mountain(cx, b, s, r, hk) { hk = hk || 1;
+        const h = 19 * s * hk, w = 11 * s * (1 + (hk - 1) * .45), L = [cx - w, b], Pk = [cx + (r() - .5) * 3 * s, b - h], R = [cx + w, b], a = 1.7 * s * Math.sqrt(hk);
+        // reunapisteet suoralta viivalta, vuorotellen ulos (olkapää) ja sisään (pykälä)
+        const jag = (p, q, ts, sg) => ts.map((t, n) => { const k = (n % 2 ? -.7 : 1) * a * (.6 + r() * .8); return [p[0] + (q[0] - p[0]) * t + sg * k * .35, p[1] + (q[1] - p[1]) * t - k]; });
+        const lp = jag(L, Pk, [.24, .4, .58, .78], -1), rp = jag(Pk, R, [.18, .36, .55, .76], 1);
+        const kink = [Pk[0] + w * .14, b - h * .48], M = [Pk[0] + w * .32, b];
+        const out = [L].concat(lp, [Pk], rp, [R]);
+        // uomat vasemmalla rinteellä
+        let gl = ''; for (const q of [lp[1], lp[3]]) gl += seg(q[0] + .6 * s, q[1] + .8 * s, q[0] + 2.2 * s, q[1] + h * .16);
+        return white(P(out, true)) + el(hatchD([Pk].concat(rp, [R, M, kink]), spY), wT) + el(P([Pk, kink]) + gl, wT) + el(P(out)); },
+      // kulmikas kivenlohkare, varjopuoli viivoitettu
+      rock(x, b, s, r) { const w = (3 + r() * 1.5) * s, h = (3 + r() * 2) * s, c = [x + w * .05, b - h * .6];
+        const p = [[x - w, b], [x - w * .8 - r() * s * .5, b - h * .55], [x - w * .25, b - h], [x + w * .35, b - h * (.8 + r() * .2)], [x + w, b - h * .35], [x + w * .85, b]];
+        return white(P(p, true)) + el(hatchD([p[3], p[4], p[5], [x + w * .15, b], c], spY * .8), wT) + el(P([p[2], c, [x + w * .15, b]]), wT) + el(P(p, true)); },
+      // talo päätykolmion puolelta: päätyseinä, varjoon jäävä sivuseinä ja katto
+      house(x, b, s, r) { const fw = 3.2 * s, sw = 4.5 * s * (.8 + r() * .5), hw = 3.6 * s, rh = 3 * s, x0 = x - (fw + sw) / 2, x1 = x0 + fw, x2 = x1 + sw, xm = (x0 + x1) / 2, ry = b - hw - rh;
+        const gable = [[x0, b], [x0, b - hw], [xm, ry], [x1, b - hw], [x1, b]], side = [[x1, b], [x1, b - hw], [x2, b - hw], [x2, b]], roof = [[xm, ry], [xm + sw, ry], [x2, b - hw], [x1, b - hw]];
+        let rl = ''; for (let q = 1; q < 4; q++) { const t = q / 4; rl += seg(xm + (x1 - xm) * t + 1, ry + (b - hw - ry) * t, xm + sw + (x2 - xm - sw) * t - .3, ry + (b - hw - ry) * t); }
+        const all = P(gable, true) + P(side, true) + P(roof, true), door = `M${f(xm - .7 * s)} ${f(b)}V${f(b - 1.9 * s)}H${f(xm + .7 * s)}V${f(b)}`;
+        return el(seg(x0 - 1, b + .8, x2 + 2, b + .8), wT) + white(all) + el(hatchD(side, spY * .8), wT) + el(rl, wT) + el(all) + el(door, wT); },
+      // linnan rauniot: sortunut torni ja muuri, jonka toisessa päässä vielä sakarat
+      ruins(x, b, s, r) {
+        const flip = r() < .5, tw = 2.6 * s, th = (8 + r() * 3) * s, tx = x - 4 * s;
+        const tower = [[tx - tw, b], [tx - tw, b - th * .8], [tx - tw * .4, b - th], [tx - tw * .1, b - th * .86], [tx + tw * .35, b - th * .95], [tx + tw, b - th * .7], [tx + tw, b]];
+        const wy = b - 4.2 * s, x0 = tx + tw, x1 = x + 6.5 * s, cw = 1.3 * s, wall = [[x0, b], [x0, wy - 1.2 * s]]; let xx = x0;
+        while (xx + 2 * cw < x0 + (x1 - x0) * .55) { wall.push([xx + cw, wy - 1.2 * s], [xx + cw, wy], [xx + 2 * cw, wy], [xx + 2 * cw, wy - 1.2 * s]); xx += 2 * cw; }
+        wall.push([xx + cw * .6, wy - .4 * s], [xx + cw * 1.3, wy + 1.3 * s], [xx + cw * 2, wy + .9 * s], [x1 - 1.2 * s, b - 1.6 * s], [x1, b - .8 * s], [x1, b]);
+        let mas = ''; for (let q = 0; q < 4; q++) { const mx = x0 + 1 + r() * (xx - x0), my = b - 1 - r() * 2.6 * s; mas += seg(mx, my, mx + 1.6 * s, my); }
+        let g = el(seg(tx - tw - 1.5, b + .8, x1 + 2, b + .8), wT) + white(P(wall, true)) + el(mas, wT) + el(P(wall, true));
+        g += white(P(tower, true)) + el(hatchD(tower, spY * .8, 0, tx + tw * .2), wT) + el(P(tower, true)) + el(seg(tx - .4 * s, b - th * .58, tx - .4 * s, b - th * .42));
+        for (let q = 0; q < 3; q++) g += S.rock(x1 + (q - .5) * 2.2 * s, b + .6, .3 + r() * .15, r);
+        return flip ? `<g transform="translate(${f(2 * x)} 0) scale(-1 1)">${g}</g>` : g; },
+      // luurankoluola: kallon muotoinen kallio, silmäkuopat ja suu ovat luolan aukkoja
+      skull(cx, b, sc, r) {
+        const U = 12 * sc, cy = b - U, Q = ([u, v]) => [cx + u * U, cy + v * U];
+        const outline = [[-.95, .1], [-1.02, -.45], [-.78, -.95], [-.3, -1.22], [.3, -1.22], [.78, -.95], [1.02, -.45], [.95, .1], [.82, .42], [.6, .52], [.56, .82], [.32, 1], [-.32, 1], [-.56, .82], [-.6, .52], [-.82, .42]].map(Q);
+        const bone = (x, y, a, L2) => { const dx = Math.cos(a) * L2 / 2, dy = Math.sin(a) * L2 / 2, k = L2 * .1, nx = -Math.sin(a) * k * .8, ny = Math.cos(a) * k * .8, sd = seg(x - dx, y - dy, x + dx, y + dy);
+          let o = `<path d="${sd}" stroke="#000" stroke-width="${f(k * 1.5 + wT * 2)}" fill="none"/><path d="${sd}" stroke="#fff" stroke-width="${f(k * 1.5)}" fill="none"/>`;
+          for (const [ex, ey] of [[x - dx, y - dy], [x + dx, y + dy]]) for (const sg of [-1, 1]) o += `<circle cx="${f(ex + nx * sg)}" cy="${f(ey + ny * sg)}" r="${f(k)}" fill="#fff" stroke="#000" stroke-width="${f(wT)}"/>`;
+          return o; };
+        let g = S.rock(cx - U * 1.05, b, .75 * sc, r) + S.rock(cx + U * 1.02, b + .5, .55 * sc, r);
+        const d = smoothD(outline, true);
+        g += white(d) + el(hatchD(outline, spY, 0, cx + U * .42), wT) + el(d);
+        g += el(P([Q([-.12, -1.21]), Q([-.03, -.98]), Q([-.17, -.82]), Q([-.07, -.64])]) + P([Q([.55, -1.05]), Q([.47, -.88])]), wT);
+        for (const sg of [-1, 1]) { const [ex, ey] = Q([sg * .42, -.12]); g += `<ellipse cx="${f(ex)}" cy="${f(ey)}" rx="${f(U * .27)}" ry="${f(U * .23)}" transform="rotate(${sg * -8} ${f(ex)} ${f(ey)})" fill="#000"/>`;
+          g += el(`M${pt(Q([sg * .7, .22]))}Q${pt(Q([sg * .45, .36]))} ${pt(Q([sg * .2, .26]))}`, wT); }
+        g += el(P([Q([0, .14]), Q([-.13, .42]), Q([.13, .42])], true), wT, '#000');
+        g += el(`M${pt(Q([-.36, .96]))}V${f(cy + .66 * U)}Q${pt(Q([0, .5]))} ${pt(Q([.36, .66]))}V${f(cy + .96 * U)}Z`, wT, '#000');
+        let teeth = ''; for (let q = 0; q < 5; q++) { const u = -.29 + q * .145; teeth += P([Q([u - .055, .6]), Q([u + .055, .6]), Q([u + .045, .74]), Q([u - .045, .74])], true) + P([Q([u - .05, .97]), Q([u + .05, .97]), Q([u + .04, .87]), Q([u - .04, .87])], true); }
+        g += `<path d="${teeth}" fill="#fff" stroke="#000" stroke-width="${f(wT)}"/>`;
+        const [bx, by] = Q([1.3, .9]); g += bone(bx, by, .5, 9 * sc) + bone(bx, by, -.5, 9 * sc);
+        return g; },
+      // tulivuori: musta kartio, valkoiset uomat ja kraaterista nouseva savu
+      volcano(cx, b, sc, r, puffs) {
+        const wv = 19 * sc, hv = 23 * sc, rw = 4.6 * sc, L = [cx - wv, b], R = [cx + wv, b], cl = [cx - rw, b - hv], cr = [cx + rw, b - hv + .8 * sc];
+        const side = (a, c, n) => { const o = []; for (let q = 1; q < n; q++) { const t = q / n, cc = Math.sin(Math.PI * t) * 2.4 * sc; o.push([a[0] + (c[0] - a[0]) * t, a[1] + (c[1] - a[1]) * t + cc + (r() - .5) * 1.4 * sc]); } return o; };
+        const cone = [L].concat(side(L, cl, 6), [cl, cr], side(cr, R, 6), [R]);
+        let g = '';
+        for (let q = 0; q < 4; q++) g += S.rock(cx + (q < 2 ? -1 : 1) * wv * (.85 + (q % 2) * .3), b + 1 + (q % 2), .35 * sc, r);
+        g += el(P(cone, true), wM, '#000');
+        let gu = ''; for (let k = -3; k <= 3; k++) { const x0 = cx + k / 3 * rw * .85, y0 = b - hv + 2 * sc, x1 = cx + k / 3 * wv * .78 + (r() - .5) * 3 * sc, y1 = b - (.08 + r() * .3) * hv;
+          gu += `M${f(x0)} ${f(y0)}Q${f((x0 + x1) / 2 + (r() - .5) * 4 * sc)} ${f((y0 + y1) / 2)} ${f(x1)} ${f(y1)}`; }
+        g += `<path d="${gu}" fill="none" stroke="#fff" stroke-width="${f(wT)}"/>`;
+        const kx = cx, ky = b - hv + .4 * sc;
+        g += `<ellipse cx="${f(kx)}" cy="${f(ky)}" rx="${f(rw * 1.05)}" ry="${f(1.7 * sc)}" fill="#000" stroke="#000" stroke-width="${f(wM)}"/><path d="M${f(kx - rw * .85)} ${f(ky + .3 * sc)}Q${f(kx)} ${f(ky + 1.6 * sc)} ${f(kx + rw * .85)} ${f(ky + .3 * sc)}" fill="none" stroke="#fff" stroke-width="${f(wT)}"/>`;
+        // savu: kasvavat pilvet tuulen mukana; alimmat piirretään viimeisinä päälle
+        const sm = []; let px = cx, py = ky - 1 * sc;
+        for (let k = 0; k < (puffs || 6); k++) { const rr = (2.2 + k * .8) * sc * (.9 + r() * .25); py -= k ? rr * .95 : rr * .7; px += (k ? 1.4 + k * .5 : .3) * sc + (r() - .5) * 1.4 * sc; sm.push([px, py, rr]); }
+        for (let k = sm.length - 1; k >= 0; k--) { const [x, y, rr] = sm[k], lobes = [[x, y, rr], [x - rr * .75, y + rr * .3, rr * .55], [x + rr * .7, y + rr * .35, rr * .5]];
+          for (const [lx, ly, lr] of lobes) { const pg = ngon(lx, ly, lr, 18); g += `<circle cx="${f(lx)}" cy="${f(ly)}" r="${f(lr)}" fill="#fff" stroke="#000" stroke-width="${f(wT * 1.3)}"/>` + el(hatchD(pg, spY, 0, lx + lr * .3), wT); }
+          g += el(`M${f(x - rr * .5)} ${f(y + rr * .15)}A${f(rr * .45)} ${f(rr * .45)} 0 0 1 ${f(x + rr * .1)} ${f(y - rr * .3)}`, wT); }
+        return g; },
       hill(cx, b, s) { const a = [cx - 9.5 * s, b], c1 = [cx - 5 * s, b - 9 * s], m = [cx + 1 * s, b - 7 * s], c2 = [cx + 6.5 * s, b - 6.2 * s], e = [cx + 9.5 * s, b];
         const d = `M${pt(a)}Q${pt(c1)} ${pt(m)}Q${pt(c2)} ${pt(e)}`; const right = quadPts(m, c2, e, 8).concat([[cx + 2 * s, b]]);
         return white(d + 'Z') + el(hatchD(right, spY), wT) + el(d); },
@@ -195,9 +266,35 @@
         return g; },
       treasure(x, y) { return el([-.7, .7].map(oo => seg(x - 5 + oo, y - 5, x + 5 + oo, y + 5) + seg(x + 5 + oo, y - 5, x - 5 + oo, y + 5)).join('')); },
     };
+    // vuoriston syvyys: etäisyys (ruutuina) lähimpään muuhun kuin vuoriruutuun; keskellä korkeammat huiput
+    const MD = T.map(row => row.map(t => t === 'mountain' ? 99 : 0));
+    for (let it = 0; it < 12; it++) { let ch = false; for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) { if (!MD[j][i]) continue; let m = 99; for (const [a, c] of N8) { const x = i + a, y = j + c; m = Math.min(m, x < 0 || y < 0 || x >= W || y >= H ? 0 : MD[y][x]); } if (m + 1 < MD[j][i]) { MD[j][i] = m + 1; ch = true; } } if (!ch) break; }
+    // koristeet (tulivuori, luurankoluola): yksi kuva yhtenäistä aluetta kohden, koko alueen mukaan
+    { const seen = new Set();
+      for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) { const t = T[j][i]; if ((t !== 'volcano' && t !== 'skullcave') || seen.has(j * W + i)) continue;
+        const st = [[i, j]], cells = []; seen.add(j * W + i);
+        while (st.length) { const [a, c] = st.pop(); cells.push([a, c]); for (const [da, dc] of N8) { const x = a + da, y = c + dc; if (x >= 0 && y >= 0 && x < W && y < H && T[y][x] === t && !seen.has(y * W + x)) { seen.add(y * W + x); st.push([x, y]); } } }
+        let sx = 0, my = 0; for (const [a, c] of cells) { sx += a; my = Math.max(my, c); }
+        const cx = (sx / cells.length + .5) * CS, b = (my + 1) * CS - 3, r = rng(h32(i, j, 78)), n = Math.sqrt(cells.length);
+        SYM.push([b, t === 'volcano' ? S.volcano(cx, b, Math.max(.8, Math.min(2.4, n * .75)), r) : S.skull(cx, b, Math.max(1, Math.min(2.4, n * .85)), r)]); } }
     for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
       const t = T[j][i], cx = (i + .5) * CS, b = (j + 1) * CS - 2, r = rng(h32(i, j, 77));
-      if (t === 'mountain') { const s = .75 + r() * .6, x = cx + (r() - .5) * 5, y = b + (r() - .5) * 3; SYM.push([y, S.mountain(x, y, s, r)]); if (r() < .35) { const y2 = b + 3; SYM.push([y2, S.mountain(cx + (r() < .5 ? -7 : 7), y2, .45 + r() * .25, r)]); } }
+      if (t === 'mountain') { const hk = 1 + .3 * Math.min(3, MD[j][i] - 1), s = .75 + r() * .6, x = cx + (r() - .5) * 5, y = b + (r() - .5) * 3; SYM.push([y, S.mountain(x, y, s, r, hk)]); if (hk === 1 && r() < .35) { const y2 = b + 3; SYM.push([y2, S.mountain(cx + (r() < .5 ? -7 : 7), y2, .45 + r() * .25, r)]); } }
+      else if (t === 'cliff') {
+        // jyrkänne vesirajaa vasten: rosoinen yläreuna ja pystyviivoitus rantaan asti
+        let top = '', hc = ''; const x0 = i * CS, y0 = j * CS, dirs = [[0, -1], [1, 0], [0, 1], [-1, 0]].filter(([a, c]) => !land(i + a, j + c));
+        for (const [a, c] of dirs) {
+          const at = (t2, ins) => a ? [(a > 0 ? x0 + CS : x0) - a * ins, y0 + t2 * CS] : [x0 + t2 * CS, (c > 0 ? y0 + CS : y0) - c * ins];
+          const n = 5, tp = []; for (let q = 0; q <= n; q++) tp.push(at(q / n, q === 0 || q === n ? 5.5 : 5.5 + (q % 2 ? 1.8 : -.7) * (.6 + r() * .8)));
+          top += P(tp);
+          for (let q = 0; q < 2 * n; q++) { const t2 = (q + .2 + r() * .6) / (2 * n), s0 = at(t2, 1.2), s1 = at(t2, 3.6 + r() * 1.6); hc += seg(s0[0], s0[1], s1[0], s1[1]); }
+        }
+        SYM.push([y0 + 1, el(hc, wT) + el(top)]);
+        const nr = dirs.length ? (r() < .5 ? 1 : 0) : 2; for (let q = 0; q < nr; q++) { const y = (j + .55) * CS + r() * 4; SYM.push([y, S.rock(cx + (r() - .5) * 8, y, .7 + r() * .4, r)]); }
+      }
+      else if (t === 'beach') { let d = ''; const n = 12 + Math.floor(r() * 6); for (let q = 0; q < n; q++) d += `M${f(i * CS + 1 + r() * (CS - 2))} ${f(j * CS + 1 + r() * (CS - 2))}h.01`; SYM.push([j * CS, el(d, Math.max(wT * 1.9, .9))]); }
+      else if (t === 'building') { const n = r() < .55 ? 2 : 1; for (let q = 0; q < n; q++) { const y = (j + .45) * CS + r() * CS * .45; SYM.push([y, S.house(cx + (n > 1 ? (q ? 3.5 : -3.5) : 0) + (r() - .5) * 3, y, .75 + r() * .3, r)]); } }
+      else if (t === 'ruins') { const y = b - 1 + (r() - .5) * 2; SYM.push([y, S.ruins(cx + (r() - .5) * 3, y, .8 + r() * .3, r)]); }
       else if (t === 'hill') { const y = b - 2 + (r() - .5) * 3; SYM.push([y, S.hill(cx + (r() - .5) * 4, y, .7 + r() * .5)]); }
       else if (t === 'conifer') { const n = 1 + Math.floor(r() * 3); for (let q = 0; q < n; q++) { const y = (j + .35) * CS + r() * CS * .7; SYM.push([y, S.conifer(cx + (r() - .5) * 12, y, .6 + r() * .7)]); } }
       else if (t === 'deciduous') { const n = 1 + Math.floor(r() * 2.4); for (let q = 0; q < n; q++) { const x = cx + (r() - .5) * 11, y = (j + .4) * CS + r() * CS * .6; SYM.push([y, r() < .2 ? S.conifer(x, y, .6 + r() * .4) : S.deciduous(x, y, .7 + r() * .5, r)]); } }
@@ -246,7 +343,7 @@
     const titleW = doc.title ? font.textPath(doc.title, 0, 0, 14, 5, 'l').w : 0, titleX = Math.max(1.6 * CS + titleW / 2, Math.min(MW / 2, (CP ? CP.x - CP.r - 2 * CS : MW) - titleW / 2));
     if (o.title && doc.title) placed.push({ x0: titleX - titleW / 2, y0: MH - 2.3 * CS - 3, x1: titleX + titleW / 2, y1: MH - 2.3 * CS + 17 });
     const AM = areasM.model(doc), labelsOut = [], outlines = [];
-    const busy = { mountain: 3, conifer: 1, deciduous: 1, palm: 1, treasure: 4, kraken: 4, hill: 1, river: 1 };
+    const busy = { mountain: 3, conifer: 1, deciduous: 1, palm: 1, treasure: 4, kraken: 4, hill: 1, river: 1, cliff: 1, building: 2, ruins: 2, skullcave: 4, volcano: 4 };
     for (const name of AM.order.slice().sort((a, b) => AM.byName[a].level - AM.byName[b].level || AM.byName[b].size - AM.byName[a].size)) {
       const A = AM.byName[name]; if (!A.size) continue;
       const st = areasM.styleFor(doc, AM, name);
@@ -302,6 +399,12 @@
         palm: (x, y) => S.palm(x, y - 1, .75, lr), mountain: (x, y) => S.mountain(x, y, .75, lr), hill: (x, y) => S.hill(x, y - 1, .9),
         river: (x, y) => el(smoothD([[x - 10, y - 9], [x - 3, y - 5], [x + 2, y - 6], [x + 10, y - 1]], false)) + el(smoothD([[x - 1, y - 4.4], [x + 3, y - 4.2], [x + 10.5, y + 1]], false), wT),
         treasure: (x, y) => S.treasure(x, y - 5),
+        beach: (x, y) => { let d = ''; for (let q = 0; q < 22; q++) d += `M${f(x - 9 + lr() * 18)} ${f(y - 9 + lr() * 9)}h.01`; return el(d, Math.max(wT * 1.9, .9)); },
+        cliff: (x, y) => { let d = ''; for (let q = 0; q < 8; q++) d += seg(x - 9 + q * 2.5, y - .5, x - 9 + q * 2.5 + .3, y - 4.5 - lr() * 1.5); return el(d, wT) + el(P([[x - 10, y - 6], [x - 6, y - 7.6], [x - 2, y - 5.5], [x + 2, y - 7.4], [x + 6, y - 5.7], [x + 10, y - 6.8]])) + el(seg(x - 10, y, x + 10, y), wC); },
+        building: (x, y) => S.house(x - 4, y - 1, .75, lr) + S.house(x + 5, y, .7, lr),
+        ruins: (x, y) => S.ruins(x + 1, y - 1, .7, lr),
+        volcano: (x, y) => S.volcano(x, y - 1, .32, lr, 4),
+        skullcave: (x, y) => S.skull(x - 1, y - 1, .55, lr),
         kraken: (x, y) => tentacle(x - 4, y, -1.4, 16, 2.4, -1.2, 0, false, 1) + tentacle(x + 3, y, -1.8, 13, 2.2, 1.3, 2, false, 1) + el(seg(x - 10, y, x + 10, y)),
         shallow: (x, y) => box(x, y, spS), deep: (x, y) => box(x, y, spS * 4),
       };
