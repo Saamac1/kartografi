@@ -66,3 +66,16 @@ test('uudet palat ja koristeet piirtyvät mustavalkoisina ja selitteeseen', () =
   const tm = rlml.typeMap(d);
   assert.deepEqual(['C', 's', 'h', 'R', 'S', 'V'].map(c => tm[c]), ['cliff', 'beach', 'building', 'ruins', 'skullcave', 'volcano']);
 });
+
+test('saaren järvi jää reiäksi ja saa vesiviivoituksen', () => {
+  const d = rlml.blankDoc(24, 16);
+  for (let j = 2; j < 14; j++) d.grid[j] = '~~' + '.'.repeat(20) + '~~';
+  for (let j = 5; j < 11; j++) d.grid[j] = '~~.....' + '~'.repeat(10) + '.....~~';
+  const body = renderer.scene(d, { cellMM: 6, legend: false, compass: false, title: false }).body;
+  const coast = body.match(/<path d="([^"]+)" fill="#fff" fill-rule="evenodd"/);
+  assert.ok(coast, 'rantaviiva piirretään yhtenä even-odd-polkuna');
+  assert.equal((coast[1].match(/M/g) || []).length, 2, 'ulkoranta ja järven ranta');
+  // järven keskikohdan (ruutu 12,8) korkeudella on vaakaviiva, joka kulkee järven yli
+  const y = 8.5 * 16, lines = [...body.matchAll(/M([\d.]+) ([\d.]+)H([\d.]+)/g)].map(m => m.slice(1).map(Number));
+  assert.ok(lines.some(([x1, yy, x2]) => Math.abs(yy - y) < 8 && x1 < 12.5 * 16 && x2 > 12.5 * 16), 'järvessä on vesiviivoitusta');
+});

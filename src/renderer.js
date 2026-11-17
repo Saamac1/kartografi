@@ -116,7 +116,8 @@
         for (const [a, b] of runs) { let x = a; while (x < b) { const e = Math.min(b, x + 30 + RS() * 100); if (e - x > 1.5) d += `M${f(x)} ${f(y)}H${f(e)}`; x = e + 1.5 + RS() * 4; } }
       }
       out.push(el(d, wS)); }
-    for (const lp of loops) out.push(`<path d="${P(lp, true)}" fill="#fff" stroke="#000" stroke-width="${f(wC)}"/>`);
+    // kaikki rantasilmukat yhtenä polkuna: even-odd jättää järvet (ja niiden saaret) reiäksi, joten vesiviivoitus näkyy
+    out.push(`<path d="${loops.map(lp => P(lp, true)).join('')}" fill="#fff" fill-rule="evenodd" stroke="#000" stroke-width="${f(wC)}"/>`);
 
     // ---- joet: puu suulta latvoille, haarat pehmeinä käyrinä
     { const RC = {}, rk = (i, j) => i + ',' + j;
