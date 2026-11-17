@@ -10,7 +10,7 @@
 <header class="bar top">
   <strong class="brand">Karttageneraattori</strong>
   <nav class="maintabs" id="mainTabs">
-    <button data-tab="read">Lue karttaa</button><button data-tab="edit" class="on">Muokkaa karttaa</button><button data-tab="areas">Alueet</button><button data-tab="preview" class="only-mobile">Esikatselu</button><button data-tab="file">Tiedosto</button><button data-tab="print">Tulostus</button><button data-tab="names">Nimet</button><button data-tab="src">RLML-lähde</button><button data-tab="help">Ohje</button>
+    <button data-tab="file">Tiedosto</button><button data-tab="read">Kartan luku</button><button data-tab="edit" class="on">Kartan muokkaus</button><button data-tab="preview" class="only-mobile">Esikatselu</button><button data-tab="src">Lähdekoodi</button><button data-tab="areas">Alueet</button><button data-tab="names">Nimet</button><button data-tab="print">Tulostus</button><button data-tab="help">Ohje</button>
   </nav>
   <span class="grp undo"><button id="btnUndo" title="Kumoa (Ctrl+Z)">↶</button><button id="btnRedo" title="Tee uudelleen (Ctrl+Y)">↷</button></span>
   <span id="status" class="status"></span><button id="btnPrev" hidden title="Palauta kartta, joka oli auki ennen esimerkkiä">Palauta edellinen</button>
@@ -126,9 +126,9 @@
     </div>
 
     <div class="panel help" data-for="help">
-      <h4>Lue karttaa</h4>
+      <h4>Kartan luku</h4>
       <p>Vedä karttaa vierittääksesi ja napsauta ruutua nähdäksesi sen maaston ja aluepolun. Mitään ei voi muuttaa vahingossa. Puhelimessa yksi sormi vierittää.</p>
-      <h4>Muokkaa karttaa</h4>
+      <h4>Kartan muokkaus</h4>
       <p>Valitse pala selitepalkista; valittu pala ja siveltimen koko näkyvät palkin yläreunassa. Hiiren vasen nappi piirtää, oikea poimii palan kartalta, Vaihto + napsautus täyttää yhtenäisen alueen. <b>⧉ Kelluva</b> irrottaa selitepalkin siirrettäväksi ikkunaksi kartan päälle (vedä otsikosta, kulmasta muutat kokoa). Puhelimessa yksi sormi piirtää ja kaksi sormea vierittää.</p>
       <p><b>Näppäimistö</b> (napsauta karttaa ensin): nuolet liikuttavat kursoria (Vaihto = 5 askelta), kirjoitettu merkki korvaa ruudun ja siirtyy oikealle, Enter siirtää seuraavalle riville, Askelpalautin vasemmalle, Home/End/PageUp/PageDown, Ctrl+Z / Ctrl+Y kumoa ja tee uudelleen.</p>
       <p><b>Lisää selitteeseen</b> näyttää merikartan palat, joita kartan legendassa ei vielä ole.</p>
@@ -136,8 +136,8 @@
       <p><b>Lisää</b> luo alueen nimestä. Valitse alue listasta ja <b>Rajaa</b> (raahaa suorakulmio, kulmakahvasta koko, oikea napsautus poistaa) tai <b>Siirrä</b> (tartu alueeseen ja raahaa tai käytä nuolinäppäimiä; alue siirtyy sisältöineen ja tyhjäksi jäävä osa täytetään vedellä). <b>Valmis</b> tai Esc palaa maaston piirtoon.</p>
       <h4>Esikatselu</h4>
       <p>Päivittyy muokatessa. Kun kartta on zoomattu niin, ettei se mahdu kerralla näkyviin, esikatselu seuraa editorin kursoria (punainen ruutu). Esikatselua voi siirrellä vetämällä. <b>Lehtijako</b> näyttää A4-lehtien rajat.</p>
-      <h4>Tiedosto, Tulostus, Nimet ja RLML-lähde</h4>
-      <p><b>Tiedosto</b>: kartan valinta ja tyyli, koko, generointi siemenestä, esimerkit, avaus ja tallennus (kartta, paperityyli ja kielitiedosto). <b>Tulostus</b>: koko kuva yhdelle arkille tai A4-lehdet liimausreunoin, viivavahvuudet, selitteen sisältö sekä SVG-, PNG- ja HTML-vienti. <b>Nimet</b>: otsikko, piirto-ohjeet ja näkyvät nimet. <b>RLML-lähde</b>: tiedostot tekstinä; muokkaa ja lue takaisin.</p>
+      <h4>Tiedosto, Lähdekoodi, Nimet ja Tulostus</h4>
+      <p><b>Tiedosto</b>: kartan valinta ja tyyli, koko, generointi siemenestä, esimerkit, avaus ja tallennus (kartta, paperityyli ja kielitiedosto). <b>Tulostus</b>: koko kuva yhdelle arkille tai A4-lehdet liimausreunoin, viivavahvuudet, selitteen sisältö sekä SVG-, PNG- ja HTML-vienti. <b>Nimet</b>: otsikko, piirto-ohjeet ja näkyvät nimet. <b>Lähdekoodi</b>: tiedostot tekstinä; muokkaa ja lue takaisin.</p>
       <p>Kartta tallentuu selaimen muistiin automaattisesti.</p>
     </div>
   </aside>

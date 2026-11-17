@@ -199,7 +199,7 @@
       if (k === 'End') { e.preventDefault(); this.cur.x = this.doc.W - 1; this.moveCur(0, 0); return; }
       if (k === 'PageUp' || k === 'PageDown') { e.preventDefault(); this.moveCur(0, k === 'PageUp' ? -10 : 10); return; }
       if (k === 'Escape') { if (!this.readOnly && this.mode !== 'paint') this.hooks.endAreaTool(); else this.cv.blur(); this.draw(); return; }
-      if (this.readOnly) { if (k.length === 1 || k === 'Enter' || k === 'Backspace') { e.preventDefault(); this.hooks.status('Lukutila: siirry Muokkaa karttaa -välilehdelle muokataksesi'); } return; }
+      if (this.readOnly) { if (k.length === 1 || k === 'Enter' || k === 'Backspace') { e.preventDefault(); this.hooks.status('Lukutila: siirry Kartan muokkaus -välilehdelle muokataksesi'); } return; }
       if (k === 'Enter') { e.preventDefault(); this.cur.x = this.typeStartX; this.moveCur(0, 1, true); return; }
       if (k === 'Backspace') { e.preventDefault(); this.moveCur(-1, 0, true); return; }
       if (k.length === 1) {

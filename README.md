@@ -14,18 +14,18 @@ Pelin kevyempi visualisointi tehdään erikseen; tämä työkalu on paperille.
 Avaa `index.html` selaimessa. Rakennusvaihetta tai palvelinta ei tarvita, ja
 tiedostot ovat tavallisia skriptejä, joten `file://` toimii.
 
-Yläpalkin välilehdet vaihtavat vasemman paneelin sisällön:
-**Lue karttaa** (vain editori ja esikatselu), **Muokkaa karttaa** (selite ja
-sivellin), **Alueet** (nimetyt alueet), **Tiedosto**
-(kartan valinta, tyyli, koko, generointi, esimerkit, avaus ja tallennus),
-**Tulostus**, **Nimet**, **RLML-lähde** ja **Ohje**. Lue karttaa-, Muokkaa karttaa-, Alueet- ja
-Tiedosto-välilehdillä näkyvät editori ja esikatselu, Tulostus- ja
-Nimet-välilehdillä asetukset ja esikatselu. Kumoa ja Tee uudelleen ovat
-yläpalkissa aina näkyvissä.
+Yläpalkin välilehdet ovat järjestyksessä **Tiedosto** (kartan valinta,
+tyyli, koko, generointi, esimerkit, avaus ja tallennus), **Kartan luku**
+(vain editori ja esikatselu), **Kartan muokkaus** (selite ja sivellin),
+**Lähdekoodi** (RLML-tiedostot tekstinä), **Alueet** (nimetyt alueet),
+**Nimet**, **Tulostus** ja **Ohje**. Tiedosto-, Kartan luku-, Kartan
+muokkaus- ja Alueet-välilehdillä näkyvät editori ja esikatselu, Lähdekoodi-,
+Nimet- ja Tulostus-välilehdillä teksti tai asetukset ja esikatselu. Kumoa ja
+Tee uudelleen ovat yläpalkissa aina näkyvissä.
 
-- **Selite (Muokkaa karttaa -välilehti):** valitse piirrettävä pala. Valittu
+- **Selite (Kartan muokkaus -välilehti):** valitse piirrettävä pala. Valittu
   pala ja siveltimen koko näkyvät selitepalkin yläreunassa. Sivellinkoko 1–5 ruutua.
-  *⧉ Kelluva* irrottaa sivupaneelin (Muokkaa karttaa- ja Alueet-välilehdillä) siirrettäväksi ikkunaksi editorin päälle
+  *⧉ Kelluva* irrottaa sivupaneelin (Kartan muokkaus- ja Alueet-välilehdillä) siirrettäväksi ikkunaksi editorin päälle
   (vedä otsikosta, kulmasta muutat kokoa). Merikartalla *Lisää selitteeseen*
   näyttää oletuspalat, joita kartan legendassa ei vielä ole.
 - **Uudet merikartan palat:** rantakallio `C` (`CLIFF`), hiekkaranta `s`
@@ -37,7 +37,7 @@ yläpalkissa aina näkyvissä.
 - **Esikatselu seuraa kursoria:** kun kartta on zoomattu niin, ettei se mahdu
   kerralla näkyviin, esikatselu vierittää editorin kursorin kohdan näkyviin
   (punainen ruutu). Esikatselua voi myös siirrellä vetämällä.
-- **Lue karttaa / Muokkaa karttaa (välilehdet):** lukutilassa
+- **Kartan luku / Kartan muokkaus (välilehdet):** lukutilassa
   karttaa vieritetään vetämällä ja napsautus näyttää ruudun tiedot
   (maasto ja aluepolku); mitään ei voi muuttaa vahingossa. Muokkaustilassa:
   - hiiren vasen nappi piirtää, oikea poimii palan kartalta, Vaihto + napsautus täyttää yhtenäisen alueen
@@ -65,15 +65,15 @@ yläpalkissa aina näkyvissä.
   Lista näyttää hierarkian, ja alla näkyvät tarkistusten huomautukset.
 - **Nimet-välilehti:** otsikko, piirto-ohjeet (`labels paper`) ja tekstit
   (`text fi`).
-- **RLML-lähde-välilehti:** kartta tekstinä; muokkaa ja lue takaisin.
+- **Lähdekoodi-välilehti:** kartta tekstinä; muokkaa ja lue takaisin.
 - Kartta tallentuu selaimen muistiin automaattisesti; *Tallenna RLML* lataa
   sen tiedostona.
 
 ### Puhelimessa
 
 Kapealla näytöllä välilehtiä on yksi lisää: kartta ja esikatselu ovat eri
-välilehdillä (*Muokkaa karttaa* ja *Esikatselu*; *Lue karttaa* näyttää pelkän
-kartan). Muokkaa karttaa- ja Alueet-välilehdillä paneeli
+välilehdillä (*Kartan muokkaus* ja *Esikatselu*; *Kartan luku* näyttää pelkän
+kartan). Kartan muokkaus- ja Alueet-välilehdillä paneeli
 on editorin yläpuolella, ja välilehtirivi vierii sivusuunnassa.
 Puhelin aloittaa lukutilassa, jossa yksi sormi vierittää. Muokkaustilassa yksi
 sormi piirtää ja kaksi sormea vierittää. Kumoa ja Tee uudelleen ovat
@@ -117,7 +117,7 @@ ulkoasun erillään:
 
 *Avaa…* hyväksyy yhden tai useamman tiedoston kerralla ja tunnistaa lajin
 sisällöstä; karttatiedosto on pakollinen. *Tallenna RLML* tallentaa kaikki
-kolme. *RLML-lähde*-välilehdellä voi muokata kutakin tiedostoa erikseen.
+kolme. *Lähdekoodi*-välilehdellä voi muokata kutakin tiedostoa erikseen.
 
 ````
 # KAPTEENI AALTOLAN KARTTA

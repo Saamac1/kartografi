@@ -19,11 +19,11 @@
   let saver = null;
   if (inArtifact) {
     $('btnPrint').hidden = true; $('btnPop').hidden = true;
-    window.claude.use('downloads').then(d => { saver = d; if (!d) status('Tallennus ei ole käytettävissä tässä näkymässä – käytä Kopioi-painiketta tai RLML-lähdettä'); }).catch(() => {});
+    window.claude.use('downloads').then(d => { saver = d; if (!d) status('Tallennus ei ole käytettävissä tässä näkymässä – käytä Kopioi-painiketta tai Lähdekoodittä'); }).catch(() => {});
   }
   function download(name, text, mime) {
     if (inArtifact) {
-      if (!saver) { status('Tallennus ei ole käytettävissä – kopioi teksti RLML-lähde-välilehdeltä tai Kopioi SVG -painikkeella'); return Promise.resolve(false); }
+      if (!saver) { status('Tallennus ei ole käytettävissä – kopioi teksti Lähdekoodi-välilehdeltä tai Kopioi SVG -painikkeella'); return Promise.resolve(false); }
       return saver.save({ filename: name, data: text }).then(() => { status('Tallennettu ' + name); return true; })
         .catch(e => { status(e && e.code === 'declined' ? 'Tallennus peruttiin' : e && e.code === 'rate_limited' ? 'Edellinen tallennus on vielä kesken' : 'Tallennus ei onnistunut: ' + (e && (e.message || e.code))); return false; });
     }
@@ -293,7 +293,7 @@
     bc.textContent = ed.brush; bc.style.background = KG.editorColors(doc)[ed.brush] || '#fff'; $('brushName').textContent = e ? e.name : 'tuntematon pala';
   };
   endAreaTool = () => { selArea = null; setTool('paint'); buildAreaList(); };
-  // lukutila ja muokkaustila ovat välilehtiä (Lue karttaa / Muokkaa karttaa); setTab kutsuu tätä
+  // lukutila ja muokkaustila ovat välilehtiä (Kartan luku / Kartan muokkaus); setTab kutsuu tätä
   setMode = read => { if (read !== ed.readOnly) ed.setReadOnly(read); if (read && ed.mode !== 'paint') endAreaTool(); setTool(ed.mode); };
   $('btnToolDone').onclick = () => endAreaTool();
   $('toolArea').onclick = () => { setMode(false); setTool('area'); if (!selArea) status('Valitse alue listasta tai luo uusi'); };
@@ -316,7 +316,7 @@
   $('btnSrcApply').onclick = () => { try { const p = projText(); p[$('srcSel').value] = $('srcTa').value; const fl = KG.rlml.parseProject([p.map, p.style, p.lang]), i = doc.file ? Math.max(0, doc.file.maps.indexOf(doc)) : 0, d = fl.maps[Math.min(i, fl.maps.length - 1)]; if (!d.W || !d.H) throw new Error('map-rivi puuttuu'); doc = d; afterDocChange(); status('Lähde luettu'); } catch (e) { status('Virhe lähteessä: ' + e.message); } };
 
   // ---- yläpalkin välilehdet: kukin valitsee sivupaneelin sisällön ja näkyvät osat (CSS: body[data-tab])
-  const TAB_TITLES = { read: '', edit: 'Selite', areas: 'Alueet', file: 'Tiedosto', print: 'Tulostus', names: 'Nimet', src: 'RLML-lähde', help: 'Ohje', preview: 'Selite' };
+  const TAB_TITLES = { read: '', edit: 'Selite', areas: 'Alueet', file: 'Tiedosto', print: 'Tulostus', names: 'Nimet', src: 'Lähdekoodi', help: 'Ohje', preview: 'Selite' };
   function setTab(t) {
     if (t === 'map') t = 'edit';
     if (TAB_TITLES[t] === undefined) t = 'edit';

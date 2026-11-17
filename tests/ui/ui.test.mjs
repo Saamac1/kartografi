@@ -74,7 +74,7 @@ test('zoomattu esikatselu seuraa editorin kursoria', async () => {
   await close();
 });
 
-test('sivupaneelin voi irrottaa kelluvaksi ja raahata Muokkaa karttaa- ja Alueet-välilehdillä', async () => {
+test('sivupaneelin voi irrottaa kelluvaksi ja raahata Kartan muokkaus- ja Alueet-välilehdillä', async () => {
   const { page, errors, close } = await open(1440, 860);
   await page.click('#btnFloat'); await wait(200);
   const pos = () => page.$eval('#palPanel', el => ({ p: getComputedStyle(el).position, x: el.getBoundingClientRect().left, y: el.getBoundingClientRect().top }));
@@ -98,7 +98,7 @@ test('alueen rajaus loppuu, kun Alueet-välilehdeltä vaihdetaan pois', async ()
   await close();
 });
 
-test('Lue karttaa ja Muokkaa karttaa ovat välilehtiä, jotka vaihtavat editorin tilan', async () => {
+test('Kartan luku ja Kartan muokkaus ovat välilehtiä, jotka vaihtavat editorin tilan', async () => {
   const { page, errors, close } = await open(1440, 860);
   await tab(page, 'read');
   assert.equal(await page.evaluate(() => KG_APP.editor.readOnly), true);
@@ -138,6 +138,13 @@ test('Ohje-välilehti näyttää ohjeen koko leveydellä', async () => {
   const w = await page.$eval('.panel[data-for=help]', el => el.getBoundingClientRect().width);
   assert.ok(w > 400, `ohjeen leveys ${w}`);
   const text = await page.$eval('.panel[data-for=help]', el => el.textContent);
-  for (const k of ['Lue karttaa', 'Muokkaa karttaa', 'Alueet', 'Näppäimistö']) assert.ok(text.includes(k), k);
+  for (const k of ['Kartan luku', 'Kartan muokkaus', 'Alueet', 'Näppäimistö']) assert.ok(text.includes(k), k);
+  await close();
+});
+
+test('välilehdet ovat sovitussa järjestyksessä', async () => {
+  const { page, close } = await open(1440, 860);
+  const names = await page.$$eval('#mainTabs button', bs => bs.filter(b => b.offsetWidth).map(b => b.textContent));
+  assert.deepEqual(names, ['Tiedosto', 'Kartan luku', 'Kartan muokkaus', 'Lähdekoodi', 'Alueet', 'Nimet', 'Tulostus', 'Ohje']);
   await close();
 });
