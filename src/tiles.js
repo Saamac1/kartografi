@@ -19,7 +19,7 @@
     GANGPLANK: 'floor pattern gangplank', 'GANGPLANK.end': 'exit', HATCH: 'stairs down symbol hatch', LADDER: 'stairs up symbol ladder',
   };
   // entiteetit (with …) piirretään symboleina lattialle
-  const ENTITY = { MAST: 'mast', BARREL: 'barrel', CANNON: 'cannon', GEM: 'gem', GOLD: 'gold', KEY: 'key', GOBLET: 'goblet', CHEST: 'chest', AMULET: 'amulet', HIMMELI: 'himmeli', PILLAR: 'pillar', MAP_TABLE: 'table', ANCHOR: 'anchor', CREW: 'crew', SAIL: null, TREASURE: 'chest', HELM: 'helm', CRATE: 'crate' };
+  const ENTITY = { MAST: 'mast', BARREL: 'barrel', CANNON: 'cannon', GEM: 'gem', GOLD: 'gold', KEY: 'key', GOBLET: 'goblet', CHEST: 'chest', AMULET: 'amulet', ORNAMENT: 'himmeli', PILLAR: 'pillar', MAP_TABLE: 'table', ANCHOR: 'anchor', CREW: 'crew', SAIL: null, TREASURE: 'chest', HELM: 'helm', CRATE: 'crate' };
   const NAMES = {
     void: 'meri', solid: 'seinä', floor: 'lattia', door: 'ovi', 'door.locked': 'lukittu ovi', 'stairs.down': 'portaat alas', 'stairs.up': 'portaat ylös', exit: 'poistuminen',
     torch: 'soihtu', window: 'ikkuna', port: 'tykkiluukku', lantern: 'lyhty', crate: 'laatikko', helm: 'ruori', hatch: 'luukku', ladder: 'tikkaat',

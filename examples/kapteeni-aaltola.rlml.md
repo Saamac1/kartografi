@@ -143,7 +143,7 @@ legend:
 - O CAVE_MOUTH as TO_SHIP
 - . FLOOR
 - > STAIR.down as TO_DEEP
-- H FLOOR with HIMMELI
+- H FLOOR with ORNAMENT
 - P FLOOR with PILLAR
 - k FLOOR with KEY
 - g FLOOR with GOLD
@@ -190,7 +190,7 @@ legend:
 - L DOOR.locked
 - . FLOOR
 - < STAIR.up as TO_UP
-- H FLOOR with HIMMELI
+- H FLOOR with ORNAMENT
 - A FLOOR with AMULET
 - P FLOOR with PILLAR
 - k FLOOR with KEY

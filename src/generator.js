@@ -119,7 +119,7 @@
   }
   // ---- luola: solukkoautomaatti, suurin yhtenäinen tila, portaat, soihdut, aarteet ja salit
   const CAVE_LEGEND = [['#', 'WALL'], ['M', 'WALL.moss'], ['R', 'WALL.ornament'], ['T', 'WALL.torch'], ['.', 'FLOOR'], ['<', 'STAIR.up as TO_UP'], ['>', 'STAIR.down as TO_DEEP'],
-    ['H', 'FLOOR with HIMMELI'], ['P', 'FLOOR with PILLAR'], ['k', 'FLOOR with KEY'], ['g', 'FLOOR with GOLD'], ['j', 'FLOOR with GEM'], ['u', 'FLOOR with GOBLET'], ['c', 'FLOOR with CHEST']];
+    ['H', 'FLOOR with ORNAMENT'], ['P', 'FLOOR with PILLAR'], ['k', 'FLOOR with KEY'], ['g', 'FLOOR with GOLD'], ['j', 'FLOOR with GEM'], ['u', 'FLOOR with GOBLET'], ['c', 'FLOOR with CHEST']];
   const HALLS = ['Himmelisali', 'Aarrekammio', 'Kaikuluola', 'Lepakkoluola', 'Tippukivisali', 'Kristalliholvi', 'Huokausten sali'];
   function generateCave(opt) {
     const W = opt.W || 40, H = opt.H || 30, seed = (opt.seed | 0) || 1, R = rng(seed * 4513 + 7);
