@@ -15,15 +15,17 @@ Avaa `index.html` selaimessa. Rakennusvaihetta tai palvelinta ei tarvita, ja
 tiedostot ovat tavallisia skriptejä, joten `file://` toimii.
 
 Yläpalkin välilehdet vaihtavat vasemman paneelin sisällön:
-**Kartta** (selite ja sivellin), **Alueet** (nimetyt alueet), **Tiedosto**
+**Lue karttaa** (vain editori ja esikatselu), **Muokkaa karttaa** (selite ja
+sivellin), **Alueet** (nimetyt alueet), **Tiedosto**
 (kartan valinta, tyyli, koko, generointi, esimerkit, avaus ja tallennus),
-**Tulostus**, **Nimet** ja **RLML-lähde**. Kartta-, Alueet- ja
+**Tulostus**, **Nimet**, **RLML-lähde** ja **Ohje**. Lue karttaa-, Muokkaa karttaa-, Alueet- ja
 Tiedosto-välilehdillä näkyvät editori ja esikatselu, Tulostus- ja
 Nimet-välilehdillä asetukset ja esikatselu. Kumoa ja Tee uudelleen ovat
 yläpalkissa aina näkyvissä.
 
-- **Selite (Kartta-välilehti):** valitse piirrettävä pala. Sivellinkoko 1–5 ruutua.
-  *⧉ Kelluva* irrottaa sivupaneelin (Kartta- ja Alueet-välilehdillä) siirrettäväksi ikkunaksi editorin päälle
+- **Selite (Muokkaa karttaa -välilehti):** valitse piirrettävä pala. Valittu
+  pala ja siveltimen koko näkyvät selitepalkin yläreunassa. Sivellinkoko 1–5 ruutua.
+  *⧉ Kelluva* irrottaa sivupaneelin (Muokkaa karttaa- ja Alueet-välilehdillä) siirrettäväksi ikkunaksi editorin päälle
   (vedä otsikosta, kulmasta muutat kokoa). Merikartalla *Lisää selitteeseen*
   näyttää oletuspalat, joita kartan legendassa ei vielä ole.
 - **Uudet merikartan palat:** rantakallio `C` (`CLIFF`), hiekkaranta `s`
@@ -35,7 +37,7 @@ yläpalkissa aina näkyvissä.
 - **Esikatselu seuraa kursoria:** kun kartta on zoomattu niin, ettei se mahdu
   kerralla näkyviin, esikatselu vierittää editorin kursorin kohdan näkyviin
   (punainen ruutu). Esikatselua voi myös siirrellä vetämällä.
-- **Lue karttaa / Muokkaa karttaa (editorin yläpalkki):** lukutilassa
+- **Lue karttaa / Muokkaa karttaa (välilehdet):** lukutilassa
   karttaa vieritetään vetämällä ja napsautus näyttää ruudun tiedot
   (maasto ja aluepolku); mitään ei voi muuttaa vahingossa. Muokkaustilassa:
   - hiiren vasen nappi piirtää, oikea poimii palan kartalta, Vaihto + napsautus täyttää yhtenäisen alueen
@@ -70,7 +72,8 @@ yläpalkissa aina näkyvissä.
 ### Puhelimessa
 
 Kapealla näytöllä välilehtiä on yksi lisää: kartta ja esikatselu ovat eri
-välilehdillä (*Kartta* ja *Esikatselu*). Kartta- ja Alueet-välilehdillä paneeli
+välilehdillä (*Muokkaa karttaa* ja *Esikatselu*; *Lue karttaa* näyttää pelkän
+kartan). Muokkaa karttaa- ja Alueet-välilehdillä paneeli
 on editorin yläpuolella, ja välilehtirivi vierii sivusuunnassa.
 Puhelin aloittaa lukutilassa, jossa yksi sormi vierittää. Muokkaustilassa yksi
 sormi piirtää ja kaksi sormea vierittää. Kumoa ja Tee uudelleen ovat

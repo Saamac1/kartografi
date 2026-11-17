@@ -30,14 +30,14 @@ const visible = (page, sel) => page.$eval(sel, el => !!(el.offsetWidth || el.off
 
 test('välilehdet näyttävät oikean paneelin ja piilottavat editorin asetuksissa', async () => {
   const { page, errors, close } = await open(1440, 860);
-  const expect = { map: true, areas: true, file: true, print: false, names: false, src: false };
+  const expect = { edit: true, areas: true, file: true, print: false, names: false, src: false, help: false };
   for (const [t, editor] of Object.entries(expect)) {
     await tab(page, t);
     assert.ok(await visible(page, `.panel[data-for=${t}]`), `${t}: paneeli näkyy`);
     const others = await page.$$eval(`.panel:not([data-for=${t}])`, els => els.filter(e => e.offsetHeight).length);
     assert.equal(others, 0, `${t}: muut paneelit piilossa`);
     assert.equal(await visible(page, '.editor'), editor, `${t}: editori ${editor ? 'näkyy' : 'piilossa'}`);
-    assert.ok(await visible(page, '#previewPane'), `${t}: esikatselu näkyy`);
+    assert.equal(await visible(page, '#previewPane'), t !== 'help', `${t}: esikatselu`);
     await shot(page, 'tyopoyta-' + t);
   }
   assert.ok(!(await visible(page, '#mainTabs button[data-tab=preview]')), 'Esikatselu-välilehti vain mobiilissa');
@@ -47,13 +47,13 @@ test('välilehdet näyttävät oikean paneelin ja piilottavat editorin asetuksis
 
 test('mobiilissa kartta ja esikatselu ovat eri välilehdillä eikä sivu levene', async () => {
   const { page, errors, close } = await open(390, 800);
-  for (const t of ['map', 'areas', 'preview', 'file', 'print', 'names', 'src']) {
+  for (const t of ['read', 'edit', 'areas', 'preview', 'file', 'print', 'names', 'src', 'help']) {
     await tab(page, t);
     const w = await page.evaluate(() => document.documentElement.scrollWidth);
     assert.ok(w <= 390, `${t}: sivun leveys ${w} px`);
     await shot(page, 'mobiili-' + t);
   }
-  await tab(page, 'map');
+  await tab(page, 'edit');
   assert.ok(await visible(page, '.editor')); assert.ok(!(await visible(page, '#previewPane')));
   await tab(page, 'preview');
   assert.ok(!(await visible(page, '.editor'))); assert.ok(await visible(page, '#previewPane'));
@@ -74,7 +74,7 @@ test('zoomattu esikatselu seuraa editorin kursoria', async () => {
   await close();
 });
 
-test('sivupaneelin voi irrottaa kelluvaksi ja raahata Kartta- ja Alueet-välilehdillä', async () => {
+test('sivupaneelin voi irrottaa kelluvaksi ja raahata Muokkaa karttaa- ja Alueet-välilehdillä', async () => {
   const { page, errors, close } = await open(1440, 860);
   await page.click('#btnFloat'); await wait(200);
   const pos = () => page.$eval('#palPanel', el => ({ p: getComputedStyle(el).position, x: el.getBoundingClientRect().left, y: el.getBoundingClientRect().top }));
@@ -93,7 +93,51 @@ test('alueen rajaus loppuu, kun Alueet-välilehdeltä vaihdetaan pois', async ()
   const { page, close } = await open(1440, 860);
   await tab(page, 'areas'); await page.click('#toolArea');
   assert.equal(await page.evaluate(() => KG_APP.editor.mode), 'area');
-  await tab(page, 'map');
+  await tab(page, 'edit');
   assert.equal(await page.evaluate(() => KG_APP.editor.mode), 'paint');
+  await close();
+});
+
+test('Lue karttaa ja Muokkaa karttaa ovat välilehtiä, jotka vaihtavat editorin tilan', async () => {
+  const { page, errors, close } = await open(1440, 860);
+  await tab(page, 'read');
+  assert.equal(await page.evaluate(() => KG_APP.editor.readOnly), true);
+  assert.ok(!(await visible(page, '.palette')), 'lukutilassa ei sivupaneelia');
+  assert.ok(await visible(page, '.editor')); assert.ok(await visible(page, '#previewPane'));
+  // lukutilassa napsautus ei muuta karttaa
+  const before = await page.evaluate(() => KG_APP.doc.grid.join(''));
+  const r = await (await page.$('#ed')).boundingBox(); await page.mouse.click(r.x + 40, r.y + 40);
+  assert.equal(await page.evaluate(() => KG_APP.doc.grid.join('')), before);
+  await tab(page, 'edit');
+  assert.equal(await page.evaluate(() => KG_APP.editor.readOnly), false);
+  assert.ok(await visible(page, '.palette'));
+  assert.equal(await page.$('#mRead'), null, 'editorin vanha tilapalkki on poistettu');
+  assert.deepEqual(errors, []);
+  await close();
+});
+
+test('valittu pala näkyy selitepalkin yläreunassa myös kelluvana', async () => {
+  const { page, errors, close } = await open(1440, 860);
+  await tab(page, 'edit');
+  await page.click('#palette .pal[data-ch="T"]');
+  assert.equal(await page.$eval('#brushCh', el => el.textContent), 'T');
+  assert.equal(await page.$eval('#brushName', el => el.textContent), 'havumetsä');
+  await page.click('#btnFloat'); await wait(200);
+  const inside = await page.evaluate(() => { const p = document.getElementById('palPanel').getBoundingClientRect(), b = document.querySelector('.brushbox').getBoundingClientRect(); return b.top >= p.top && b.bottom <= p.bottom && b.width > 0; });
+  assert.ok(inside, 'sivellinruutu on kelluvassa palkissa');
+  await page.select('#brush', '3');
+  assert.equal(await page.evaluate(() => KG_APP.editor.brushSize), 3);
+  await shot(page, 'kelluva-sivellin');
+  assert.deepEqual(errors, []);
+  await close();
+});
+
+test('Ohje-välilehti näyttää ohjeen koko leveydellä', async () => {
+  const { page, close } = await open(1440, 860);
+  await tab(page, 'help');
+  const w = await page.$eval('.panel[data-for=help]', el => el.getBoundingClientRect().width);
+  assert.ok(w > 400, `ohjeen leveys ${w}`);
+  const text = await page.$eval('.panel[data-for=help]', el => el.textContent);
+  for (const k of ['Lue karttaa', 'Muokkaa karttaa', 'Alueet', 'Näppäimistö']) assert.ok(text.includes(k), k);
   await close();
 });

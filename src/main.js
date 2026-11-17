@@ -284,23 +284,23 @@
   const setTool = t => { ed.mode = t; ed.band = null; $('toolArea').classList.toggle('on', t === 'area'); $('toolMove').classList.toggle('on', t === 'move'); ed.cv.style.cursor = ed.readOnly ? '' : t === 'area' ? 'cell' : t === 'move' ? 'move' : 'crosshair'; showTool(); ed.draw(); };
   showTool = () => {
     const nm = selArea ? KG.areas.displayName(doc, selArea) : null;
-    $('toolInfo').innerHTML = ed.readOnly ? 'Vedä vierittääksesi, napsauta nähdäksesi ruudun' :
+    $('toolInfo').innerHTML = ed.readOnly || ed.mode === 'paint' ? '' :
       ed.mode === 'area' ? (nm ? `Rajaus: <b>${nm}</b> – raahaa suorakulmio` : 'Rajaus: valitse alue listasta') :
-      ed.mode === 'move' ? (nm ? `Siirto: <b>${nm}</b> – raahaa kartalla` : 'Siirto: tartu alueeseen kartalla') :
-      `Maasto: sivellin "${ed.brush}"`;
+      nm ? `Siirto: <b>${nm}</b> – raahaa kartalla` : 'Siirto: tartu alueeseen kartalla';
     $('btnToolDone').hidden = ed.readOnly || ed.mode === 'paint';
+    // valittu pala selitepalkin yläreunassa
+    const e = doc.legend.find(l => l.ch === ed.brush), bc = $('brushCh');
+    bc.textContent = ed.brush; bc.style.background = KG.editorColors(doc)[ed.brush] || '#fff'; $('brushName').textContent = e ? e.name : 'tuntematon pala';
   };
   endAreaTool = () => { selArea = null; setTool('paint'); buildAreaList(); };
-  setMode = read => { ed.setReadOnly(read); document.body.classList.toggle('readmode', read); $('mRead').classList.toggle('on', read); $('mEdit').classList.toggle('on', !read); if (read && ed.mode !== 'paint') endAreaTool(); store.set('kg.mode', read ? 'read' : 'edit'); setTool(ed.mode); };
-  $('mRead').onclick = () => setMode(true);
-  $('mEdit').onclick = () => setMode(false);
+  // lukutila ja muokkaustila ovat välilehtiä (Lue karttaa / Muokkaa karttaa); setTab kutsuu tätä
+  setMode = read => { if (read !== ed.readOnly) ed.setReadOnly(read); if (read && ed.mode !== 'paint') endAreaTool(); setTool(ed.mode); };
   $('btnToolDone').onclick = () => endAreaTool();
   $('toolArea').onclick = () => { setMode(false); setTool('area'); if (!selArea) status('Valitse alue listasta tai luo uusi'); };
   $('toolMove').onclick = () => { setMode(false); setTool('move'); status('Tartu alueeseen kartalla ja raahaa; nuolinäppäimet siirtävät valittua'); };
   $('areaList').onchange = e => { selArea = e.target.value; showTool(); ed.draw();
     const A = M.byName[selArea]; if (A && A.bbox) { const sc = ed.cv.parentElement; sc.scrollLeft = A.bbox.x * ed.cw - 20; sc.scrollTop = A.bbox.y * ed.ch - 20; } };
   $('showAreas').onchange = () => ed.draw();
-  { const pref = store.get('kg.mode'); setMode(pref ? pref === 'read' : matchMedia('(pointer: coarse)').matches); }
   $('btnNewArea').onclick = () => { const t = $('newArea').value.trim(); if (!t) { status('Kirjoita alueen nimi'); return; }
     let id = KG.rlml.toId(t), n = 2; const base = id; while (M.byName[id] || (doc.texts[id] && doc.texts[id] !== t)) id = base + '_' + n++;
     doc.texts[id] = t; selArea = id; $('newArea').value = ''; setMode(false); setTool('area'); buildAreaList(); touched(); status(`Raahaa alueen ${t} suorakulmio kartalle`); };
@@ -316,15 +316,17 @@
   $('btnSrcApply').onclick = () => { try { const p = projText(); p[$('srcSel').value] = $('srcTa').value; const fl = KG.rlml.parseProject([p.map, p.style, p.lang]), i = doc.file ? Math.max(0, doc.file.maps.indexOf(doc)) : 0, d = fl.maps[Math.min(i, fl.maps.length - 1)]; if (!d.W || !d.H) throw new Error('map-rivi puuttuu'); doc = d; afterDocChange(); status('Lähde luettu'); } catch (e) { status('Virhe lähteessä: ' + e.message); } };
 
   // ---- yläpalkin välilehdet: kukin valitsee sivupaneelin sisällön ja näkyvät osat (CSS: body[data-tab])
-  const TAB_TITLES = { map: 'Selite', areas: 'Alueet', file: 'Tiedosto', print: 'Tulostus', names: 'Nimet', src: 'RLML-lähde', preview: 'Selite' };
+  const TAB_TITLES = { read: '', edit: 'Selite', areas: 'Alueet', file: 'Tiedosto', print: 'Tulostus', names: 'Nimet', src: 'RLML-lähde', help: 'Ohje', preview: 'Selite' };
   function setTab(t) {
-    if (!TAB_TITLES[t]) t = 'map';
+    if (t === 'map') t = 'edit';
+    if (TAB_TITLES[t] === undefined) t = 'edit';
     const mobile = matchMedia('(max-width: 820px)').matches;
-    if (t === 'preview' && !mobile) t = 'map';
+    if (t === 'preview' && !mobile) t = 'edit';
     document.body.dataset.tab = t; store.set('kg.tab', t);
     document.querySelectorAll('#mainTabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
     $('sideTitle').textContent = TAB_TITLES[t];
     if (t !== 'areas' && ed.mode !== 'paint') endAreaTool();
+    if (t === 'read') setMode(true); else if (t === 'edit' || t === 'areas') setMode(false);
     if (t === 'src') showSrc();
     if (t === 'names') fillNames();
     if (last && !(popup && !popup.closed)) showSvg(last.svg);
@@ -335,6 +337,6 @@
   function buildMapSel() { const f = doc.file; $('mapSel').innerHTML = (f ? f.maps : [doc]).map((m, i) => `<option value="${i}"${m === doc ? ' selected' : ''}>${(m.title && m.hasHeading ? m.title + ' – ' : '') + m.name}</option>`).join(''); $('styleSel').value = doc.style || 'sea'; }
   function afterDocChange() { ed.undo = []; ed.redo = []; buildMapSel();
     if (!doc.styleSet && (!doc.style || doc.style === 'sea') && doc.legend.some(e => /^(WALL|FLOOR|HULL|DECK|RAIL)\b/i.test(e.spec))) { const w = 'Kartalta puuttuu style paper -rivi: valitse tyyliksi luola tai laiva'; doc.warnings = (doc.warnings || []).filter(x => x !== w).concat(w); } { const n = KG.areas.normalize(doc); if (n) doc.warnings = (doc.warnings || []).concat(`Sisäkkäisiä rajauksia yhdistettiin: ${n}`); } buildLegendPick(); $('inW').value = doc.W; $('inH').value = doc.H; selArea = null; refreshModel(); fillNames(); buildPalette(); buildAreaList(); ed.setDoc(); touched(); if (doc.warnings && doc.warnings.length) status(doc.warnings[0]); }
-  afterDocChange(); render(); setTab(store.get('kg.tab') || 'map');
+  afterDocChange(); render(); setTab(store.get('kg.tab') || (matchMedia('(pointer: coarse)').matches ? 'read' : 'edit'));
   window.KG_APP = { get doc() { return doc; }, editor: ed, render };
 })();

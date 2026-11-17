@@ -49,14 +49,8 @@ textarea { width: 100%; font-family: var(--mono); font-size: 12px; }
 .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
 #ed.read { touch-action: pan-x pan-y; cursor: grab; }
-.seg { display: inline-flex; }
-.seg button { border-radius: 0; }
-.seg button:first-child { border-radius: 5px 0 0 5px; }
-.seg button:last-child { border-radius: 0 5px 5px 0; margin-left: -1px; }
-.seg button.on { background: var(--accent); color: #fff; border-color: var(--accent); }
 .toolinfo { color: #444; }
 .toolinfo b { color: #c8143c; }
-.edbar { border-bottom: 1px solid var(--line); }
 .pal i { color: #777; font-size: 11px; }
 #legendPick { margin: 0; gap: 4px 12px; }
 button:disabled { opacity: .4; cursor: default; }
@@ -69,9 +63,9 @@ button:disabled { opacity: .4; cursor: default; }
 .pal.add { opacity: .75; } .pal.add:hover { opacity: 1; }
 /* kelluva selitepalkki: siirrettävä ikkuna editorin päällä */
 @media (min-width: 821px) {
-  body.float-pal:is([data-tab=map],[data-tab=areas]) .layout { grid-template-columns: minmax(240px, 1fr) minmax(300px, 1.2fr); }
-  body.float-pal:is([data-tab=map],[data-tab=areas]) .palette { position: fixed; z-index: 20; width: 230px; max-height: 75vh; border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 4px 18px rgba(0,0,0,.22); resize: both; }
-  body.float-pal:is([data-tab=map],[data-tab=areas]) .palhead { cursor: move; margin: -8px -8px 6px; padding: 6px 8px 0; background: #f1ece0; border-radius: 6px 6px 0 0; border-bottom: 1px solid var(--line); user-select: none; }
+  body.float-pal:is([data-tab=edit],[data-tab=areas]) .layout { grid-template-columns: minmax(240px, 1fr) minmax(300px, 1.2fr); }
+  body.float-pal:is([data-tab=edit],[data-tab=areas]) .palette { position: fixed; z-index: 20; width: 230px; max-height: 75vh; border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 4px 18px rgba(0,0,0,.22); resize: both; }
+  body.float-pal:is([data-tab=edit],[data-tab=areas]) .palhead { cursor: move; margin: -8px -8px 6px; padding: 6px 8px 0; background: #f1ece0; border-radius: 6px 6px 0 0; border-bottom: 1px solid var(--line); user-select: none; }
   body.float-pal #btnFloat { background: var(--accent); color: #fff; border-color: var(--accent); }
 }
 
@@ -86,8 +80,8 @@ button:disabled { opacity: .4; cursor: default; }
 .bar.top .status { margin-left: 0; max-width: 32ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .only-mobile { display: none; }
 .panel { display: none; }
-body[data-tab=map] .panel[data-for=map], body[data-tab=areas] .panel[data-for=areas], body[data-tab=file] .panel[data-for=file],
-body[data-tab=print] .panel[data-for=print], body[data-tab=preview] .panel[data-for=map], body[data-tab=names] .panel[data-for=names], body[data-tab=src] .panel[data-for=src] { display: block; }
+body[data-tab=edit] .panel[data-for=edit], body[data-tab=areas] .panel[data-for=areas], body[data-tab=file] .panel[data-for=file],
+body[data-tab=print] .panel[data-for=print], body[data-tab=preview] .panel[data-for=edit], body[data-tab=help] .panel[data-for=help], body[data-tab=names] .panel[data-for=names], body[data-tab=src] .panel[data-for=src] { display: block; }
 .panel fieldset { margin: 0 0 8px; }
 .panel fieldset label { white-space: nowrap; }
 #areaList { margin-bottom: 4px; }
@@ -96,7 +90,22 @@ body[data-tab=print] .panel[data-for=print], body[data-tab=preview] .panel[data-
 body[data-tab=src] .palette { display: flex; flex-direction: column; }
 body[data-tab=src] #tSrc { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 #tSrc textarea { flex: 1; min-height: 200px; resize: none; }
-body:not([data-tab=map]):not([data-tab=areas]) #btnFloat { display: none; }
+body:not([data-tab=edit]):not([data-tab=areas]) #btnFloat { display: none; }
+/* lukutila: ei sivupaneelia; ohje: koko leveys */
+body[data-tab=read] .palette { display: none; }
+body[data-tab=read] .layout { grid-template-columns: minmax(240px, 1fr) minmax(300px, 1.2fr); }
+body[data-tab=help] .layout { grid-template-columns: minmax(0, 1fr); }
+body[data-tab=help] :is(.editor, .preview) { display: none; }
+body[data-tab=help] .palette { padding: 16px 24px; }
+.panel.help { max-width: 72ch; color: #333; }
+.panel.help h4 { margin: 14px 0 4px; font-size: 14px; }
+.panel.help p { margin: 4px 0 8px; }
+/* valittu pala ja siveltimen koko selitepalkin yläreunassa, myös kelluvana */
+.brushbox { position: sticky; top: -8px; z-index: 1; display: flex; align-items: center; gap: 8px; margin: -2px -8px 8px; padding: 6px 8px; background: #f1ece0; border-bottom: 1px solid var(--line); }
+.brushbox .ch { font-family: var(--mono); font-size: 17px; width: 28px; height: 26px; display: inline-grid; place-items: center; border-radius: 3px; border: 1px solid rgba(0,0,0,.25); }
+.brushbox .bname { flex: 1; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.toolrow { margin-top: 0; }
+.toolrow .toolinfo:empty { display: none; }
 /* leveämmät paneelit, joissa editoria ei tarvita: asetukset esikatselun vieressä */
 body:is([data-tab=print],[data-tab=names],[data-tab=src]) .editor { display: none; }
 body[data-tab=print] .layout { grid-template-columns: 340px 1fr; }
@@ -128,10 +137,13 @@ body[data-tab=preview] .layout { grid-template-columns: 210px minmax(240px, 1fr)
   .preview { border-left: 0; }
   fieldset { width: 100%; }
   /* kartta ja alueet: paneeli ylhäällä, editori alla; esikatselu omalla välilehdellään */
-  body:is([data-tab=map],[data-tab=areas]) .palette { max-height: 34vh; }
-  body:is([data-tab=map],[data-tab=areas]) .preview { display: none; }
-  body:is([data-tab=file],[data-tab=print],[data-tab=names],[data-tab=src]) .layout { grid-template-rows: 1fr; }
-  body:is([data-tab=file],[data-tab=print],[data-tab=names],[data-tab=src]) :is(.editor, .preview) { display: none; }
+  body:is([data-tab=edit],[data-tab=areas]) .palette { max-height: 34vh; }
+  body:is([data-tab=read],[data-tab=edit],[data-tab=areas]) .preview { display: none; }
+  body[data-tab=read] .layout { grid-template-rows: 1fr; }
+  .brushbox { margin: -6px -6px 6px; top: -6px; }
+  body:is([data-tab=file],[data-tab=print],[data-tab=names],[data-tab=src],[data-tab=help]) .layout { grid-template-rows: 1fr; }
+  body:is([data-tab=file],[data-tab=print],[data-tab=names],[data-tab=src],[data-tab=help]) :is(.editor, .preview) { display: none; }
+  body[data-tab=help] .palette { padding: 10px 12px; }
   body[data-tab=preview] .layout { grid-template-rows: 1fr; }
   body[data-tab=preview] :is(.palette, .editor) { display: none; }
 }

@@ -6,11 +6,11 @@
 <title>Karttageneraattori</title>
 <link rel="stylesheet" href="css/app.css">
 </head>
-<body data-tab="map">
+<body data-tab="edit">
 <header class="bar top">
   <strong class="brand">Karttageneraattori</strong>
   <nav class="maintabs" id="mainTabs">
-    <button data-tab="map" class="on">Kartta</button><button data-tab="areas">Alueet</button><button data-tab="preview" class="only-mobile">Esikatselu</button><button data-tab="file">Tiedosto</button><button data-tab="print">Tulostus</button><button data-tab="names">Nimet</button><button data-tab="src">RLML-lähde</button>
+    <button data-tab="read">Lue karttaa</button><button data-tab="edit" class="on">Muokkaa karttaa</button><button data-tab="areas">Alueet</button><button data-tab="preview" class="only-mobile">Esikatselu</button><button data-tab="file">Tiedosto</button><button data-tab="print">Tulostus</button><button data-tab="names">Nimet</button><button data-tab="src">RLML-lähde</button><button data-tab="help">Ohje</button>
   </nav>
   <span class="grp undo"><button id="btnUndo" title="Kumoa (Ctrl+Z)">↶</button><button id="btnRedo" title="Tee uudelleen (Ctrl+Y)">↷</button></span>
   <span id="status" class="status"></span><button id="btnPrev" hidden title="Palauta kartta, joka oli auki ennen esimerkkiä">Palauta edellinen</button>
@@ -20,29 +20,20 @@
   <aside class="side palette" id="palPanel">
     <div class="palhead" id="palHead" title="Kelluvana: vedä tästä siirtääksesi"><h3 id="sideTitle">Selite</h3><button id="btnFloat" class="no-mobile" title="Irrota paneeli kelluvaksi tai kiinnitä takaisin">⧉ Kelluva</button></div>
 
-    <div class="panel" data-for="map">
+    <div class="panel" data-for="edit">
+      <div class="brushbox" title="Valittu pala ja siveltimen koko"><span class="ch" id="brushCh"></span><span id="brushName" class="bname"></span>
+        <label>Koko <select id="brush"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="5">5</option></select></label></div>
       <div id="palette"></div>
       <div id="palAdd"></div>
-      <label class="row">Sivellin
-        <select id="brush"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="5">5</option></select>
-      </label>
-      <details class="help no-mobile" open>
-        <summary>Ohjeet</summary>
-        <p><b>Lue karttaa:</b> vedä vierittääksesi, napsauta nähdäksesi ruudun tiedot.</p><p><b>Muokkaa karttaa:</b> vasen nappi piirtää valitulla palalla, oikea poimii palan kartalta, Vaihto + napsautus täyttää alueen.</p>
-        <p><b>Näppäimistö</b> (napsauta karttaa ensin): nuolet liikuttavat kursoria, merkin kirjoitus korvaa ruudun ja siirtyy oikealle, Enter seuraavalle riville, Askelpalautin vasemmalle, Ctrl+Z / Ctrl+Y kumoa ja tee uudelleen.</p>
-      </details>
     </div>
 
     <div class="panel" data-for="areas">
+      <div class="row toolrow"><span id="toolInfo" class="toolinfo"></span><button id="btnToolDone" hidden>Valmis</button></div>
       <label class="row"><input id="showAreas" type="checkbox" checked> Näytä alueet</label>
       <select id="areaList" size="10"></select>
       <div class="row"><input id="newArea" type="text" placeholder="Uusi alue, esim. Vaaravuori"><button id="btnNewArea">Lisää</button></div>
       <div class="row"><button id="toolArea" title="Rajaa valitun alueen suorakulmiot: raahaa uusi, kulmakahvasta koko, oikea napsautus poistaa">Rajaa</button><button id="toolMove" title="Siirrä alue sisältöineen kartalla: raahaa tai nuolinäppäimet">Siirrä</button><button id="btnDelArea">Poista</button></div>
       <div id="checks" class="checks"></div>
-      <details class="help no-mobile" open>
-        <summary>Ohjeet</summary>
-        <p><b>Nimetyt alueet:</b> valitse alue ja Rajaa (suorakulmiot) tai Siirrä (alue sisältöineen; tyhjäksi jäävä osa täytetään vedellä). Valmis tai Esc palaa maaston piirtoon.</p>
-      </details>
     </div>
 
     <div class="panel" data-for="file">
@@ -133,14 +124,25 @@
       <div class="row"><label>Tiedosto <select id="srcSel"><option value="map">Kartat (.rlml.md)</option><option value="style">Paperityyli (.paper.rlml.md)</option><option value="lang">Kieli (.fi.rlml.md)</option></select></label><button id="btnSrcApply">Lue lähteestä</button></div>
       <textarea id="srcTa" spellcheck="false"></textarea>
     </div>
+
+    <div class="panel help" data-for="help">
+      <h4>Lue karttaa</h4>
+      <p>Vedä karttaa vierittääksesi ja napsauta ruutua nähdäksesi sen maaston ja aluepolun. Mitään ei voi muuttaa vahingossa. Puhelimessa yksi sormi vierittää.</p>
+      <h4>Muokkaa karttaa</h4>
+      <p>Valitse pala selitepalkista; valittu pala ja siveltimen koko näkyvät palkin yläreunassa. Hiiren vasen nappi piirtää, oikea poimii palan kartalta, Vaihto + napsautus täyttää yhtenäisen alueen. <b>⧉ Kelluva</b> irrottaa selitepalkin siirrettäväksi ikkunaksi kartan päälle (vedä otsikosta, kulmasta muutat kokoa). Puhelimessa yksi sormi piirtää ja kaksi sormea vierittää.</p>
+      <p><b>Näppäimistö</b> (napsauta karttaa ensin): nuolet liikuttavat kursoria (Vaihto = 5 askelta), kirjoitettu merkki korvaa ruudun ja siirtyy oikealle, Enter siirtää seuraavalle riville, Askelpalautin vasemmalle, Home/End/PageUp/PageDown, Ctrl+Z / Ctrl+Y kumoa ja tee uudelleen.</p>
+      <p><b>Lisää selitteeseen</b> näyttää merikartan palat, joita kartan legendassa ei vielä ole.</p>
+      <h4>Alueet</h4>
+      <p><b>Lisää</b> luo alueen nimestä. Valitse alue listasta ja <b>Rajaa</b> (raahaa suorakulmio, kulmakahvasta koko, oikea napsautus poistaa) tai <b>Siirrä</b> (tartu alueeseen ja raahaa tai käytä nuolinäppäimiä; alue siirtyy sisältöineen ja tyhjäksi jäävä osa täytetään vedellä). <b>Valmis</b> tai Esc palaa maaston piirtoon.</p>
+      <h4>Esikatselu</h4>
+      <p>Päivittyy muokatessa. Kun kartta on zoomattu niin, ettei se mahdu kerralla näkyviin, esikatselu seuraa editorin kursoria (punainen ruutu). Esikatselua voi siirrellä vetämällä. <b>Lehtijako</b> näyttää A4-lehtien rajat.</p>
+      <h4>Tiedosto, Tulostus, Nimet ja RLML-lähde</h4>
+      <p><b>Tiedosto</b>: kartan valinta ja tyyli, koko, generointi siemenestä, esimerkit, avaus ja tallennus (kartta, paperityyli ja kielitiedosto). <b>Tulostus</b>: koko kuva yhdelle arkille tai A4-lehdet liimausreunoin, viivavahvuudet, selitteen sisältö sekä SVG-, PNG- ja HTML-vienti. <b>Nimet</b>: otsikko, piirto-ohjeet ja näkyvät nimet. <b>RLML-lähde</b>: tiedostot tekstinä; muokkaa ja lue takaisin.</p>
+      <p>Kartta tallentuu selaimen muistiin automaattisesti.</p>
+    </div>
   </aside>
 
   <section class="editor">
-    <div class="bar small edbar">
-      <span class="seg"><button id="mRead">Lue karttaa</button><button id="mEdit">Muokkaa karttaa</button></span>
-      <span id="toolInfo" class="toolinfo"></span>
-      <button id="btnToolDone" hidden>Valmis</button>
-    </div>
     <div class="scroll" id="edScroll"><canvas id="ed" tabindex="0"></canvas></div>
     <div class="statusline" id="cursorInfo"></div>
   </section>
