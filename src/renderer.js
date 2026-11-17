@@ -187,25 +187,33 @@
         g += white(P(tower, true)) + el(hatchD(tower, spY * .8, 0, tx + tw * .2), wT) + el(P(tower, true)) + el(seg(tx - .4 * s, b - th * .58, tx - .4 * s, b - th * .42));
         for (let q = 0; q < 3; q++) g += S.rock(x1 + (q - .5) * 2.2 * s, b + .6, .3 + r() * .15, r);
         return flip ? `<g transform="translate(${f(2 * x)} 0) scale(-1 1)">${g}</g>` : g; },
-      // luurankoluola: kallon muotoinen kallio, silmäkuopat ja suu ovat luolan aukkoja
+      // luurankoluola: iso kallio pääkallon muodossa; silmäaukot ja suu ovat luolan suuaukkoja
       skull(cx, b, sc, r) {
-        const U = 12 * sc, cy = b - U, Q = ([u, v]) => [cx + u * U, cy + v * U];
-        const outline = [[-.95, .1], [-1.02, -.45], [-.78, -.95], [-.3, -1.22], [.3, -1.22], [.78, -.95], [1.02, -.45], [.95, .1], [.82, .42], [.6, .52], [.56, .82], [.32, 1], [-.32, 1], [-.56, .82], [-.6, .52], [-.82, .42]].map(Q);
-        const bone = (x, y, a, L2) => { const dx = Math.cos(a) * L2 / 2, dy = Math.sin(a) * L2 / 2, k = L2 * .1, nx = -Math.sin(a) * k * .8, ny = Math.cos(a) * k * .8, sd = seg(x - dx, y - dy, x + dx, y + dy);
-          let o = `<path d="${sd}" stroke="#000" stroke-width="${f(k * 1.5 + wT * 2)}" fill="none"/><path d="${sd}" stroke="#fff" stroke-width="${f(k * 1.5)}" fill="none"/>`;
-          for (const [ex, ey] of [[x - dx, y - dy], [x + dx, y + dy]]) for (const sg of [-1, 1]) o += `<circle cx="${f(ex + nx * sg)}" cy="${f(ey + ny * sg)}" r="${f(k)}" fill="#fff" stroke="#000" stroke-width="${f(wT)}"/>`;
-          return o; };
-        let g = S.rock(cx - U * 1.05, b, .75 * sc, r) + S.rock(cx + U * 1.02, b + .5, .55 * sc, r);
-        const d = smoothD(outline, true);
-        g += white(d) + el(hatchD(outline, spY, 0, cx + U * .42), wT) + el(d);
-        g += el(P([Q([-.12, -1.21]), Q([-.03, -.98]), Q([-.17, -.82]), Q([-.07, -.64])]) + P([Q([.55, -1.05]), Q([.47, -.88])]), wT);
-        for (const sg of [-1, 1]) { const [ex, ey] = Q([sg * .42, -.12]); g += `<ellipse cx="${f(ex)}" cy="${f(ey)}" rx="${f(U * .27)}" ry="${f(U * .23)}" transform="rotate(${sg * -8} ${f(ex)} ${f(ey)})" fill="#000"/>`;
-          g += el(`M${pt(Q([sg * .7, .22]))}Q${pt(Q([sg * .45, .36]))} ${pt(Q([sg * .2, .26]))}`, wT); }
-        g += el(P([Q([0, .14]), Q([-.13, .42]), Q([.13, .42])], true), wT, '#000');
-        g += el(`M${pt(Q([-.36, .96]))}V${f(cy + .66 * U)}Q${pt(Q([0, .5]))} ${pt(Q([.36, .66]))}V${f(cy + .96 * U)}Z`, wT, '#000');
-        let teeth = ''; for (let q = 0; q < 5; q++) { const u = -.29 + q * .145; teeth += P([Q([u - .055, .6]), Q([u + .055, .6]), Q([u + .045, .74]), Q([u - .045, .74])], true) + P([Q([u - .05, .97]), Q([u + .05, .97]), Q([u + .04, .87]), Q([u - .04, .87])], true); }
-        g += `<path d="${teeth}" fill="#fff" stroke="#000" stroke-width="${f(wT)}"/>`;
-        const [bx, by] = Q([1.3, .9]); g += bone(bx, by, .5, 9 * sc) + bone(bx, by, -.5, 9 * sc);
+        const U = 17 * sc, cy = b - U, Q = ([u, v]) => [cx + u * U, cy + v * U];
+        // kallion ääriviiva: kallo, joka levenee alhaalla kivikasaksi; rosoinen kuin kalliossa
+        const base = [[-1.3, 1], [-1.08, .74], [-.92, .46], [-1.02, .08], [-1.06, -.42], [-.83, -.92], [-.36, -1.2], [.3, -1.22], [.8, -.95], [1.06, -.42], [1.01, .08], [.9, .44], [1.06, .72], [1.32, 1]];
+        const out = []; for (let n = 0; n < base.length; n++) { const p = base[n], q = base[(n + 1) % base.length]; out.push(p); if (n === base.length - 1) break;
+          for (let k = 1; k < 3; k++) { const t = k / 3, dx = q[0] - p[0], dy = q[1] - p[1], L = Math.hypot(dx, dy) || 1, o = (r() - .5) * .09; out.push([p[0] + dx * t - dy / L * o, p[1] + dy * t + dx / L * o]); } }
+        const poly = out.map(Q);
+        // pienet lohkareet juurella
+        let g = '';
+        for (const [u, s2] of [[-1.42, .7], [-1.15, .45], [1.2, .5], [1.48, .6]]) g += S.rock(cx + u * U, b + 1, s2 * sc, r);
+        // varjopuoli: oikea reuna ja sisäpuolella pyöreä raja kallon muotoa myötäillen
+        const shade = out.filter(([u, v]) => u > .25 && !(v > .99 && u < 1.3)).map(Q).concat([[.58, 1], [.66, .72], [.76, .32], [.8, -.1], [.72, -.6], [.5, -1.02]].map(Q));
+        g += white(P(poly, true)) + el(hatchD(shade, spY), wT) + el(P(poly, true));
+        // halkeamat ja kerrokset kalliossa
+        let cr = P([Q([-.1, -1.21]), Q([-.02, -1]), Q([-.16, -.84]), Q([-.06, -.66])]) + P([Q([.55, -1.06]), Q([.46, -.86]), Q([.52, -.74])]) + P([Q([-.98, -.2]), Q([-.82, -.26]), Q([-.76, -.12])]) + P([Q([-.98, .62]), Q([-.8, .66]), Q([-.7, .82])]) + P([Q([.94, .58]), Q([.78, .64])]);
+        for (const [u, v, w] of [[-.55, -.78, .3], [-.68, -.58, .22], [.2, -.92, .26]]) cr += `M${pt(Q([u, v]))}Q${pt(Q([u + w / 2, v - .05]))} ${pt(Q([u + w, v]))}`;
+        g += el(cr, wT);
+        // silmäaukot: epäsäännölliset mustat luolansuut, poskiluun reunus alla
+        for (const sg of [-1, 1]) { const ex = sg * .42, ey = -.16, e = []; for (let k = 0; k < 10; k++) { const a = k / 10 * Math.PI * 2, rr = .85 + r() * .3; e.push(Q([ex + Math.cos(a) * .29 * rr, ey + Math.sin(a) * .24 * rr])); }
+          g += el(P(e, true), wT, '#000') + el(`M${pt(Q([sg * .74, .2]))}Q${pt(Q([sg * .46, .34]))} ${pt(Q([sg * .18, .22]))}`, wT); }
+        g += el(P([Q([0, .1]), Q([-.15, .42]), Q([-.02, .38]), Q([.13, .43])], true), wT, '#000');
+        // suu: luolan suuaukko maan tasolla, yläreunasta roikkuu kivihampaita
+        const m = [Q([-.44, 1]), Q([-.46, .74])];
+        for (let k = 0; k <= 12; k++) { const t = k / 12, u = -.44 + .88 * t, v = .58 + .17 * (2 * t - 1) ** 2; m.push(Q([u, v])); if (k % 2 && k < 12) m.push(Q([u + .035, v + .1 + r() * .12]), Q([u + .07, v + .01])); }
+        m.push(Q([.46, .74]), Q([.44, 1]));
+        g += el(P(m, true), wT, '#000') + el(seg(cx - U * 1.55, b + .6, cx + U * 1.6, b + .6), wT);
         return g; },
       // tulivuori: musta kartio, valkoiset uomat ja kraaterista nouseva savu
       volcano(cx, b, sc, r, puffs) {
@@ -271,13 +279,16 @@
     const MD = T.map(row => row.map(t => t === 'mountain' ? 99 : 0));
     for (let it = 0; it < 12; it++) { let ch = false; for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) { if (!MD[j][i]) continue; let m = 99; for (const [a, c] of N8) { const x = i + a, y = j + c; m = Math.min(m, x < 0 || y < 0 || x >= W || y >= H ? 0 : MD[y][x]); } if (m + 1 < MD[j][i]) { MD[j][i] = m + 1; ch = true; } } if (!ch) break; }
     // koristeet (tulivuori, luurankoluola): yksi kuva yhtenäistä aluetta kohden, koko alueen mukaan
+    const decorBox = [], underDecor = (x, y) => decorBox.some(([x0, y0, x1, y1]) => x > x0 && x < x1 && y > y0 && y < y1);
     { const seen = new Set();
       for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) { const t = T[j][i]; if ((t !== 'volcano' && t !== 'skullcave') || seen.has(j * W + i)) continue;
         const st = [[i, j]], cells = []; seen.add(j * W + i);
         while (st.length) { const [a, c] = st.pop(); cells.push([a, c]); for (const [da, dc] of N8) { const x = a + da, y = c + dc; if (x >= 0 && y >= 0 && x < W && y < H && T[y][x] === t && !seen.has(y * W + x)) { seen.add(y * W + x); st.push([x, y]); } } }
         let sx = 0, my = 0; for (const [a, c] of cells) { sx += a; my = Math.max(my, c); }
         const cx = (sx / cells.length + .5) * CS, b = (my + 1) * CS - 3, r = rng(h32(i, j, 78)), n = Math.sqrt(cells.length);
-        SYM.push([b, t === 'volcano' ? S.volcano(cx, b, Math.max(.8, Math.min(2.4, n * .75)), r) : S.skull(cx, b, Math.max(1, Math.min(2.4, n * .85)), r)]); } }
+        const sc = t === 'volcano' ? Math.max(.8, Math.min(2.4, n * .75)) : Math.max(1, Math.min(2.4, n * .85));
+        decorBox.push(t === 'volcano' ? [cx - 19 * sc, b - 25 * sc, cx + 19 * sc, b + 4] : [cx - 1.4 * 17 * sc, b - 2.3 * 17 * sc, cx + 1.4 * 17 * sc, b + 4]);
+        SYM.push([b, t === 'volcano' ? S.volcano(cx, b, sc, r) : S.skull(cx, b, sc, r)]); } }
     for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
       const t = T[j][i], cx = (i + .5) * CS, b = (j + 1) * CS - 2, r = rng(h32(i, j, 77));
       if (t === 'mountain') { const hk = 1 + .3 * Math.min(3, MD[j][i] - 1), s = .75 + r() * .6, x = cx + (r() - .5) * 5, y = b + (r() - .5) * 3; SYM.push([y, S.mountain(x, y, s, r, hk)]); if (hk === 1 && r() < .35) { const y2 = b + 3; SYM.push([y2, S.mountain(cx + (r() < .5 ? -7 : 7), y2, .45 + r() * .25, r)]); } }
@@ -301,7 +312,7 @@
       else if (t === 'deciduous') { const n = 1 + Math.floor(r() * 2.4); for (let q = 0; q < n; q++) { const x = cx + (r() - .5) * 11, y = (j + .4) * CS + r() * CS * .6; SYM.push([y, r() < .2 ? S.conifer(x, y, .6 + r() * .4) : S.deciduous(x, y, .7 + r() * .5, r)]); } }
       else if (t === 'shrubs') { const n = 3 + Math.floor(r() * 3); for (let q = 0; q < n; q++) { const y = (j + .3) * CS + r() * CS * .75; SYM.push([y, S.shrubs(cx + (r() - .5) * 13, y, .6 + r() * .55, r)]); } }
       else if (t === 'palm') { const n = r() < .4 ? 2 : 1; for (let q = 0; q < n; q++) { const y = (j + .55) * CS + r() * CS * .4; SYM.push([y, S.palm(cx + (r() - .5) * 10, y, .9 + r() * .35, r)]); } }
-      else if (t === 'grass' && r() < .12) { let nb = 0; for (const [a, c] of N8) if (land(i + a, j + c)) nb++; if (nb > 4) { const x = cx + (r() - .5) * 8; SYM.push([b, el(`M${f(x - 2.5)} ${f(b - 4)}Q${f(x - 1.5)} ${f(b - 2)} ${f(x - .5)} ${f(b - .5)}M${f(x)} ${f(b - 5)}L${f(x)} ${f(b - .5)}M${f(x + 2.5)} ${f(b - 4)}Q${f(x + 1.5)} ${f(b - 2)} ${f(x + .5)} ${f(b - .5)}`, wT)]); } }
+      else if (t === 'grass' && r() < .12 && !underDecor(cx, b)) { let nb = 0; for (const [a, c] of N8) if (land(i + a, j + c)) nb++; if (nb > 4) { const x = cx + (r() - .5) * 8; SYM.push([b, el(`M${f(x - 2.5)} ${f(b - 4)}Q${f(x - 1.5)} ${f(b - 2)} ${f(x - .5)} ${f(b - .5)}M${f(x)} ${f(b - 5)}L${f(x)} ${f(b - .5)}M${f(x + 2.5)} ${f(b - 4)}Q${f(x + 1.5)} ${f(b - 2)} ${f(x + .5)} ${f(b - .5)}`, wT)]); } }
       else if (t === 'treasure') SYM.push([(j + .5) * CS + 6, S.treasure(cx, (j + .5) * CS)]);
     }
     SYM.sort((a, b) => a[0] - b[0]).forEach(s => out.push(s[1]));
@@ -405,7 +416,7 @@
         building: (x, y) => S.house(x - 4, y - 1, .75, lr) + S.house(x + 5, y, .7, lr),
         ruins: (x, y) => S.ruins(x + 1, y - 1, .7, lr),
         volcano: (x, y) => S.volcano(x, y - 1, .32, lr, 4),
-        skullcave: (x, y) => S.skull(x - 1, y - 1, .55, lr),
+        skullcave: (x, y) => S.skull(x - 1, y, .42, lr),
         kraken: (x, y) => tentacle(x - 4, y, -1.4, 16, 2.4, -1.2, 0, false, 1) + tentacle(x + 3, y, -1.8, 13, 2.2, 1.3, 2, false, 1) + el(seg(x - 10, y, x + 10, y)),
         shallow: (x, y) => box(x, y, spS), deep: (x, y) => box(x, y, spS * 4),
       };
