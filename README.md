@@ -40,7 +40,9 @@ tiedostot ovat tavallisia skriptejä, joten `file://` toimii.
   omaan ikkunaansa (esim. toiselle näytölle); ikkunan sulkeminen palauttaa sen.
   *Lehtijako* näyttää A4-lehtien rajat.
 - **Generoi:** uusi saaristo annetulla siemenellä ja koolla. Sama siemen ja koko
-  tuottavat aina saman kartan.
+  tuottavat aina saman kartan. Rannoille tulee yhtenäisinä pätkinä
+  rantakallioita (etenkin ylänköjen ja vuorten vierellä) ja hiekkarantoja
+  (matalilla rannoilla).
 - **Nimetyt alueet (vasen):** *Lisää* luo alueen nimestä. Valitse alue
   listasta ja
   - *Rajaa*: raahaa suorakulmio alueelle, kulmakahvasta muutat kokoa, oikea

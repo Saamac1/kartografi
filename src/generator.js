@@ -47,10 +47,15 @@
     for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
       if (!land(i, j)) continue;
       const e = h[j][i], v = fbm(i / 6 + 40, j / 6, S + 9), n = comp[j][i], sz = comps[n].length, [p90, p79] = pct[n];
+      // rannan laatu yhtenäisinä pätkinä: kalliot ylängön vieressä, hiekka matalilla rannoilla
+      const coast = coastAdj(i, j), vc = coast ? fbm(i / 4 + 70, j / 4, S + 11) : 0, vb = coast ? fbm(i / 5 + 20, j / 5 + 50, S + 12) : 0;
+      let high = false; if (coast) for (let b = -2; b <= 2 && !high; b++) for (let a = -2; a <= 2; a++) { const x = i + a, y = j + b; if (land(x, y) && comp[y][x] === n && h[y][x] >= p79) { high = true; break; } }
       if (e >= p90 && sz > 20) M[j][i] = '^';
       else if (e >= p79 && sz > 12) M[j][i] = 'n';
-      else if (coastAdj(i, j) && southern(j) && n !== order[0] && R() < .32) M[j][i] = 'Y';
-      else if (coastAdj(i, j)) M[j][i] = R() < .2 ? ',' : '.';
+      else if (coast && sz > 12 && ((high && vc > .55) || vc > .76)) M[j][i] = 'C';
+      else if (coast && southern(j) && n !== order[0] && R() < .32) M[j][i] = 'Y';
+      else if (coast && !high && vb > .5) M[j][i] = 's';
+      else if (coast) M[j][i] = R() < .2 ? ',' : '.';
       else if (v > .6) M[j][i] = 'T';
       else if (v < .36) M[j][i] = 'D';
       else if (v < .43) M[j][i] = ',';
