@@ -65,3 +65,21 @@ test('esimerkkivalikon tiedostot ovat ajan tasalla', () => {
   assert.deepStrictEqual(f.maps.map(m => m.style), ['ship', 'ship', 'cave', 'cave']);
   assert.deepStrictEqual(rlml.serializeProject(f), { map: x.files[0], style: x.files[1], lang: x.files[2] });
 });
+
+test('sijoitetut kohteet (at:) voi jättää pois selitteestä, ja valinta säilyy tallennuksessa', () => {
+  const ex = path.join(__dirname, '..', 'examples');
+  const files = ['kapteeni-aaltola.rlml.md', 'kapteeni-aaltola.paper.rlml.md', 'kapteeni-aaltola.fi.rlml.md'].map(f => fs.readFileSync(path.join(ex, f), 'utf8'));
+  const deck = () => rlml.parseProject(files).maps.find(m => m.name === 'DECK');
+  const legendText = d => renderer.scene(d, { cellMM: 6 }).body;
+  const d = deck();
+  assert.ok(rlml.atRoots(d).includes('CREW'));
+  const before = legendText(d).length;
+  d.atDecor.push('CREW');
+  assert.ok(legendText(d).length < before, 'miehistö jäi pois selitteestä');
+  // tallennus ja luku: paperityyliin rivi CREW decor
+  const pj = rlml.serializeProject(d.file);
+  assert.match(pj.style, /^- CREW decor$/m);
+  const back = rlml.parseProject([pj.map, pj.style, pj.lang]).maps.find(m => m.name === 'DECK');
+  assert.deepEqual(back.atDecor, ['CREW']);
+  assert.equal(legendText(back).length, legendText(d).length);
+});

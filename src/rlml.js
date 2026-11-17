@@ -70,7 +70,7 @@
 
   const attach = (m, file) => { Object.defineProperty(m, 'file', { value: file, writable: true, enumerable: false, configurable: true }); return m; };
   function newMap(W, H, style) {
-    return { title: '', hasHeading: false, name: 'MAP', style: style || 'sea', W, H, grid: [], legend: [], areas: [], rules: [], tileRules: [], lang: 'fi', texts: {}, at: [], vars: {}, raw: [], warnings: [] };
+    return { title: '', hasHeading: false, name: 'MAP', style: style || 'sea', W, H, grid: [], legend: [], areas: [], rules: [], tileRules: [], lang: 'fi', texts: {}, at: [], atDecor: [], vars: {}, raw: [], warnings: [] };
   }
   function blankDoc(W, H) {
     const m = newMap(W, H, 'sea');
@@ -209,7 +209,7 @@
     for (let j = 0; j < doc.H; j++) { const r = (doc.grid[j] || ''); g.push(r.length >= doc.W ? r.slice(0, doc.W) : r + water.repeat(doc.W - r.length)); }
     doc.grid = g;
     for (const k of ['areas', 'rules', 'tileRules', 'at', 'raw', 'warnings']) doc[k] = doc[k] || [];
-    doc.texts = doc.texts || {}; doc.vars = doc.vars || {}; doc.lang = doc.lang || 'fi'; doc.style = doc.style || 'sea';
+    doc.texts = doc.texts || {}; doc.vars = doc.vars || {}; doc.atDecor = doc.atDecor || []; doc.lang = doc.lang || 'fi'; doc.style = doc.style || 'sea';
     return doc;
   }
   function edgeChar(doc) { const e = doc.legend.find(l => l.spec.split(/\s+/)[0] === doc.vars.EDGE); return e ? e.ch : ' '; }
@@ -284,11 +284,16 @@
   }
   // tilen nimen haku kuten tilen ominaisuuksissa: tarkin nimi, sitten perusnimi
   const glyphFor = (rows, name) => { const parts = String(name).split('.'); for (let n = parts.length; n > 0; n--) { const k = parts.slice(0, n).join('.'); const r = rows.find(g => g.tile === k); if (r) return r; } return null; };
+  // at:-rivien sijoitettujen kohteiden juurinimet (with CREW.MATE → CREW)
+  const atRoots = m => [...new Set((m.at || []).filter(a => a.with).map(a => a.with.split('.')[0].toUpperCase()))];
   const specNames = spec => { const tk = String(spec).split(/\s+/), out = [tk[0]]; for (let i = 1; i < tk.length; i++) if (tk[i].toLowerCase() === 'with') { for (i++; i < tk.length && !/^(as|wire|with)$/i.test(tk[i]); i++) if (/^[A-Z]/.test(tk[i])) out.push(tk[i]); i--; } return out; };
   function applyStyle(file, st) {
     for (const m of file.maps) {
       const th = st.themes[m.name] || st.themes.default; if (th) { m.style = th; m.styleSet = true; }
       for (const e of m.legend) { const names = specNames(e.spec); if (names.some(n => { const g = glyphFor(st.glyphs, n); return g && g.decor; })) e.decor = true; }
+      // at:-rivein sijoitetut kohteet (with CREW.MATE): decor juurinimelle (CREW) jättää ne pois selitteestä
+      const roots = atRoots(m); m.atDecor = m.atDecor || [];
+      for (const g of st.glyphs) { const r = g.tile.toUpperCase(); if (g.decor && roots.includes(r) && !m.atDecor.includes(r)) m.atDecor.push(r); }
       const tr = st.glyphs.filter(g => g.kind).map(g => ({ tile: g.tile, kind: g.kind, opts: g.opts.slice() }));
       if (tr.length) { const have = new Set(tr.map(r => r.tile)); m.tileRules = tr.concat((m.tileRules || []).filter(r => !have.has(r.tile))); }
       const rules = st.labels.filter(r => !r.map || r.map === m.name).map(r => { const o = Object.assign({}, r); delete o.map; return o; });
@@ -327,7 +332,9 @@
     if (themed.length) { s += 'maps.theme paper\n'; for (const m of themed) s += `- ${m.name} ${m.style}\n`; }
     const rows = new Map();
     for (const m of maps) for (const r of m.tileRules || []) if (!rows.has(r.tile)) rows.set(r.tile, [r.tile, r.kind].concat(r.opts || []));
-    for (const m of maps) for (const e of m.legend) if (e.decor) { const names = specNames(e.spec), n = names[names.length - 1]; if (rows.has(n)) { if (!rows.get(n).includes('decor')) rows.get(n).push('decor'); } else rows.set(n, [n, 'decor']); }
+    const decorRow = n => { if (rows.has(n)) { if (!rows.get(n).includes('decor')) rows.get(n).push('decor'); } else rows.set(n, [n, 'decor']); };
+    for (const m of maps) for (const e of m.legend) if (e.decor) { const names = specNames(e.spec); decorRow(names[names.length - 1]); }
+    for (const m of maps) for (const n of m.atDecor || []) decorRow(n);
     if (rows.size) { s += (s ? '\n' : '') + 'tiles.glyphs paper\n'; for (const r of rows.values()) s += `- ${r.join(' ')}\n`; }
     const lab = []; for (const m of maps) for (const r of m.rules || []) lab.push('- ' + ruleToString(Object.assign({}, r, { map: multi ? m.name : null }), true));
     if (lab.length) s += (s ? '\n' : '') + 'areas.labels paper\n' + lab.join('\n') + '\n';
@@ -370,7 +377,7 @@
     return doc;
   }
 
-  const api = { parseProject, serializeProject, serializeStyle, serializeLang, parseStyle, parseLang, kindOfText, SEA_KINDS, DUNGEON_KINDS, attach, refreshNames, DEFAULT_LEGEND, TYPE_NAMES, STYLES, typeOf, toId, ID_RE, parse, parseFile, serialize, serializeFile, serializeMap, typeMap, blankDoc, newMap, normalize, resize, fillChar, parseRule, ruleToString, parseText, parseLegendLine, legendLine, rulesText, textsText, parseRulesText, parseTextsText };
+  const api = { atRoots, specNames, parseProject, serializeProject, serializeStyle, serializeLang, parseStyle, parseLang, kindOfText, SEA_KINDS, DUNGEON_KINDS, attach, refreshNames, DEFAULT_LEGEND, TYPE_NAMES, STYLES, typeOf, toId, ID_RE, parse, parseFile, serialize, serializeFile, serializeMap, typeMap, blankDoc, newMap, normalize, resize, fillChar, parseRule, ruleToString, parseText, parseLegendLine, legendLine, rulesText, textsText, parseRulesText, parseTextsText };
   KG.rlml = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })();

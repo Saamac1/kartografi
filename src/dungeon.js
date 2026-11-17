@@ -22,7 +22,12 @@
       if (c.pattern && ['moss', 'runes'].includes(c.pattern)) add('pattern.' + c.pattern, N[c.pattern]);
       for (const s of c.symbols) if (!['hatch', 'ladder'].includes(s) && !s.startsWith('letter:')) add(s, N[s] || s);
     }
-    for (const a of doc.at || []) if (a.with) { const root = a.with.split('.')[0].toUpperCase(), s = T().ENTITY[root]; if (s) add(s, N[s] || s); }
+    // sijoitetut kohteet (at:): pois, jos juurinimi on decor tai sen sisältävät legendan palat ovat kaikki decor
+    const atDecor = new Set(doc.atDecor || []), RL = KG.rlml || req('./rlml.js');
+    for (const a of doc.at || []) if (a.with) { const root = a.with.split('.')[0].toUpperCase(), s = T().ENTITY[root]; if (!s || atDecor.has(root)) continue;
+      const inLegend = doc.legend.filter(e => RL.specNames(e.spec).some(n => n.split('.')[0].toUpperCase() === root));
+      if (inLegend.length && inLegend.every(e => e.decor)) continue;
+      add(s, N[s] || s); }
     return out;
   }
   function dims(doc, o) {

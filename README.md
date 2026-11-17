@@ -228,6 +228,9 @@ laivassa `solid`, `floor`, `void`, `door`, `stairs`, `exit`. Määreet `rough`,
 `straight`, `thin`, `pattern planks|boards|gangplank|moss|runes`,
 `symbol NIMI`, `locked`, `up`, `down`. `decor` jättää palan pois
 selitteestä (Tulostus-välilehden *Selitteessä*-valinnat asettavat sen).
+Sama koskee luola- ja laivakarttojen `at:`-rivein sijoitettuja kohteita:
+`- CREW decor` jättää kaikki `with CREW.…` -kohteet (miehistön) pois
+selitteestä.
 Tunnistamaton pala piirretään lattiana, jonka keskellä on sen merkki.
 Poistumat (`as TO_DEEP`) saavat nimen kielitiedoston avaimesta
 `KARTTA.TO_DEEP.NAME` tai tunnisteesta.

@@ -112,6 +112,14 @@
       const l = document.createElement('label'); l.innerHTML = `<input type="checkbox"${e.decor ? '' : ' checked'}> ${e.name}`; l.title = e.decor ? 'koriste (decor)' : '';
       l.querySelector('input').onchange = ev => { if (ev.target.checked) delete e.decor; else e.decor = true; buildPalette(); touched(); };
       el.appendChild(l); }
+    // luola- ja laivakartoissa myös at:-rivein sijoitetut kohteet (miehistö, karttapöytä…), joita legendassa ei ole
+    if (sea) return;
+    const inLegend = new Set(doc.legend.flatMap(e => KG.rlml.specNames(e.spec).map(n => n.split('.')[0].toUpperCase())));
+    for (const root of KG.rlml.atRoots(doc)) { const sym = KG.tiles.ENTITY[root]; if (!sym || inLegend.has(root)) continue;
+      const off = (doc.atDecor || []).includes(root), l = document.createElement('label');
+      l.innerHTML = `<input type="checkbox"${off ? '' : ' checked'}> ${KG.tiles.NAMES[sym] || sym}`; l.title = 'kartalle sijoitettu kohde (at: … with ' + root + ')';
+      l.querySelector('input').onchange = ev => { doc.atDecor = (doc.atDecor || []).filter(r => r !== root); if (!ev.target.checked) doc.atDecor.push(root); touched(); };
+      el.appendChild(l); }
   }
   function setBrush(ch) { ed.brush = ch; document.querySelectorAll('.pal').forEach(b => b.classList.toggle('on', b.dataset.ch === ch)); showTool(); ed.draw(); }
   $('brush').onchange = e => { ed.brushSize = +e.target.value; };

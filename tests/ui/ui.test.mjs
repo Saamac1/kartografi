@@ -356,3 +356,23 @@ test('Tiedosto-välilehti: pienoiskartta, peruttava korvaus ja lähdekoodin muok
   assert.deepEqual(errors, []);
   await close();
 });
+
+test('laivakartan miehistön voi poistaa selitteestä Tulostus-välilehdellä', async () => {
+  const { page, errors, close } = await open(1440, 860);
+  await page.select('#exSel', 'aaltola'); await wait(500);
+  const deck = await page.$$eval('#mapSel option', os => os.find(o => /DECK/.test(o.textContent)).value);
+  await page.select('#mapSel', deck); await wait(300);
+  await tab(page, 'print'); await wait(600);
+  const labels = await page.$$eval('#legendPick label', ls => ls.map(l => l.textContent.trim()));
+  assert.ok(labels.includes('miehistö'), `miehistö on valittavissa: ${labels.join(', ')}`);
+  const h0 = await page.evaluate(() => KG.renderer.dims(KG_APP.doc, {}).VH);
+  await page.$$eval('#legendPick label', ls => ls.find(l => l.textContent.trim() === 'miehistö').querySelector('input').click());
+  await wait(500);
+  assert.deepEqual(await page.evaluate(() => KG_APP.doc.atDecor), ['CREW']);
+  const h1 = await page.evaluate(() => KG.renderer.dims(KG_APP.doc, {}).VH);
+  assert.ok(h1 <= h0, 'selite ei kasvanut');
+  const style = await page.evaluate(() => KG.rlml.serializeProject(KG_APP.doc.file).style);
+  assert.match(style, /^- CREW decor$/m, 'valinta tallentuu paperityyliin');
+  assert.deepEqual(errors, []);
+  await close();
+});
