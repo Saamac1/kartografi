@@ -147,6 +147,8 @@ body.pv-off.float-pal:is([data-tab=edit],[data-tab=areas]) .layout { grid-templa
   .palette .row { margin: 4px 0; }
   #areaList { font-size: 14px; }
   .preview { border-left: 0; }
+  /* kapealla zoom-palkki esikatselun yläreunaan (leveällä alareunassa) */
+  .preview .pvbar { order: -1; border-top: 0; border-bottom: 1px solid var(--line); }
   fieldset { width: 100%; }
   /* kartta ja alueet: paneeli ylhäällä, editori alla; esikatselu omalla välilehdellään */
   body:is([data-tab=edit],[data-tab=areas]) .palette { max-height: 34vh; }

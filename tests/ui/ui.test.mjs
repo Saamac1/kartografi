@@ -188,7 +188,7 @@ test('esikatselun voi piilottaa erikseen luku-, muokkaus- ja aluetiloissa', asyn
   await close();
 });
 
-test('zoom-painikkeet ovat esikatselun alalaidassa', async () => {
+test('zoom-painikkeet ovat leveällä esikatselun alalaidassa', async () => {
   const { page, close } = await open(1440, 860);
   await tab(page, 'edit');
   const [bar, scroll] = await page.evaluate(() => ['.pvbar', '#pvScroll'].map(s => document.querySelector(s).getBoundingClientRect()).map(r => [r.top, r.bottom]));
@@ -263,4 +263,42 @@ test('työpöydällä palat ovat painikkeina eikä pudotusvalikkoa näytetä', a
   await page.click('#brushBox .bname'); await wait(100);
   assert.ok(await visible(page, '#palette'), 'sivellinruudun napsautus ei piilota työpöydän listaa');
   await close();
+});
+
+test('kapealla zoom-painikkeet ovat esikatselun yläreunassa', async () => {
+  const { page, close } = await open(390, 800);
+  await tab(page, 'preview');
+  const [bar, scroll] = await page.evaluate(() => ['.pvbar', '#pvScroll'].map(s => document.querySelector(s).getBoundingClientRect()).map(r => [r.top, r.bottom]));
+  assert.ok(bar[1] <= scroll[0] + 1, `palkki esikatselun yläpuolella: ${JSON.stringify([bar, scroll])}`);
+  await close();
+});
+
+test('Alueet-välilehdellä maastoa ei piirretä; napsautus valitsee alueen ja kartta vierii vetämällä', async () => {
+  for (const [w, h] of [[1440, 860], [390, 800]]) {
+    const { page, errors, close } = await open(w, h);
+    await tab(page, 'areas');
+    const grid = () => page.evaluate(() => KG_APP.doc.grid.join('\n'));
+    const g0 = await grid();
+    // napsautus ja veto kartalla eivät muuta ruutuja
+    const r = await (await page.$('#ed')).boundingBox();
+    await page.mouse.click(r.x + 60, r.y + 60);
+    await page.mouse.move(r.x + 200, r.y + 200); await page.mouse.down(); await page.mouse.move(r.x + 120, r.y + 140, { steps: 5 }); await page.mouse.up();
+    // kirjoitus ei piirrä
+    await page.focus('#ed'); await page.keyboard.type('TTT');
+    assert.equal(await grid(), g0, `${w}px: kartta ei muuttunut`);
+    assert.equal(await page.$eval('#ed', el => getComputedStyle(el).cursor === 'crosshair'), false, 'ei piirtokursoria');
+    // napsautus alueen kohdalla valitsee alueen
+    const cell = await page.evaluate(() => { const A = Object.values(KG.areas.model(KG_APP.doc).byName).find(a => a.size); const c = [...A.cells][0], W = KG_APP.doc.W; return { x: c % W, y: Math.floor(c / W) }; });
+    await page.evaluate(({ x, y }) => { const s = document.getElementById('edScroll'), ed = KG_APP.editor; s.scrollLeft = Math.max(0, x * ed.cw - 20); s.scrollTop = Math.max(0, y * ed.ch - 20); }, cell);
+    const pos = await page.evaluate(({ x, y }) => { const r = document.getElementById('ed').getBoundingClientRect(), ed = KG_APP.editor; return [r.left + (x + .5) * ed.cw, r.top + (y + .5) * ed.ch]; }, cell);
+    await page.mouse.click(pos[0], pos[1]); await wait(100);
+    assert.ok(await page.$eval('#areaList', el => !!el.value), `${w}px: alue valittiin napsautuksella`);
+    // Rajaa toimii edelleen, ja Kartan muokkauksessa piirto toimii
+    await page.click('#toolArea'); assert.equal(await page.evaluate(() => KG_APP.editor.mode), 'area');
+    await tab(page, 'edit');
+    await page.mouse.click(r.x + 30, r.y + 30);
+    if (w > 800) assert.notEqual(await grid(), g0, 'muokkauksessa piirto toimii');
+    assert.deepEqual(errors, []);
+    await close();
+  }
 });

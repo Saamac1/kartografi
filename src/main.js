@@ -299,10 +299,10 @@
     $('checks').innerHTML = v.slice(0, 10).map(x => `<div class="${x.level}">${x.level === 'error' ? '✖' : x.level === 'warn' ? '⚠' : 'ℹ'} ${x.msg.replace(/</g, '&lt;')}</div>`).join('') + (v.length > 10 ? `<div class="info">… ${v.length - 10} lisää</div>` : ''); }
   $('areaList').onchange = e => { selArea = e.target.value; setTool('area'); status(`Rajaustila: raahaa suorakulmio alueelle ${KG.areas.displayName(doc, selArea)}`); };
   // lukutila / muokkaustila ja työkalut
-  const setTool = t => { ed.mode = t; ed.band = null; $('toolArea').classList.toggle('on', t === 'area'); $('toolMove').classList.toggle('on', t === 'move'); ed.cv.style.cursor = ed.readOnly ? '' : t === 'area' ? 'cell' : t === 'move' ? 'move' : 'crosshair'; showTool(); ed.draw(); };
+  const setTool = t => { ed.mode = t; ed.band = null; $('toolArea').classList.toggle('on', t === 'area'); $('toolMove').classList.toggle('on', t === 'move'); ed.cv.style.cursor = ed.viewOnly ? '' : t === 'area' ? 'cell' : t === 'move' ? 'move' : 'crosshair'; ed.cv.classList.toggle('read', ed.viewOnly); showTool(); ed.draw(); };
   showTool = () => {
     const nm = selArea ? KG.areas.displayName(doc, selArea) : null;
-    $('toolInfo').innerHTML = ed.readOnly || ed.mode === 'paint' ? '' :
+    $('toolInfo').innerHTML = ed.readOnly ? '' : ed.mode === 'paint' ? (ed.paintLock ? (nm ? `Valittu: <b>${nm}</b> – Rajaa tai Siirrä` : 'Napsauta aluetta kartalla tai valitse listasta') : '') :
       ed.mode === 'area' ? (nm ? `Rajaus: <b>${nm}</b> – raahaa suorakulmio` : 'Rajaus: valitse alue listasta') :
       nm ? `Siirto: <b>${nm}</b> – raahaa kartalla` : 'Siirto: tartu alueeseen kartalla';
     $('btnToolDone').hidden = ed.readOnly || ed.mode === 'paint';
@@ -358,7 +358,8 @@
     document.querySelectorAll('#mainTabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
     $('sideTitle').textContent = TAB_TITLES[t];
     if (t !== 'areas' && ed.mode !== 'paint') endAreaTool();
-    if (t === 'read') setMode(true); else if (t === 'edit' || t === 'areas') setMode(false);
+    ed.paintLock = t === 'areas';
+    if (t === 'read') setMode(true); else if (t === 'edit' || t === 'areas') setMode(false); else setTool(ed.mode);
     if (t === 'file') showSrc();
     if (t === 'names') fillNames();
     applyPv();

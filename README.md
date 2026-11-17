@@ -62,7 +62,9 @@ ovat yläpalkissa aina näkyvissä.
   rantakallioita (etenkin ylänköjen ja vuorten vierellä) ja hiekkarantoja
   (matalilla rannoilla). Suurimmille saarille tulee kylä (2–5 taloa) rannan
   tuntumaan, mieluiten joen varteen, ja kukkuloille linnan rauniot.
-- **Nimetyt alueet (Alueet-välilehti):** *Lisää* luo alueen nimestä. Valitse alue
+- **Nimetyt alueet (Alueet-välilehti):** maastoa ei piirretä tällä
+  välilehdellä: kartta vierii vetämällä ja napsautus valitsee kohdan alueen.
+  *Lisää* luo alueen nimestä. Valitse alue
   listasta ja
   - *Rajaa*: raahaa suorakulmio alueelle, kulmakahvasta muutat kokoa, oikea
     napsautus poistaa suorakulmion

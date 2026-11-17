@@ -2,6 +2,7 @@
 //
 // Tilat:
 //   lukutila (readOnly)   – karttaa vieritetään vetämällä, napautus näyttää ruudun tiedot
+//   piirtolukko (paintLock) – Alueet-välilehti: maastoa ei piirretä; ilman aluetyökalua kuten lukutila, napautus valitsee alueen
 //   muokkaustila, työkalu:
 //     paint  – sivellin, oikea nappi poimii palan, Vaihto+napsautus täyttää; näppäimistö = vim-korvaustila
 //     area   – valitun nimetyn alueen rajaus: raahaa suorakulmio, kulmakahva muuttaa kokoa, oikea nappi poistaa
@@ -20,7 +21,7 @@
     constructor(canvas, hooks) {
       this.cv = canvas; this.ctx = canvas.getContext('2d'); this.hooks = hooks;
       this.cw = 13; this.ch = 17; this.cur = { x: 0, y: 0 }; this.typeStartX = 0; this.brush = '.'; this.brushSize = 1;
-      this.undo = []; this.redo = []; this.drag = null; this.hover = null; this.mode = 'paint'; this.readOnly = false;
+      this.undo = []; this.redo = []; this.drag = null; this.hover = null; this.mode = 'paint'; this.readOnly = false; this.paintLock = false;
       this.band = null; this.mv = null; this.rs = null; this.mpan = null; this.touches = new Map(); this.pan = null;
       canvas.addEventListener('pointerdown', e => { if (this.touchDown(e)) return; this.down(e); });
       canvas.addEventListener('pointermove', e => { if (this.touchMove(e)) return; this.move(e); });
@@ -32,6 +33,8 @@
     }
     get doc() { return this.hooks.getDoc(); }
     setDoc() { this.cur.x = Math.min(this.cur.x, this.doc.W - 1); this.cur.y = Math.min(this.cur.y, this.doc.H - 1); this.layout(); this.draw(); }
+    // vain katselu: lukutila tai piirtolukko ilman aluetyökalua
+    get viewOnly() { return this.readOnly || (this.paintLock && this.mode === 'paint'); }
     setReadOnly(v) { this.readOnly = v; this.band = this.mv = this.rs = this.drag = null; this.cv.classList.toggle('read', v); this.draw(); }
     layout() { const d = this.doc, r = window.devicePixelRatio || 1; this.cv.width = d.W * this.cw * r; this.cv.height = d.H * this.ch * r; this.cv.style.width = d.W * this.cw + 'px'; this.cv.style.height = d.H * this.ch + 'px'; this.ctx.setTransform(r, 0, 0, r, 0, 0); }
     types() { return KG.rlml.typeMap(this.doc); }
@@ -52,7 +55,7 @@
       c.setLineDash([]); c.lineWidth = 1;
       if (!this.readOnly && this.mode === 'area' && sel) for (const a of d.areas || []) if (a.name === sel && (a.w > 1 || a.h > 1)) { c.fillStyle = 'rgba(200,20,60,.95)'; c.fillRect((a.x + a.w) * cw - 9, (a.y + a.h) * ch - 9, 8, 8); }
       if (this.band) { const b = this.norm(this.band); c.fillStyle = 'rgba(200,20,60,.12)'; c.fillRect(b.x * cw, b.y * ch, b.w * cw, b.h * ch); c.strokeStyle = '#c8143c'; c.lineWidth = 2; c.strokeRect(b.x * cw + 1, b.y * ch + 1, b.w * cw - 2, b.h * ch - 2); c.lineWidth = 1; }
-      if (this.hover && !this.readOnly && this.mode === 'paint') { const n = this.brushSize, o = Math.floor((n - 1) / 2); c.strokeStyle = 'rgba(0,0,0,.6)'; c.strokeRect((this.hover.x - o) * cw + .5, (this.hover.y - o) * ch + .5, n * cw - 1, n * ch - 1); }
+      if (this.hover && !this.viewOnly && this.mode === 'paint') { const n = this.brushSize, o = Math.floor((n - 1) / 2); c.strokeStyle = 'rgba(0,0,0,.6)'; c.strokeRect((this.hover.x - o) * cw + .5, (this.hover.y - o) * ch + .5, n * cw - 1, n * ch - 1); }
       c.lineWidth = 2; c.strokeStyle = document.activeElement === this.cv ? '#2f5d8a' : '#888'; c.strokeRect(this.cur.x * cw + 1, this.cur.y * ch + 1, cw - 2, ch - 2); c.lineWidth = 1;
       this.hooks.onCursor(this.cur, d.grid[this.cur.y][this.cur.x]);
     }
@@ -61,7 +64,7 @@
     touchDown(e) {
       if (e.pointerType !== 'touch') return false;
       this.touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
-      if (this.readOnly) return true; // lukutilassa selain vierittää itse (touch-action)
+      if (this.viewOnly) return true; // lukutilassa selain vierittää itse (touch-action)
       if (this.touches.size === 2) {
         this.cancel(true);
         const s = this.cv.parentElement, m = this.mid(); this.pan = { x: m.x, y: m.y, sl: s.scrollLeft, st: s.scrollTop }; this.draw();
@@ -72,7 +75,7 @@
     touchMove(e) {
       if (e.pointerType !== 'touch' || !this.touches.has(e.pointerId)) return false;
       this.touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
-      if (this.readOnly) return true;
+      if (this.viewOnly) return true;
       if (!this.pan) return false;
       if (this.touches.size >= 2) { const s = this.cv.parentElement, m = this.mid(); s.scrollLeft = this.pan.sl - (m.x - this.pan.x); s.scrollTop = this.pan.st - (m.y - this.pan.y); }
       return true;
@@ -80,7 +83,7 @@
     touchUp(e) {
       if (e.pointerType !== 'touch') return false;
       const had = this.touches.get(e.pointerId); this.touches.delete(e.pointerId);
-      if (this.readOnly) { if (had && e.type === 'pointerup') { const p = this.cellAt(e); if (this.inside(p)) { this.cur = p; this.draw(); } } return true; }
+      if (this.viewOnly) { if (had && e.type === 'pointerup') { const p = this.cellAt(e); if (this.inside(p)) { this.cur = p; this.pickArea(p); this.draw(); } } return true; }
       if (this.pan) { if (!this.touches.size) this.pan = null; return true; }
       return false;
     }
@@ -127,6 +130,8 @@
       m.rules.forEach((r, i) => { r.at = [m.ruleAt[i][0] + dx, m.ruleAt[i][1] + dy]; });
       return true;
     }
+    // piirtolukossa napautus valitsee kohdan sisimmän alueen
+    pickArea(p) { if (!this.paintLock || this.readOnly) return; const n = this.areaUnder(p); if (n && n !== this.hooks.selectedArea()) this.hooks.selectArea(n); }
     areaUnder(p) {
       const M = this.hooks.getModel(), sel = this.hooks.selectedArea(), l = M.at(p.x, p.y);
       if (sel && l.includes(sel)) return sel;
@@ -137,7 +142,7 @@
     down(e) {
       const p = this.cellAt(e); if (!this.inside(p)) return;
       this.cv.focus({ preventScroll: true }); this.cur = { x: p.x, y: p.y }; this.typeStartX = p.x;
-      if (this.readOnly) { if (e.button === 0) { const s = this.cv.parentElement; this.mpan = { x: e.clientX, y: e.clientY, sl: s.scrollLeft, st: s.scrollTop }; this.cv.setPointerCapture(e.pointerId); } this.draw(); return; }
+      if (this.viewOnly) { if (e.button === 0) { const s = this.cv.parentElement; this.mpan = { x: e.clientX, y: e.clientY, sl: s.scrollLeft, st: s.scrollTop }; this.cv.setPointerCapture(e.pointerId); this.pickArea(p); } this.draw(); return; }
       if (this.mode === 'move') {
         if (e.button !== 0) return;
         const name = this.areaUnder(p); if (!name) { this.hooks.status('Tässä kohdassa ei ole nimettyä aluetta'); this.draw(); return; }
@@ -199,7 +204,7 @@
       if (k === 'End') { e.preventDefault(); this.cur.x = this.doc.W - 1; this.moveCur(0, 0); return; }
       if (k === 'PageUp' || k === 'PageDown') { e.preventDefault(); this.moveCur(0, k === 'PageUp' ? -10 : 10); return; }
       if (k === 'Escape') { if (!this.readOnly && this.mode !== 'paint') this.hooks.endAreaTool(); else this.cv.blur(); this.draw(); return; }
-      if (this.readOnly) { if (k.length === 1 || k === 'Enter' || k === 'Backspace') { e.preventDefault(); this.hooks.status('Lukutila: siirry Kartan muokkaus -välilehdelle muokataksesi'); } return; }
+      if (this.viewOnly) { if (k.length === 1 || k === 'Enter' || k === 'Backspace') { e.preventDefault(); this.hooks.status(this.readOnly ? 'Lukutila: siirry Kartan muokkaus -välilehdelle muokataksesi' : 'Alueet-välilehdellä maastoa ei piirretä: valitse Rajaa tai Siirrä, tai siirry Kartan muokkaukseen'); } return; }
       if (k === 'Enter') { e.preventDefault(); this.cur.x = this.typeStartX; this.moveCur(0, 1, true); return; }
       if (k === 'Backspace') { e.preventDefault(); this.moveCur(-1, 0, true); return; }
       if (k.length === 1) {
