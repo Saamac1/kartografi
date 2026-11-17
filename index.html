@@ -28,7 +28,6 @@
 
     <div class="panel" data-for="areas">
       <div class="row toolrow"><span id="toolInfo" class="toolinfo"></span><button id="btnToolDone" hidden>Valmis</button></div>
-      <label class="row"><input id="showAreas" type="checkbox" checked> Näytä alueet</label>
       <select id="areaList" size="10"></select>
       <div class="row"><input id="newArea" type="text" placeholder="Uusi alue, esim. Vaaravuori"><button id="btnNewArea">Lisää</button></div>
       <div class="row"><button id="toolArea" title="Rajaa valitun alueen suorakulmiot: raahaa uusi, kulmakahvasta koko, oikea napsautus poistaa">Rajaa</button><button id="toolMove" title="Siirrä alue sisältöineen kartalla: raahaa tai nuolinäppäimet">Siirrä</button><button id="btnDelArea">Poista</button></div>
@@ -38,23 +37,25 @@
     <div class="panel filepanel" data-for="file">
       <fieldset><legend>Kartta</legend>
         <label>Kartta <select id="mapSel" title="Tiedoston kartat"></select></label>
-        <button id="btnAddMap" title="Lisää tiedostoon uusi tyhjä kartta">+ kartta</button>
-        <label>Tyyli <select id="styleSel" title="style paper"><option value="sea">merikartta</option><option value="cave">luola</option><option value="ship">laiva</option></select></label>
+        <button id="btnAddMap" title="Lisää tiedostoon uusi tyhjä kartta (koko alta)">+ kartta</button>
+        <label>Tyyli <select id="styleSel" title="Kartan piirtotapa paperilla"><option value="sea">merikartta</option><option value="cave">luola</option><option value="ship">laiva</option></select></label>
+        <figure class="mini"><canvas id="miniMap" title="Avaa kartan muokkaus"></canvas><figcaption id="miniInfo"></figcaption></figure>
       </fieldset>
       <fieldset><legend>Koko</legend>
-        <label>L <input id="inW" type="number" min="8" max="200" value="64"></label>
-        <label>K <input id="inH" type="number" min="8" max="200" value="44"></label>
-        <button id="btnResize" title="Muuta nykyisen kartan kokoa">Muuta kokoa</button>
-        <button id="btnNew" title="Tyhjä kartta tässä koossa">Uusi tyhjä</button>
+        <label>Leveys <input id="inW" type="number" min="8" max="200" value="64"></label>
+        <label>Korkeus <input id="inH" type="number" min="8" max="200" value="44"></label>
+        <button id="btnResize" title="Rajaa tai laajenna nykyistä karttaa; laajennus täytetään vedellä tai seinällä">Muuta nykyisen kokoa</button>
       </fieldset>
-      <fieldset><legend>Generoi</legend>
+      <fieldset><legend>Uusi kartta (korvaa nykyisen)</legend>
+        <p class="hint">Käyttää yllä olevaa kokoa. Edellisen kartan saa takaisin yläpalkin <b>Palauta edellinen</b> -painikkeella.</p>
         <label>Siemen <input id="inSeed" type="number" value="7"></label>
-        <button id="btnGen">Generoi</button>
-        <button id="btnRnd" title="Satunnainen siemen">🎲</button>
+        <button id="btnGen" title="Generoi saaristo (luolakartassa luola) tällä siemenellä">Generoi</button>
+        <button id="btnRnd" title="Generoi satunnaisella siemenellä">🎲 Satunnainen</button>
+        <button id="btnNew" title="Tyhjä kartta samalla tyylillä ja selitteellä">Tyhjä kartta</button>
       </fieldset>
       <fieldset><legend>Tiedostot</legend>
-        <select id="exSel" title="Avaa esimerkkitiedosto"><option value="">Esimerkit…</option></select>
-        <button id="btnOpen" title="Valitse kartta-, tyyli- ja kielitiedosto (yksi tai useampi)">Avaa…</button><input id="fileIn" type="file" accept=".md,.rlml,.txt" multiple hidden>
+        <select id="exSel" title="Avaa esimerkkitiedosto (korvaa nykyisen)"><option value="">Avaa esimerkki…</option></select>
+        <button id="btnOpen" title="Valitse kartta-, tyyli- ja kielitiedosto (yksi tai useampi)">Avaa tiedostoja…</button><input id="fileIn" type="file" accept=".md,.rlml,.txt" multiple hidden>
         <button id="btnSave" title="Tallentaa karttatiedoston, paperityylin ja kielitiedoston">Tallenna RLML</button>
       </fieldset>
     </div>
@@ -120,8 +121,8 @@
     </div>
 
     <div class="panel srcpanel" data-for="file" id="tSrc">
-      <div class="row"><b>Lähdekoodi</b> <label><select id="srcSel"><option value="map">Kartat (.rlml.md)</option><option value="style">Paperityyli (.paper.rlml.md)</option><option value="lang">Kieli (.fi.rlml.md)</option></select></label><button id="btnSrcApply">Lue lähteestä</button></div>
-      <textarea id="srcTa" spellcheck="false"></textarea>
+      <div class="row"><b>Lähdekoodi</b> <label><select id="srcSel" title="Näytettävä tiedosto"><option value="map">Kartat (.rlml.md)</option><option value="style">Paperityyli (.paper.rlml.md)</option><option value="lang">Kieli (.fi.rlml.md)</option></select></label><button id="btnSrcApply" title="Ottaa muokatun tekstin käyttöön">Lue lähteestä</button><button id="btnSrcRevert" hidden title="Hylkää tekstin muutokset">Peru muutokset</button><span id="srcNote" class="srcnote" hidden>Muutoksia ei ole vielä luettu</span></div>
+      <textarea id="srcTa" spellcheck="false" wrap="off"></textarea>
     </div>
 
     <div class="panel help" data-for="help">
@@ -134,16 +135,16 @@
       <h4>Alueet</h4>
       <p>Alueet-välilehdellä maastoa ei piirretä: vedä vierittääksesi ja napsauta aluetta valitaksesi sen. <b>Lisää</b> luo alueen nimestä. Valitse alue listasta ja <b>Rajaa</b> (raahaa suorakulmio, kulmakahvasta koko, oikea napsautus poistaa) tai <b>Siirrä</b> (tartu alueeseen ja raahaa tai käytä nuolinäppäimiä; alue siirtyy sisältöineen ja tyhjäksi jäävä osa täytetään vedellä). <b>Valmis</b> tai Esc palaa maaston piirtoon.</p>
       <h4>Esikatselu</h4>
-      <p>Kartan luku-, Kartan muokkaus- ja Alueet-välilehdillä editorin alalaidan <b>Esikatselu</b>-valinta näyttää tai piilottaa esikatselun; valinta muistetaan kullekin välilehdelle erikseen. Zoom-painikkeet ovat esikatselun alalaidassa. Esikatselu päivittyy muokatessa. Kun kartta on zoomattu niin, ettei se mahdu kerralla näkyviin, esikatselu seuraa editorin kursoria (punainen ruutu). Esikatselua voi siirrellä vetämällä. <b>Lehtijako</b> näyttää A4-lehtien rajat.</p>
+      <p>Kartan luku-, Kartan muokkaus- ja Alueet-välilehdillä editorin alalaidan <b>Näytä alueet</b> -valinta näyttää alueiden rajat ja <b>Esikatselu</b>-valinta näyttää tai piilottaa esikatselun; valinta muistetaan kullekin välilehdelle erikseen. Zoom-painikkeet ovat esikatselun alalaidassa. Esikatselu päivittyy muokatessa. Kun kartta on zoomattu niin, ettei se mahdu kerralla näkyviin, esikatselu seuraa editorin kursoria (punainen ruutu). Esikatselua voi siirrellä vetämällä. <b>Lehtijako</b> näyttää A4-lehtien rajat.</p>
       <h4>Tiedosto, Nimet ja Tulostus</h4>
-      <p><b>Tiedosto</b>: kartan valinta ja tyyli, koko, generointi siemenestä, esimerkit, avaus ja tallennus (kartta, paperityyli ja kielitiedosto) sekä lähdekoodi: tiedostot tekstinä, muokkaa ja lue takaisin. <b>Tulostus</b>: koko kuva yhdelle arkille tai A4-lehdet liimausreunoin, viivavahvuudet, selitteen sisältö sekä SVG-, PNG- ja HTML-vienti. <b>Nimet</b>: otsikko, piirto-ohjeet ja näkyvät nimet.</p>
+      <p><b>Tiedosto</b>: kartan valinta ja tyyli, pienoiskartta, koko, uusi kartta (generointi siemenestä tai tyhjä), esimerkit, avaus ja tallennus (kartta, paperityyli ja kielitiedosto) sekä lähdekoodi tekstinä: muokkaa ja lue takaisin; lukemattomat muutokset säilyvät, kunnes ne luetaan tai perutaan. Kartan korvaavat toiminnot voi perua yläpalkin <b>Palauta edellinen</b> -painikkeella. <b>Tulostus</b>: koko kuva yhdelle arkille tai A4-lehdet liimausreunoin, viivavahvuudet, selitteen sisältö sekä SVG-, PNG- ja HTML-vienti. <b>Nimet</b>: otsikko, piirto-ohjeet ja näkyvät nimet.</p>
       <p>Kartta tallentuu selaimen muistiin automaattisesti.</p>
     </div>
   </aside>
 
   <section class="editor">
     <div class="scroll" id="edScroll"><canvas id="ed" tabindex="0"></canvas></div>
-    <div class="statusline edfoot"><span id="cursorInfo"></span><label class="pvtoggle no-mobile" title="Näytä esikatselu tällä välilehdellä"><input type="checkbox" id="pvToggle" checked> Esikatselu</label></div>
+    <div class="statusline edfoot"><span id="cursorInfo"></span><label class="pvtoggle" title="Näytä nimettyjen alueiden rajat kartalla"><input type="checkbox" id="showAreas" checked> Näytä alueet</label><label class="pvtoggle no-mobile" title="Näytä esikatselu tällä välilehdellä"><input type="checkbox" id="pvToggle" checked> Esikatselu</label></div>
   </section>
 
   <section class="preview" id="previewPane">

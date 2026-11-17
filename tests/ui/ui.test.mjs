@@ -302,3 +302,57 @@ test('Alueet-välilehdellä maastoa ei piirretä; napsautus valitsee alueen ja k
     await close();
   }
 });
+
+test('Näytä alueet -valinta on tilarivillä ennen Esikatselu-valintaa', async () => {
+  const { page, errors, close } = await open(1440, 860);
+  await tab(page, 'areas');
+  const order = await page.$$eval('.edfoot input[type=checkbox]', els => els.map(e => e.id));
+  assert.deepEqual(order, ['showAreas', 'pvToggle']);
+  assert.ok(await visible(page, '#showAreas'));
+  assert.equal(await page.$$eval('.panel[data-for=areas] #showAreas', e => e.length), 0, 'ei enää Alueet-paneelissa');
+  await page.click('#showAreas'); assert.equal(await page.$eval('#showAreas', e => e.checked), false);
+  assert.deepEqual(errors, []);
+  await close();
+});
+
+test('Tiedosto-välilehti: pienoiskartta, peruttava korvaus ja lähdekoodin muokkausten suojaus', async () => {
+  const { page, errors, close } = await open(1440, 860);
+  const grid = () => page.evaluate(() => KG_APP.doc.grid.join('\n'));
+  const mini = () => page.$eval('#miniMap', c => c.toDataURL());
+  assert.ok(await visible(page, '#miniMap'), 'pienoiskartta näkyy');
+  const g0 = await grid(), m0 = await mini();
+  // generointi muuttaa kartan ja pienoiskartan; Palauta edellinen tuo sen takaisin
+  await page.$eval('#inSeed', el => { el.value = '123'; }); await page.click('#btnGen'); await wait(200);
+  assert.notEqual(await grid(), g0); assert.notEqual(await mini(), m0, 'pienoiskartta päivittyi');
+  assert.ok(await visible(page, '#btnPrev'));
+  await page.click('#btnNew'); await wait(150);
+  await page.click('#btnPrev'); await wait(150);
+  await page.click('#btnPrev'); await wait(150);
+  assert.equal(await grid(), g0, 'kaksi palautusta tuo alkuperäisen kartan');
+  assert.ok(!(await visible(page, '#btnPrev')));
+  // koon muutos on peruttavissa
+  await page.$eval('#inW', el => { el.value = '30'; }); await page.click('#btnResize'); await wait(150);
+  assert.equal(await page.evaluate(() => KG_APP.doc.W), 30);
+  await page.click('#btnPrev'); await wait(150);
+  assert.equal(await grid(), g0);
+  // lähdekoodi ei rivity, ja lukemattomat muutokset säilyvät
+  assert.equal(await page.$eval('#srcTa', el => el.getAttribute('wrap')), 'off');
+  await page.focus('#srcTa'); await page.keyboard.press('End'); await page.keyboard.type(' muokattu');
+  assert.ok(await visible(page, '#srcNote')); assert.ok(await visible(page, '#btnSrcRevert'));
+  await page.select('#srcSel', 'style');
+  assert.equal(await page.$eval('#srcSel', el => el.value), 'map', 'tiedostoa ei vaihdeta lukemattomien muutosten päälle');
+  assert.ok((await page.$eval('#srcTa', el => el.value)).includes(' muokattu'));
+  await page.click('#btnSrcRevert');
+  assert.ok(!(await page.$eval('#srcTa', el => el.value)).includes(' muokattu')); assert.ok(!(await visible(page, '#srcNote')));
+  // lähteestä luku on peruttavissa
+  await page.$eval('#srcTa', el => { el.value = el.value.replace(/size 64x44/, 'size 64x40'); el.dispatchEvent(new Event('input')); });
+  await page.click('#btnSrcApply'); await wait(200);
+  assert.equal(await page.evaluate(() => KG_APP.doc.H), 40);
+  await page.click('#btnPrev'); await wait(150);
+  assert.equal(await page.evaluate(() => KG_APP.doc.H), 44);
+  // pienoiskartan napsautus avaa muokkauksen
+  await page.click('#miniMap'); await wait(150);
+  assert.equal(await page.evaluate(() => document.body.dataset.tab), 'edit');
+  assert.deepEqual(errors, []);
+  await close();
+});

@@ -21,8 +21,8 @@ ja sivellin), **Alueet** (nimetyt alueet), **Nimet**, **Tulostus** ja
 **Ohje**. Sovellus avautuu ensimmäisellä kerralla Tiedosto-välilehdelle ja
 sen jälkeen viimeksi käytetylle välilehdelle.
 
-Kartan luku-, Kartan muokkaus- ja Alueet-välilehdillä editorin alalaidassa on
-valinta *Esikatselu*: kun se ei ole valittuna, esikatselu piilotetaan ja
+Kartan luku-, Kartan muokkaus- ja Alueet-välilehdillä editorin alalaidassa
+ovat valinnat *Näytä alueet* (nimettyjen alueiden rajat) ja *Esikatselu*: kun se ei ole valittuna, esikatselu piilotetaan ja
 kartta saa koko tilan. Valinta muistetaan kullekin näistä välilehdistä
 erikseen. Nimet- ja Tulostus-välilehdillä esikatselu näkyy aina asetusten
 vieressä; Tiedosto-välilehdellä esikatselua ei ole. Kumoa ja Tee uudelleen
@@ -57,6 +57,11 @@ ovat yläpalkissa aina näkyvissä.
   *Irrota ikkunaksi* ovat esikatselun alalaidassa. *Irrota ikkunaksi* avaa sen
   omaan ikkunaansa (esim. toiselle näytölle); ikkunan sulkeminen palauttaa sen.
   *Lehtijako* näyttää A4-lehtien rajat.
+- **Tiedosto-välilehti:** pienoiskartta näyttää nykyisen kartan (napsautus
+  avaa muokkauksen). Kartan korvaavat toiminnot (generointi, tyhjä kartta,
+  koon tai tyylin muutos, esimerkin tai tiedostojen avaus, lähdekoodin luku)
+  voi perua yläpalkin *Palauta edellinen* -painikkeella (10 viimeisintä).
+  Lähdekoodin lukemattomat muutokset säilyvät, kunnes ne luetaan tai perutaan.
 - **Generoi (Tiedosto-välilehti):** uusi saaristo annetulla siemenellä ja koolla. Sama siemen ja koko
   tuottavat aina saman kartan. Rannoille tulee yhtenäisinä pätkinä
   rantakallioita (etenkin ylänköjen ja vuorten vierellä) ja hiekkarantoja

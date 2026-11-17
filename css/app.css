@@ -172,3 +172,13 @@ body.pv-off.float-pal:is([data-tab=edit],[data-tab=areas]) .layout { grid-templa
   body[data-tab=preview] .layout { grid-template-rows: 1fr; }
   body[data-tab=preview] :is(.palette, .editor) { display: none; }
 }
+
+/* Tiedosto-välilehti */
+.filepanel .hint { margin: 0 0 6px; font-size: 12px; }
+.filepanel fieldset label { margin-right: 4px; }
+.mini { margin: 6px 0 0; width: 100%; }
+.mini canvas { display: block; max-width: 100%; border: 1px solid var(--line); border-radius: 3px; cursor: pointer; image-rendering: pixelated; }
+.mini figcaption { font-size: 12px; color: #555; margin-top: 3px; }
+.srcnote { color: #a55a00; font-weight: 600; }
+#btnSrcApply.dirty { background: var(--accent); color: #fff; border-color: var(--accent); }
+#srcTa { white-space: pre; overflow: auto; }

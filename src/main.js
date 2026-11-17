@@ -133,7 +133,7 @@
 
   // ---- piirto ja esikatselu
   let renderT = 0, last = null, zoom = 1, popup = null;
-  function touched() { refreshModel(); showChecks(); refreshUndo(); store.set('kg.proj', JSON.stringify(projText())); scheduleRender(); if (document.body.dataset.tab === 'file') showSrc(); }
+  function touched() { refreshModel(); showChecks(); refreshUndo(); store.set('kg.proj', JSON.stringify(projText())); scheduleRender(); if (document.body.dataset.tab === 'file') { showSrc(); drawMini(); } }
   // piilossa olevaa esikatselua ei piirretä; piirto tehdään, kun esikatselu tulee näkyviin tai kuvaa tarvitaan
   let pvDirty = false;
   const pvShown = () => (popup && !popup.closed) || $('previewPane').offsetParent !== null;
@@ -255,14 +255,23 @@
     if (f && i >= 0) { f.maps[i] = nd; KG.rlml.attach(nd, f); }
     doc = nd;
   }
+  // kartan korvaavat toiminnot tallettavat edellisen tilan pinoon; yläpalkin Palauta edellinen palauttaa sen
+  // (selaimen vahvistusikkunat on estetty artefaktissa)
+  const prevStack = [];
+  function remember(what) {
+    prevStack.push({ texts: Object.values(projText()), map: doc.file ? Math.max(0, doc.file.maps.indexOf(doc)) : 0, what });
+    if (prevStack.length > 10) prevStack.shift();
+    refreshPrev();
+  }
+  function refreshPrev() { const b = $('btnPrev'), top = prevStack[prevStack.length - 1]; b.hidden = !top; if (top) b.title = `Palauta kartta sellaisena kuin se oli ennen toimintoa: ${top.what}`; }
   $('btnGen').onclick = () => { const W = +$('inW').value, H = +$('inH').value, seed = +$('inSeed').value;
     if (doc.style === 'ship') { status('Laivakartoille ei ole generaattoria'); return; }
-    replaceDoc(doc.style === 'cave' ? KG.generator.generateCave({ W, H, seed }) : KG.generator.generate({ W, H, seed })); afterDocChange(); status('Generoitu siemenellä ' + seed); };
+    remember('generointi'); replaceDoc(doc.style === 'cave' ? KG.generator.generateCave({ W, H, seed }) : KG.generator.generate({ W, H, seed })); afterDocChange(); status('Generoitu siemenellä ' + seed); };
   $('btnRnd').onclick = () => { $('inSeed').value = Math.floor(Math.random() * 99999) + 1; $('btnGen').onclick(); };
   // tyhjä kartta samalla tyylillä ja legendalla, täytetty oletuspalalla
   function blankLike(W, H) { const nd = KG.rlml.newMap(W, H, doc.style); nd.styleSet = doc.styleSet || doc.style !== 'sea'; nd.legend = doc.legend.map(e => Object.assign({}, e)); nd.tileRules = (doc.tileRules || []).slice(); nd.vars = Object.assign({}, doc.vars); nd.raw = (doc.raw || []).filter(r => /^vars:/i.test(r.head.trim())).map(r => ({ head: r.head, lines: r.lines.slice() }));
     const fc = KG.rlml.fillChar(Object.assign({}, nd, { legend: nd.legend })); nd.grid = Array.from({ length: H }, () => fc.repeat(W)); return nd; }
-  $('btnNew').onclick = () => { replaceDoc(blankLike(+$('inW').value, +$('inH').value)); afterDocChange(); };
+  $('btnNew').onclick = () => { remember('tyhjä kartta'); replaceDoc(blankLike(+$('inW').value, +$('inH').value)); afterDocChange(); };
   $('btnAddMap').onclick = () => { const f = doc.file, nd = blankLike(+$('inW').value, +$('inH').value); let n = f.maps.length + 1; while (f.maps.some(m => m.name === 'KARTTA' + n)) n++;
     nd.name = 'KARTTA' + n; nd.title = 'Kartta ' + n; nd.hasHeading = true;
     if (f.maps.length === 1 && !f.maps[0].hasHeading) { f.title = f.title || f.maps[0].title; f.maps[0].hasHeading = true; }
@@ -270,21 +279,19 @@
   // esimerkit: koko tiedosto korvaa nykyisen (kysytään ensin)
   (KG.examples || []).forEach(x => { const o = document.createElement('option'); o.value = x.id; o.textContent = x.name; $('exSel').appendChild(o); });
   $('exSel').onchange = e => { const x = (KG.examples || []).find(v => v.id === e.target.value); e.target.value = ''; if (!x) return;
-    // selaimen vahvistusikkunat on estetty artefaktissa, joten edellinen kartta säilytetään palautettavaksi
-    if (!prevFile) prevFile = { texts: Object.values(projText()), map: doc.file ? doc.file.maps.indexOf(doc) : 0 };
-    doc = openTexts(x.files); store.set('kg.map', '0'); afterDocChange(); status(`Avattu esimerkki: ${x.name}`); $('btnPrev').hidden = false; };
-  let prevFile = null;
-  $('btnPrev').onclick = () => { if (!prevFile) return; const f = KG.rlml.parseProject(prevFile.texts); doc = f.maps[Math.max(0, Math.min(prevFile.map, f.maps.length - 1))]; prevFile = null; $('btnPrev').hidden = true; afterDocChange(); status('Edellinen kartta palautettu'); };
+    remember('esimerkki ' + x.name);
+    doc = openTexts(x.files); store.set('kg.map', '0'); afterDocChange(); status(`Avattu esimerkki: ${x.name} – Palauta edellinen tuo aiemman kartan takaisin`); };
+  $('btnPrev').onclick = () => { const p = prevStack.pop(); if (!p) return; const f = KG.rlml.parseProject(p.texts); doc = f.maps[Math.max(0, Math.min(p.map, f.maps.length - 1))]; refreshPrev(); afterDocChange(); status(`Palautettu kartta ennen toimintoa: ${p.what}`); };
   $('mapSel').onchange = e => { doc = doc.file.maps[+e.target.value]; store.set('kg.map', e.target.value); afterDocChange(); };
-  $('styleSel').onchange = e => { doc.style = e.target.value; doc.styleSet = true; KG.rlml.refreshNames(doc); ed.undo = []; afterDocChange(); status(`Kartan tyyliksi asetettiin ${e.target.selectedOptions[0].textContent}`); };
-  $('btnResize').onclick = () => { KG.rlml.resize(doc, +$('inW').value, +$('inH').value); ed.undo = []; afterDocChange(); };
+  $('styleSel').onchange = e => { remember('tyylin vaihto'); doc.style = e.target.value; doc.styleSet = true; KG.rlml.refreshNames(doc); ed.undo = []; afterDocChange(); status(`Kartan tyyliksi asetettiin ${e.target.selectedOptions[0].textContent}`); };
+  $('btnResize').onclick = () => { if (+$('inW').value === doc.W && +$('inH').value === doc.H) { status('Kartta on jo tämän kokoinen'); return; } remember('koon muutos'); KG.rlml.resize(doc, +$('inW').value, +$('inH').value); ed.undo = []; afterDocChange(); };
   // kolme tiedostoa peräkkäin (artefaktissa jokainen vahvistetaan erikseen)
   $('btnSave').onclick = async () => { const p = projText(), b = fileName(), list = [[`${b}.rlml.md`, p.map], [`${b}.paper.rlml.md`, p.style], [`${b}.${(doc.file && doc.file.lang) || 'fi'}.rlml.md`, p.lang]].filter(x => x[1]);
     for (const [n, t] of list) { const ok = await download(n, t, 'text/markdown'); if (ok === false) break; } };
   $('btnOpen').onclick = () => $('fileIn').click();
   $('fileIn').onchange = async e => { const fls = [...e.target.files]; e.target.value = ''; if (!fls.length) return;
     try { const texts = await Promise.all(fls.map(f => f.text())); if (!texts.some(t => KG.rlml.kindOfText(t) === 'map')) { status('Valitse mukaan myös karttatiedosto (map …)'); return; }
-      doc = openTexts(texts); store.set('kg.map', '0'); ed.undo = []; afterDocChange(); status('Avattu ' + fls.map(f => f.name).join(', ')); } catch (er) { status('Tiedostoa ei voitu lukea: ' + er.message); } };
+      remember('tiedostojen avaus'); doc = openTexts(texts); store.set('kg.map', '0'); ed.undo = []; afterDocChange(); status('Avattu ' + fls.map(f => f.name).join(', ')); } catch (er) { status('Tiedostoa ei voitu lukea: ' + er.message); } };
   $('btnUndo').onclick = () => { ed.doUndo(); refreshUndo(); }; $('btnRedo').onclick = () => { ed.doRedo(); refreshUndo(); };
   function refreshUndo() { const u = !ed.undo.length, r = !ed.redo.length; $('btnUndo').disabled = u; $('btnRedo').disabled = r; }
 
@@ -329,9 +336,14 @@
   $('inTitle').oninput = e => { doc.title = e.target.value; touched(); };
   $('btnNamesApply').onclick = () => { doc.rules = KG.rlml.parseRulesText($('rulesTa').value); doc.texts = KG.rlml.parseTextsText($('textsTa').value); areaChanged(); status('Nimet päivitetty'); };
   const fillNames = () => { $('inTitle').value = doc.title || ''; $('rulesTa').value = KG.rlml.rulesText(doc); $('textsTa').value = KG.rlml.textsText(doc); $('langLbl').textContent = doc.lang || 'fi'; };
-  function showSrc() { $('srcTa').value = projText()[$('srcSel').value] || ''; }
-  $('srcSel').onchange = showSrc;
-  $('btnSrcApply').onclick = () => { try { const p = projText(); p[$('srcSel').value] = $('srcTa').value; const fl = KG.rlml.parseProject([p.map, p.style, p.lang]), i = doc.file ? Math.max(0, doc.file.maps.indexOf(doc)) : 0, d = fl.maps[Math.min(i, fl.maps.length - 1)]; if (!d.W || !d.H) throw new Error('map-rivi puuttuu'); doc = d; afterDocChange(); status('Lähde luettu'); } catch (e) { status('Virhe lähteessä: ' + e.message); } };
+  // lukemattomia muokkauksia ei kirjoiteta yli; tiedoston vaihto vaatii ensin lukemisen tai perumisen
+  let srcDirty = false, srcShown = 'map';
+  function setSrcDirty(v) { srcDirty = v; $('srcNote').hidden = !v; $('btnSrcRevert').hidden = !v; $('btnSrcApply').classList.toggle('dirty', v); }
+  function showSrc(force) { if (srcDirty && !force) return; setSrcDirty(false); srcShown = $('srcSel').value; $('srcTa').value = projText()[srcShown] || ''; }
+  $('srcTa').oninput = () => setSrcDirty(true);
+  $('srcSel').onchange = e => { if (srcDirty) { e.target.value = srcShown; status('Lue tai peru tekstin muutokset ennen tiedoston vaihtoa'); return; } showSrc(); };
+  $('btnSrcRevert').onclick = () => { showSrc(true); status('Tekstin muutokset peruttiin'); };
+  $('btnSrcApply').onclick = () => { try { const p = projText(); p[srcShown] = $('srcTa').value; const fl = KG.rlml.parseProject([p.map, p.style, p.lang]), i = doc.file ? Math.max(0, doc.file.maps.indexOf(doc)) : 0, d = fl.maps[Math.min(i, fl.maps.length - 1)]; if (!d.W || !d.H) throw new Error('map-rivi puuttuu'); remember('lähdekoodin luku'); setSrcDirty(false); doc = d; afterDocChange(); status('Lähde luettu'); } catch (e) { status('Virhe lähteessä: ' + e.message); } };
 
   // ---- yläpalkin välilehdet: kukin valitsee sivupaneelin sisällön ja näkyvät osat (CSS: body[data-tab])
   const TAB_TITLES = { read: '', edit: 'Selite', areas: 'Alueet', file: 'Tiedosto', print: 'Tulostus', names: 'Nimet', help: 'Ohje', preview: 'Selite' };
@@ -360,7 +372,7 @@
     if (t !== 'areas' && ed.mode !== 'paint') endAreaTool();
     ed.paintLock = t === 'areas';
     if (t === 'read') setMode(true); else if (t === 'edit' || t === 'areas') setMode(false); else setTool(ed.mode);
-    if (t === 'file') showSrc();
+    if (t === 'file') { showSrc(); drawMini(); }
     if (t === 'names') fillNames();
     applyPv();
     if (was && sv.offsetParent) keepMapPlace(sv, was, wasL, wasT);
@@ -378,6 +390,15 @@
     sv.scrollLeft = wantL; sv.scrollTop = wantT;
   }
 
+  // pienoiskartta Tiedosto-välilehdellä: näyttää generoinnin, koon muutoksen ja avauksen tuloksen heti
+  function drawMini() {
+    const cv = $('miniMap'); if (!cv.offsetParent) return;
+    const box = cv.parentElement.clientWidth || 240, k = Math.max(1, Math.min(6, Math.floor(Math.min(box / doc.W, 180 / doc.H)))), cm = KG.editorColors(doc);
+    cv.width = doc.W * k; cv.height = doc.H * k; const c = cv.getContext('2d');
+    for (let j = 0; j < doc.H; j++) { const r = doc.grid[j] || ''; for (let i = 0; i < doc.W; i++) { c.fillStyle = cm[r[i]] || '#fff'; c.fillRect(i * k, j * k, k, k); } }
+    $('miniInfo').textContent = `${doc.name} · ${doc.W} × ${doc.H} ruutua – napsauta muokataksesi`;
+  }
+  $('miniMap').onclick = () => setTab('edit');
   function buildMapSel() { const f = doc.file; $('mapSel').innerHTML = (f ? f.maps : [doc]).map((m, i) => `<option value="${i}"${m === doc ? ' selected' : ''}>${(m.title && m.hasHeading ? m.title + ' – ' : '') + m.name}</option>`).join(''); $('styleSel').value = doc.style || 'sea'; }
   function afterDocChange() { ed.undo = []; ed.redo = []; buildMapSel();
     if (!doc.styleSet && (!doc.style || doc.style === 'sea') && doc.legend.some(e => /^(WALL|FLOOR|HULL|DECK|RAIL)\b/i.test(e.spec))) { const w = 'Kartalta puuttuu style paper -rivi: valitse tyyliksi luola tai laiva'; doc.warnings = (doc.warnings || []).filter(x => x !== w).concat(w); } { const n = KG.areas.normalize(doc); if (n) doc.warnings = (doc.warnings || []).concat(`Sisäkkäisiä rajauksia yhdistettiin: ${n}`); } buildLegendPick(); $('inW').value = doc.W; $('inH').value = doc.H; selArea = null; refreshModel(); fillNames(); buildPalette(); buildAreaList(); ed.setDoc(); touched(); if (doc.warnings && doc.warnings.length) status(doc.warnings[0]); }
