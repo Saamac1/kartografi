@@ -6,58 +6,133 @@
 <title>Karttageneraattori</title>
 <link rel="stylesheet" href="css/app.css">
 </head>
-<body class="pane-editor">
-<header class="bar">
+<body data-tab="map">
+<header class="bar top">
   <strong class="brand">Karttageneraattori</strong>
-  <button id="btnMenu" class="only-mobile menu-btn" aria-label="Valikko">☰ Tiedosto ja kartta</button>
-  <span class="grp">
-    <label>Kartta <select id="mapSel" title="Tiedoston kartat"></select></label>
-    <button id="btnAddMap" title="Lisää tiedostoon uusi tyhjä kartta">+ kartta</button>
-    <label>Tyyli <select id="styleSel" title="style paper"><option value="sea">merikartta</option><option value="cave">luola</option><option value="ship">laiva</option></select></label>
-  </span>
-  <span class="grp">
-    <button id="btnNew" title="Tyhjä kartta">Uusi</button>
-    <label>L <input id="inW" type="number" min="8" max="200" value="64"></label>
-    <label>K <input id="inH" type="number" min="8" max="200" value="44"></label>
-    <button id="btnResize" title="Muuta nykyisen kartan kokoa">Muuta kokoa</button>
-  </span>
-  <span class="grp">
-    <label>Siemen <input id="inSeed" type="number" value="7"></label>
-    <button id="btnGen">Generoi</button>
-    <button id="btnRnd" title="Satunnainen siemen">🎲</button>
-  </span>
-  <span class="grp">
-    <select id="exSel" title="Avaa esimerkkitiedosto"><option value="">Esimerkit…</option></select>
-    <button id="btnOpen" title="Valitse kartta-, tyyli- ja kielitiedosto (yksi tai useampi)">Avaa…</button><input id="fileIn" type="file" accept=".md,.rlml,.txt" multiple hidden>
-    <button id="btnSave" title="Tallentaa karttatiedoston, paperityylin ja kielitiedoston">Tallenna RLML</button>
-  </span>
-  <span class="grp">
-    <button id="btnUndo" title="Ctrl+Z">↶</button><button id="btnRedo" title="Ctrl+Y">↷</button>
-  </span>
+  <nav class="maintabs" id="mainTabs">
+    <button data-tab="map" class="on">Kartta</button><button data-tab="areas">Alueet</button><button data-tab="preview" class="only-mobile">Esikatselu</button><button data-tab="file">Tiedosto</button><button data-tab="print">Tulostus</button><button data-tab="names">Nimet</button><button data-tab="src">RLML-lähde</button>
+  </nav>
+  <span class="grp undo"><button id="btnUndo" title="Kumoa (Ctrl+Z)">↶</button><button id="btnRedo" title="Tee uudelleen (Ctrl+Y)">↷</button></span>
   <span id="status" class="status"></span><button id="btnPrev" hidden title="Palauta kartta, joka oli auki ennen esimerkkiä">Palauta edellinen</button>
 </header>
 
-<nav class="apptabs" id="appTabs"><button data-pane="editor" class="on">Editori</button><button data-pane="preview">Esikatselu</button><button data-pane="settings">Tulostus ja nimet</button></nav>
-
 <main class="layout">
-  <aside class="palette" id="palPanel">
-    <div class="palhead" id="palHead" title="Kelluvana: vedä tästä siirtääksesi"><h3>Selite</h3><button id="btnFloat" class="no-mobile" title="Irrota selitepalkki kelluvaksi tai kiinnitä takaisin">⧉ Kelluva</button></div>
-    <div id="palette"></div>
-    <div id="palAdd"></div>
-    <label class="row">Sivellin
-      <select id="brush"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="5">5</option></select>
-    </label>
-    <h3>Alueet</h3>
-    <label class="row"><input id="showAreas" type="checkbox" checked> Näytä alueet</label>
-    <select id="areaList" size="8"></select>
-    <div class="row"><input id="newArea" type="text" placeholder="Uusi alue, esim. Vaaravuori"><button id="btnNewArea">Lisää</button></div>
-    <div class="row"><button id="toolArea" title="Rajaa valitun alueen suorakulmiot: raahaa uusi, kulmakahvasta koko, oikea napsautus poistaa">Rajaa</button><button id="toolMove" title="Siirrä alue sisältöineen kartalla: raahaa tai nuolinäppäimet">Siirrä</button><button id="btnDelArea">Poista</button></div>
-    <div id="checks" class="checks"></div>
-    <details class="help no-mobile" open>
-      <summary>Ohjeet</summary>
-      <p><b>Lue karttaa:</b> vedä vierittääksesi, napsauta nähdäksesi ruudun tiedot.</p><p><b>Muokkaa karttaa:</b> vasen nappi piirtää valitulla palalla, oikea poimii palan kartalta, Vaihto + napsautus täyttää alueen.</p><p><b>Nimetyt alueet:</b> valitse alue ja Rajaa (suorakulmiot) tai Siirrä (alue sisältöineen; tyhjäksi jäävä osa täytetään vedellä). Valmis tai Esc palaa maaston piirtoon.</p>
-      <p><b>Näppäimistö</b> (napsauta karttaa ensin): nuolet liikuttavat kursoria, merkin kirjoitus korvaa ruudun ja siirtyy oikealle, Enter seuraavalle riville, Askelpalautin vasemmalle, Ctrl+Z / Ctrl+Y kumoa ja tee uudelleen.</p>
-    </details>
+  <aside class="side palette" id="palPanel">
+    <div class="palhead" id="palHead" title="Kelluvana: vedä tästä siirtääksesi"><h3 id="sideTitle">Selite</h3><button id="btnFloat" class="no-mobile" title="Irrota paneeli kelluvaksi tai kiinnitä takaisin">⧉ Kelluva</button></div>
+
+    <div class="panel" data-for="map">
+      <div id="palette"></div>
+      <div id="palAdd"></div>
+      <label class="row">Sivellin
+        <select id="brush"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="5">5</option></select>
+      </label>
+      <details class="help no-mobile" open>
+        <summary>Ohjeet</summary>
+        <p><b>Lue karttaa:</b> vedä vierittääksesi, napsauta nähdäksesi ruudun tiedot.</p><p><b>Muokkaa karttaa:</b> vasen nappi piirtää valitulla palalla, oikea poimii palan kartalta, Vaihto + napsautus täyttää alueen.</p>
+        <p><b>Näppäimistö</b> (napsauta karttaa ensin): nuolet liikuttavat kursoria, merkin kirjoitus korvaa ruudun ja siirtyy oikealle, Enter seuraavalle riville, Askelpalautin vasemmalle, Ctrl+Z / Ctrl+Y kumoa ja tee uudelleen.</p>
+      </details>
+    </div>
+
+    <div class="panel" data-for="areas">
+      <label class="row"><input id="showAreas" type="checkbox" checked> Näytä alueet</label>
+      <select id="areaList" size="10"></select>
+      <div class="row"><input id="newArea" type="text" placeholder="Uusi alue, esim. Vaaravuori"><button id="btnNewArea">Lisää</button></div>
+      <div class="row"><button id="toolArea" title="Rajaa valitun alueen suorakulmiot: raahaa uusi, kulmakahvasta koko, oikea napsautus poistaa">Rajaa</button><button id="toolMove" title="Siirrä alue sisältöineen kartalla: raahaa tai nuolinäppäimet">Siirrä</button><button id="btnDelArea">Poista</button></div>
+      <div id="checks" class="checks"></div>
+      <details class="help no-mobile" open>
+        <summary>Ohjeet</summary>
+        <p><b>Nimetyt alueet:</b> valitse alue ja Rajaa (suorakulmiot) tai Siirrä (alue sisältöineen; tyhjäksi jäävä osa täytetään vedellä). Valmis tai Esc palaa maaston piirtoon.</p>
+      </details>
+    </div>
+
+    <div class="panel" data-for="file">
+      <fieldset><legend>Kartta</legend>
+        <label>Kartta <select id="mapSel" title="Tiedoston kartat"></select></label>
+        <button id="btnAddMap" title="Lisää tiedostoon uusi tyhjä kartta">+ kartta</button>
+        <label>Tyyli <select id="styleSel" title="style paper"><option value="sea">merikartta</option><option value="cave">luola</option><option value="ship">laiva</option></select></label>
+      </fieldset>
+      <fieldset><legend>Koko</legend>
+        <label>L <input id="inW" type="number" min="8" max="200" value="64"></label>
+        <label>K <input id="inH" type="number" min="8" max="200" value="44"></label>
+        <button id="btnResize" title="Muuta nykyisen kartan kokoa">Muuta kokoa</button>
+        <button id="btnNew" title="Tyhjä kartta tässä koossa">Uusi tyhjä</button>
+      </fieldset>
+      <fieldset><legend>Generoi</legend>
+        <label>Siemen <input id="inSeed" type="number" value="7"></label>
+        <button id="btnGen">Generoi</button>
+        <button id="btnRnd" title="Satunnainen siemen">🎲</button>
+      </fieldset>
+      <fieldset><legend>Tiedostot</legend>
+        <select id="exSel" title="Avaa esimerkkitiedosto"><option value="">Esimerkit…</option></select>
+        <button id="btnOpen" title="Valitse kartta-, tyyli- ja kielitiedosto (yksi tai useampi)">Avaa…</button><input id="fileIn" type="file" accept=".md,.rlml,.txt" multiple hidden>
+        <button id="btnSave" title="Tallentaa karttatiedoston, paperityylin ja kielitiedoston">Tallenna RLML</button>
+      </fieldset>
+    </div>
+
+    <div class="panel" data-for="print" id="tPrint">
+      <fieldset>
+        <legend>Tila</legend>
+        <label><input type="radio" name="mode" value="whole" checked> Koko kuva yhdelle arkille</label>
+        <label><input type="radio" name="mode" value="tiles"> A4-lehdet liimausreunoin</label>
+      </fieldset>
+      <fieldset id="fsWhole">
+        <legend>Koko kuva</legend>
+        <label>Paperi <select id="paper"><option>A4</option><option selected>A3</option><option>A2</option><option>A1</option><option>A0</option></select></label>
+        <label>Suunta <select id="orientW"><option value="auto">automaattinen</option><option value="landscape">vaaka</option><option value="portrait">pysty</option></select></label>
+      </fieldset>
+      <fieldset id="fsTiles" disabled>
+        <legend>A4-lehdet</legend>
+        <label>Ruutu (mm) <input id="cellMM" type="number" step="0.5" min="2" max="30" value="6"></label>
+        <label>Suunta <select id="orientT"><option value="auto">vähiten lehtiä</option><option value="portrait">pysty</option><option value="landscape">vaaka</option></select></label>
+        <label>Liimausreuna (mm) <input id="overlap" type="number" step="1" min="0" max="60" value="12"></label>
+      </fieldset>
+      <fieldset>
+        <legend>Arkki ja viivat (mm)</legend>
+        <label>Marginaali <input id="margin" type="number" step="0.5" min="0" max="30" value="7"></label>
+        <label>Piirto <input id="wMain" type="number" step="0.05" min="0.05" value="0.3"></label>
+        <label>Ranta <input id="wCoast" type="number" step="0.05" min="0.05" value="0.6"></label>
+        <label>Ohut <input id="wThin" type="number" step="0.05" min="0.05" value="0.15"></label>
+        <label>Meri <input id="wSea" type="number" step="0.05" min="0.05" value="0.18"></label>
+        <label>Meriviivojen väli <input id="spSea" type="number" step="0.05" min="0.2" value="0.55"></label>
+        <label>Varjoviivojen väli <input id="spSym" type="number" step="0.05" min="0.2" value="0.45"></label>
+      </fieldset>
+      <fieldset>
+        <legend>Mukaan</legend>
+        <label><input id="optLegend" type="checkbox" checked> Selite</label>
+        <label><input id="optCompass" type="checkbox" checked> Kompassiruusu</label>
+        <label><input id="optTitle" type="checkbox" checked> Otsikko</label>
+        <label><input id="optFrame" type="checkbox" checked> Kehys</label>
+        <label title="Luola- ja laivakartoissa lattialle ohut ruudukko"><input id="optGrid" type="checkbox"> Ruudukko lattialle</label>
+      </fieldset>
+      <fieldset>
+        <legend>Selitteessä</legend>
+        <div id="legendPick" class="row"></div>
+      </fieldset>
+      <fieldset>
+        <legend>Tuloste</legend>
+        <div id="printInfo" class="info"></div>
+        <button id="btnPrint">Tulosta…</button>
+        <button id="btnDlSvg">Lataa SVG</button>
+        <button id="btnDlPng">Lataa PNG</button><select id="pngDpi" title="PNG-kuvan tarkkuus"><option value="96">96 dpi</option><option value="150">150 dpi</option><option value="300" selected>300 dpi</option></select>
+        <button id="btnDlHtml">Lataa tulostussivu (HTML)</button>
+        <button id="btnCopy">Kopioi SVG</button>
+        <div id="sheetLinks" class="links"></div>
+      </fieldset>
+    </div>
+
+    <div class="panel" data-for="names" id="tNames">
+      <label class="wide">Otsikko <input id="inTitle" type="text"></label>
+      <p class="hint"><b>labels paper</b> – piirto-ohjeet: <code>level 0 size 11 spacing wide</code>, <code>NIMI size 9 place water|land|center</code>, <code>NIMI at x,y</code>, <code>NIMI hide</code>, <code>NIMI outline dotted</code></p>
+      <textarea id="rulesTa" rows="9" spellcheck="false"></textarea>
+      <p class="hint"><b>text <span id="langLbl">fi</span></b> – näkyvät nimet: <code>NIMI "Teksti"</code> (lainausmerkit vapaaehtoiset)</p>
+      <textarea id="textsTa" rows="9" spellcheck="false"></textarea>
+      <button id="btnNamesApply">Päivitä</button>
+    </div>
+
+    <div class="panel" data-for="src" id="tSrc">
+      <div class="row"><label>Tiedosto <select id="srcSel"><option value="map">Kartat (.rlml.md)</option><option value="style">Paperityyli (.paper.rlml.md)</option><option value="lang">Kieli (.fi.rlml.md)</option></select></label><button id="btnSrcApply">Lue lähteestä</button></div>
+      <textarea id="srcTa" spellcheck="false"></textarea>
+    </div>
   </aside>
 
   <section class="editor">
@@ -65,7 +140,6 @@
       <span class="seg"><button id="mRead">Lue karttaa</button><button id="mEdit">Muokkaa karttaa</button></span>
       <span id="toolInfo" class="toolinfo"></span>
       <button id="btnToolDone" hidden>Valmis</button>
-      <span class="undo-m only-mobile"><button id="mUndo" aria-label="Kumoa">↶ Kumoa</button><button id="mRedo" aria-label="Tee uudelleen">↷</button></span>
     </div>
     <div class="scroll" id="edScroll"><canvas id="ed" tabindex="0"></canvas></div>
     <div class="statusline" id="cursorInfo"></div>
@@ -82,75 +156,6 @@
     <div class="docked-msg" id="dockMsg" hidden>Esikatselu on omassa ikkunassaan. <button id="btnDock">Palauta tähän</button></div>
   </section>
 </main>
-
-<section class="drawer">
-  <nav class="tabs"><button data-tab="tPrint" class="on">Tulostus</button><button data-tab="tNames">Nimet</button><button data-tab="tSrc">RLML-lähde</button></nav>
-  <div id="tPrint" class="tab on">
-    <fieldset>
-      <legend>Tila</legend>
-      <label><input type="radio" name="mode" value="whole" checked> Koko kuva yhdelle arkille</label>
-      <label><input type="radio" name="mode" value="tiles"> A4-lehdet liimausreunoin</label>
-    </fieldset>
-    <fieldset id="fsWhole">
-      <legend>Koko kuva</legend>
-      <label>Paperi <select id="paper"><option>A4</option><option selected>A3</option><option>A2</option><option>A1</option><option>A0</option></select></label>
-      <label>Suunta <select id="orientW"><option value="auto">automaattinen</option><option value="landscape">vaaka</option><option value="portrait">pysty</option></select></label>
-    </fieldset>
-    <fieldset id="fsTiles" disabled>
-      <legend>A4-lehdet</legend>
-      <label>Ruutu (mm) <input id="cellMM" type="number" step="0.5" min="2" max="30" value="6"></label>
-      <label>Suunta <select id="orientT"><option value="auto">vähiten lehtiä</option><option value="portrait">pysty</option><option value="landscape">vaaka</option></select></label>
-      <label>Liimausreuna (mm) <input id="overlap" type="number" step="1" min="0" max="60" value="12"></label>
-    </fieldset>
-    <fieldset>
-      <legend>Arkki ja viivat (mm)</legend>
-      <label>Marginaali <input id="margin" type="number" step="0.5" min="0" max="30" value="7"></label>
-      <label>Piirto <input id="wMain" type="number" step="0.05" min="0.05" value="0.3"></label>
-      <label>Ranta <input id="wCoast" type="number" step="0.05" min="0.05" value="0.6"></label>
-      <label>Ohut <input id="wThin" type="number" step="0.05" min="0.05" value="0.15"></label>
-      <label>Meri <input id="wSea" type="number" step="0.05" min="0.05" value="0.18"></label>
-      <label>Meriviivojen väli <input id="spSea" type="number" step="0.05" min="0.2" value="0.55"></label>
-      <label>Varjoviivojen väli <input id="spSym" type="number" step="0.05" min="0.2" value="0.45"></label>
-    </fieldset>
-    <fieldset>
-      <legend>Mukaan</legend>
-      <label><input id="optLegend" type="checkbox" checked> Selite</label>
-      <label><input id="optCompass" type="checkbox" checked> Kompassiruusu</label>
-      <label><input id="optTitle" type="checkbox" checked> Otsikko</label>
-      <label><input id="optFrame" type="checkbox" checked> Kehys</label>
-      <label title="Luola- ja laivakartoissa lattialle ohut ruudukko"><input id="optGrid" type="checkbox"> Ruudukko lattialle</label>
-    </fieldset>
-    <fieldset>
-      <legend>Selitteessä</legend>
-      <div id="legendPick" class="row"></div>
-    </fieldset>
-    <fieldset>
-      <legend>Tuloste</legend>
-      <div id="printInfo" class="info"></div>
-      <button id="btnPrint">Tulosta…</button>
-      <button id="btnDlSvg">Lataa SVG</button>
-      <button id="btnDlPng">Lataa PNG</button><select id="pngDpi" title="PNG-kuvan tarkkuus"><option value="96">96 dpi</option><option value="150">150 dpi</option><option value="300" selected>300 dpi</option></select>
-      <button id="btnDlHtml">Lataa tulostussivu (HTML)</button>
-      <button id="btnCopy">Kopioi SVG</button>
-      <div id="sheetLinks" class="links"></div>
-    </fieldset>
-  </div>
-  <div id="tNames" class="tab">
-    <label class="wide">Otsikko <input id="inTitle" type="text"></label>
-    <div class="cols">
-      <div><p class="hint"><b>labels paper</b> – piirto-ohjeet: <code>level 0 size 11 spacing wide</code>, <code>NIMI size 9 place water|land|center</code>, <code>NIMI at x,y</code>, <code>NIMI hide</code>, <code>NIMI outline dotted</code></p>
-        <textarea id="rulesTa" rows="8" spellcheck="false"></textarea></div>
-      <div><p class="hint"><b>text <span id="langLbl">fi</span></b> – näkyvät nimet: <code>NIMI "Teksti"</code> (lainausmerkit vapaaehtoiset)</p>
-        <textarea id="textsTa" rows="8" spellcheck="false"></textarea></div>
-    </div>
-    <button id="btnNamesApply">Päivitä</button>
-  </div>
-  <div id="tSrc" class="tab">
-    <div class="row"><label>Tiedosto <select id="srcSel"><option value="map">Kartat (.rlml.md)</option><option value="style">Paperityyli (.paper.rlml.md)</option><option value="lang">Kieli (.fi.rlml.md)</option></select></label></div>
-    <textarea id="srcTa" rows="14" spellcheck="false"></textarea>
-    <button id="btnSrcApply">Lue lähteestä</button>
-  </div>
-</section>
 
 <div id="printFrameHost" hidden></div>
 <script src="src/rlml.js"></script>

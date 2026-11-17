@@ -120,7 +120,7 @@
 
   // ---- piirto ja esikatselu
   let renderT = 0, last = null, zoom = 1, popup = null;
-  function touched() { refreshModel(); showChecks(); refreshUndo(); store.set('kg.proj', JSON.stringify(projText())); scheduleRender(); if ($('tSrc').classList.contains('on')) showSrc(); }
+  function touched() { refreshModel(); showChecks(); refreshUndo(); store.set('kg.proj', JSON.stringify(projText())); scheduleRender(); if (document.body.dataset.tab === 'src') showSrc(); }
   function scheduleRender() { clearTimeout(renderT); $('renderInfo').textContent = 'piirretään…'; renderT = setTimeout(render, 280); }
   function render() {
     const s = settings(), t0 = performance.now();
@@ -155,7 +155,10 @@
   let lastCur = null;
   function followCursor(force) {
     const sv = $('pvScroll'), el = $('pv').querySelector('svg'), mk = $('pvCur'); if (!el || !last || sv.hidden) return;
-    const c = ed.cur, s = el.clientWidth / last.sc.VW, cs = 16 * s, x = el.offsetLeft + (last.sc.MG + c.x * 16) * s, y = el.offsetTop + (last.sc.MG + (last.sc.oy || 0) + c.y * 16) * s;
+    // svg-elementillä ei ole offsetLeft/Top: sijainti #pv:n suhteen näytön koordinaateista
+    const er = el.getBoundingClientRect(), pr = $('pv').getBoundingClientRect(), ox = er.left - pr.left, oy = er.top - pr.top;
+    const c = ed.cur, s = er.width / last.sc.VW, cs = 16 * s, x = ox + (last.sc.MG + c.x * 16) * s, y = oy + (last.sc.MG + (last.sc.oy || 0) + c.y * 16) * s;
+    if (!er.width) return;
     Object.assign(mk.style, { left: x + 'px', top: y + 'px', width: cs + 'px', height: cs + 'px' }); mk.hidden = false;
     const moved = !lastCur || lastCur.x !== c.x || lastCur.y !== c.y; lastCur = { x: c.x, y: c.y };
     if (!moved && !force) return;
@@ -264,8 +267,8 @@
   $('fileIn').onchange = async e => { const fls = [...e.target.files]; e.target.value = ''; if (!fls.length) return;
     try { const texts = await Promise.all(fls.map(f => f.text())); if (!texts.some(t => KG.rlml.kindOfText(t) === 'map')) { status('Valitse mukaan myös karttatiedosto (map …)'); return; }
       doc = openTexts(texts); store.set('kg.map', '0'); ed.undo = []; afterDocChange(); status('Avattu ' + fls.map(f => f.name).join(', ')); } catch (er) { status('Tiedostoa ei voitu lukea: ' + er.message); } };
-  $('btnUndo').onclick = $('mUndo').onclick = () => { ed.doUndo(); refreshUndo(); }; $('btnRedo').onclick = $('mRedo').onclick = () => { ed.doRedo(); refreshUndo(); };
-  function refreshUndo() { const u = !ed.undo.length, r = !ed.redo.length; $('mUndo').disabled = $('btnUndo').disabled = u; $('mRedo').disabled = $('btnRedo').disabled = r; }
+  $('btnUndo').onclick = () => { ed.doUndo(); refreshUndo(); }; $('btnRedo').onclick = () => { ed.doRedo(); refreshUndo(); };
+  function refreshUndo() { const u = !ed.undo.length, r = !ed.redo.length; $('btnUndo').disabled = u; $('btnRedo').disabled = r; }
 
   // ---- alueet: lista, työkalu, tarkistukset
   function areaChanged() { refreshModel(); buildAreaList(); ed.draw(); touched(); }
@@ -297,14 +300,6 @@
   $('areaList').onchange = e => { selArea = e.target.value; showTool(); ed.draw();
     const A = M.byName[selArea]; if (A && A.bbox) { const sc = ed.cv.parentElement; sc.scrollLeft = A.bbox.x * ed.cw - 20; sc.scrollTop = A.bbox.y * ed.ch - 20; } };
   $('showAreas').onchange = () => ed.draw();
-  // puhelimessa: välilehdet editorille, esikatselulle ja asetuksille
-  document.querySelectorAll('#appTabs button').forEach(b => b.onclick = () => {
-    document.querySelectorAll('#appTabs button').forEach(x => x.classList.toggle('on', x === b));
-    document.body.className = 'pane-' + b.dataset.pane + (ed.readOnly ? ' readmode' : '') + (store.get('kg.floatPal') === '1' ? ' float-pal' : '');
-    if (b.dataset.pane === 'preview' && last) showSvg(last.svg);
-    if (b.dataset.pane === 'settings' && $('tNames').classList.contains('on')) fillNames();
-  });
-  $('btnMenu').onclick = () => document.querySelector('header.bar').classList.toggle('open');
   { const pref = store.get('kg.mode'); setMode(pref ? pref === 'read' : matchMedia('(pointer: coarse)').matches); }
   $('btnNewArea').onclick = () => { const t = $('newArea').value.trim(); if (!t) { status('Kirjoita alueen nimi'); return; }
     let id = KG.rlml.toId(t), n = 2; const base = id; while (M.byName[id] || (doc.texts[id] && doc.texts[id] !== t)) id = base + '_' + n++;
@@ -319,16 +314,27 @@
   function showSrc() { $('srcTa').value = projText()[$('srcSel').value] || ''; }
   $('srcSel').onchange = showSrc;
   $('btnSrcApply').onclick = () => { try { const p = projText(); p[$('srcSel').value] = $('srcTa').value; const fl = KG.rlml.parseProject([p.map, p.style, p.lang]), i = doc.file ? Math.max(0, doc.file.maps.indexOf(doc)) : 0, d = fl.maps[Math.min(i, fl.maps.length - 1)]; if (!d.W || !d.H) throw new Error('map-rivi puuttuu'); doc = d; afterDocChange(); status('Lähde luettu'); } catch (e) { status('Virhe lähteessä: ' + e.message); } };
-  document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => {
-    document.querySelectorAll('.tabs button').forEach(x => x.classList.toggle('on', x === b));
-    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.id === b.dataset.tab));
-    if (b.dataset.tab === 'tSrc') showSrc();
-    if (b.dataset.tab === 'tNames') fillNames();
-  });
+
+  // ---- yläpalkin välilehdet: kukin valitsee sivupaneelin sisällön ja näkyvät osat (CSS: body[data-tab])
+  const TAB_TITLES = { map: 'Selite', areas: 'Alueet', file: 'Tiedosto', print: 'Tulostus', names: 'Nimet', src: 'RLML-lähde', preview: 'Selite' };
+  function setTab(t) {
+    if (!TAB_TITLES[t]) t = 'map';
+    const mobile = matchMedia('(max-width: 820px)').matches;
+    if (t === 'preview' && !mobile) t = 'map';
+    document.body.dataset.tab = t; store.set('kg.tab', t);
+    document.querySelectorAll('#mainTabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
+    $('sideTitle').textContent = TAB_TITLES[t];
+    if (t !== 'areas' && ed.mode !== 'paint') endAreaTool();
+    if (t === 'src') showSrc();
+    if (t === 'names') fillNames();
+    if (last && !(popup && !popup.closed)) showSvg(last.svg);
+    ed.draw();
+  }
+  document.querySelectorAll('#mainTabs button').forEach(b => b.onclick = () => setTab(b.dataset.tab));
 
   function buildMapSel() { const f = doc.file; $('mapSel').innerHTML = (f ? f.maps : [doc]).map((m, i) => `<option value="${i}"${m === doc ? ' selected' : ''}>${(m.title && m.hasHeading ? m.title + ' – ' : '') + m.name}</option>`).join(''); $('styleSel').value = doc.style || 'sea'; }
   function afterDocChange() { ed.undo = []; ed.redo = []; buildMapSel();
     if (!doc.styleSet && (!doc.style || doc.style === 'sea') && doc.legend.some(e => /^(WALL|FLOOR|HULL|DECK|RAIL)\b/i.test(e.spec))) { const w = 'Kartalta puuttuu style paper -rivi: valitse tyyliksi luola tai laiva'; doc.warnings = (doc.warnings || []).filter(x => x !== w).concat(w); } { const n = KG.areas.normalize(doc); if (n) doc.warnings = (doc.warnings || []).concat(`Sisäkkäisiä rajauksia yhdistettiin: ${n}`); } buildLegendPick(); $('inW').value = doc.W; $('inH').value = doc.H; selArea = null; refreshModel(); fillNames(); buildPalette(); buildAreaList(); ed.setDoc(); touched(); if (doc.warnings && doc.warnings.length) status(doc.warnings[0]); }
-  afterDocChange(); render();
+  afterDocChange(); render(); setTab(store.get('kg.tab') || 'map');
   window.KG_APP = { get doc() { return doc; }, editor: ed, render };
 })();

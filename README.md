@@ -14,8 +14,16 @@ Pelin kevyempi visualisointi tehdään erikseen; tämä työkalu on paperille.
 Avaa `index.html` selaimessa. Rakennusvaihetta tai palvelinta ei tarvita, ja
 tiedostot ovat tavallisia skriptejä, joten `file://` toimii.
 
-- **Selite (vasen):** valitse piirrettävä pala. Sivellinkoko 1–5 ruutua.
-  *⧉ Kelluva* irrottaa selitepalkin siirrettäväksi ikkunaksi editorin päälle
+Yläpalkin välilehdet vaihtavat vasemman paneelin sisällön:
+**Kartta** (selite ja sivellin), **Alueet** (nimetyt alueet), **Tiedosto**
+(kartan valinta, tyyli, koko, generointi, esimerkit, avaus ja tallennus),
+**Tulostus**, **Nimet** ja **RLML-lähde**. Kartta-, Alueet- ja
+Tiedosto-välilehdillä näkyvät editori ja esikatselu, Tulostus- ja
+Nimet-välilehdillä asetukset ja esikatselu. Kumoa ja Tee uudelleen ovat
+yläpalkissa aina näkyvissä.
+
+- **Selite (Kartta-välilehti):** valitse piirrettävä pala. Sivellinkoko 1–5 ruutua.
+  *⧉ Kelluva* irrottaa sivupaneelin (Kartta- ja Alueet-välilehdillä) siirrettäväksi ikkunaksi editorin päälle
   (vedä otsikosta, kulmasta muutat kokoa). Merikartalla *Lisää selitteeseen*
   näyttää oletuspalat, joita kartan legendassa ei vielä ole.
 - **Uudet merikartan palat:** rantakallio `C` (`CLIFF`), hiekkaranta `s`
@@ -39,12 +47,12 @@ tiedostot ovat tavallisia skriptejä, joten `file://` toimii.
 - **Esikatselu (oikealla):** päivittyy muokatessa. *Irrota ikkunaksi* avaa sen
   omaan ikkunaansa (esim. toiselle näytölle); ikkunan sulkeminen palauttaa sen.
   *Lehtijako* näyttää A4-lehtien rajat.
-- **Generoi:** uusi saaristo annetulla siemenellä ja koolla. Sama siemen ja koko
+- **Generoi (Tiedosto-välilehti):** uusi saaristo annetulla siemenellä ja koolla. Sama siemen ja koko
   tuottavat aina saman kartan. Rannoille tulee yhtenäisinä pätkinä
   rantakallioita (etenkin ylänköjen ja vuorten vierellä) ja hiekkarantoja
   (matalilla rannoilla). Suurimmille saarille tulee kylä (2–5 taloa) rannan
   tuntumaan, mieluiten joen varteen, ja kukkuloille linnan rauniot.
-- **Nimetyt alueet (vasen):** *Lisää* luo alueen nimestä. Valitse alue
+- **Nimetyt alueet (Alueet-välilehti):** *Lisää* luo alueen nimestä. Valitse alue
   listasta ja
   - *Rajaa*: raahaa suorakulmio alueelle, kulmakahvasta muutat kokoa, oikea
     napsautus poistaa suorakulmion
@@ -61,11 +69,12 @@ tiedostot ovat tavallisia skriptejä, joten `file://` toimii.
 
 ### Puhelimessa
 
-Kapealla näytöllä editori, esikatselu sekä tulostus ja nimet ovat omilla
-välilehdillään, ja tiedosto- ja generointipainikkeet ovat ☰-valikossa.
+Kapealla näytöllä välilehtiä on yksi lisää: kartta ja esikatselu ovat eri
+välilehdillä (*Kartta* ja *Esikatselu*). Kartta- ja Alueet-välilehdillä paneeli
+on editorin yläpuolella, ja välilehtirivi vierii sivusuunnassa.
 Puhelin aloittaa lukutilassa, jossa yksi sormi vierittää. Muokkaustilassa yksi
-sormi piirtää ja kaksi sormea vierittää, ja editorin yläpalkissa ovat Kumoa- ja
-Tee uudelleen -painikkeet. Esikatselua ei voi irrottaa omaksi
+sormi piirtää ja kaksi sormea vierittää. Kumoa ja Tee uudelleen ovat
+yläpalkissa. Esikatselua ei voi irrottaa omaksi
 ikkunakseen.
 
 ## Tulostus
@@ -258,7 +267,14 @@ examples/           esimerkkikartat (merikartta, pelin neljä karttaa)
 ## Testit
 
 ```
-npm test
+npm test          # jäsennys, piirto, generaattori, tulostus (ei riippuvuuksia)
+npm run test:ui   # käyttöliittymä oikeassa selaimessa (Puppeteer)
 ```
 
-Testit käyttävät Noden omaa testiajuria; riippuvuuksia ei ole.
+Testit käyttävät Noden omaa testiajuria. `npm test` ei tarvitse asennettuja
+paketteja. Käyttöliittymätestit (`tests/ui/`) avaavat `index.html`:n headless
+Chromessa ja tarkistavat välilehdet, mobiiliasettelun, esikatselun kursorin
+seuraamisen ja kelluvan paneelin. Ne vaativat ensin `npm install`, joka
+asentaa Puppeteerin ja lataa selaimen (`allowScripts` sallii Puppeteerin
+asennusskriptin). Kuvakaappaukset saa talteen ympäristömuuttujalla:
+`UI_SHOTS=/polku/kansioon npm run test:ui`.
