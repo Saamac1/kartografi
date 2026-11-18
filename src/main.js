@@ -14,6 +14,8 @@
   // ---- tila ja apurit
   let statusT = 0;
   function status(msg) { $('status').textContent = msg; clearTimeout(statusT); statusT = setTimeout(() => { $('status').textContent = ''; }, 4000); }
+  // asennettava sovellus (PWA): välimuisti vain oikealla https-osoitteella, ei artefaktissa eikä file://-avauksessa
+  if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost') && !(window.claude && window.claude.use)) navigator.serviceWorker.register('sw.js').catch(() => {});
   // claude.ai-artefaktissa tiedostot tallennetaan downloads-kyvyllä (sivu ei saa itse käynnistää latausta)
   const inArtifact = !!(window.claude && typeof window.claude.use === 'function');
   let saver = null;

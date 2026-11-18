@@ -9,6 +9,23 @@ pohjapiirrokset (ks. *Tyylit*).
 
 Pelin kevyempi visualisointi tehdään erikseen; tämä työkalu on paperille.
 
+## Asennus puhelimeen tai koneelle
+
+Työkalu on asennettava verkkosovellus (PWA). Kun se on julkaistu
+https-osoitteessa (esim. GitHub Pages), avaa sivu ja
+
+- **iPhone/iPad:** Safari → Jaa → *Lisää Koti-valikkoon*
+- **Android:** Chrome → valikko → *Asenna sovellus*
+- **Mac/PC:** Chromen osoiterivin asennuskuvake
+
+Asennettu sovellus aukeaa omaan ikkunaansa ja toimii ilman verkkoa.
+Päivitys tulee käyttöön seuraavalla avauksella. Ennen julkaisua aja
+`node tools/build-sw.js`, joka päivittää välimuistin tiedostolistan ja
+version (testi tarkistaa, ettei se ole unohtunut).
+
+GitHub Pages: repon *Settings → Pages → Deploy from a branch*, haara
+`main`, kansio `/ (root)`.
+
 ## Käyttö
 
 Avaa `index.html` selaimessa. Rakennusvaihetta tai palvelinta ei tarvita, ja
@@ -273,6 +290,7 @@ generaattoria.
 
 ```
 index.html          käyttöliittymä
+manifest.json, sw.js, icons/   asennettava sovellus (PWA)
 css/app.css
 src/rlml.js         RLML-tiedoston luku ja kirjoitus
 src/font.js         päätteellinen kursiivi viivafontti
