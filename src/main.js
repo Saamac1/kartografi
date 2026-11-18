@@ -150,27 +150,51 @@
   const pvShown = () => (popup && !popup.closed) || $('previewPane').offsetParent !== null;
   function scheduleRender() { clearTimeout(renderT); if (!pvShown()) { pvDirty = true; return; } $('renderInfo').textContent = 'piirretään…'; renderT = setTimeout(render, 280); }
   function fresh() { if (pvDirty || !last) { clearTimeout(renderT); render(); } }
+  // iso kartta: esikatselu piirtää vain otteen kursorin ympäriltä (koko kartan SVG olisi satoja megatavuja);
+  // tulostus ja vienti piirtävät koko kartan erikseen
+  const BIG = 160 * 160, WIN = { w: 120, h: 90 };
+  const isBig = () => doc.W * doc.H > BIG;
+  function windowAround(c) { const w = Math.min(doc.W, WIN.w), h = Math.min(doc.H, WIN.h);
+    return { x: Math.max(0, Math.min(doc.W - w, c.x - (w >> 1))), y: Math.max(0, Math.min(doc.H - h, c.y - (h >> 1))), w, h }; }
+  function cropDoc(d, r) {
+    const m = Object.assign({}, d, { W: r.w, H: r.h, grid: d.grid.slice(r.y, r.y + r.h).map(row => row.slice(r.x, r.x + r.w)), title: (d.title || d.name) + ' (ote)' });
+    m.areas = (d.areas || []).map(a => { const x0 = Math.max(a.x, r.x), y0 = Math.max(a.y, r.y), x1 = Math.min(a.x + a.w, r.x + r.w), y1 = Math.min(a.y + a.h, r.y + r.h);
+      return x1 > x0 && y1 > y0 ? Object.assign({}, a, { x: x0 - r.x, y: y0 - r.y, w: x1 - x0, h: y1 - y0 }) : null; }).filter(Boolean);
+    m.at = (d.at || []).filter(a => a.x >= r.x && a.y >= r.y && a.x < r.x + r.w && a.y < r.y + r.h).map(a => Object.assign({}, a, { x: a.x - r.x, y: a.y - r.y }));
+    m.rules = (d.rules || []).map(u => u.at ? Object.assign({}, u, { at: [u.at[0] - r.x, u.at[1] - r.y] }) : u);
+    return m;
+  }
+  // koko kartan kohtaus vientiä ja tulostusta varten (esikatselun ote ei kelpaa)
+  function fullScene() {
+    if (last && !last.win) return last;
+    const s = settings(); status(`Piirretään koko kartta (${doc.W} × ${doc.H}) vientiä varten…`);
+    const sc = KG.renderer.scene(doc, s); return { sc, s, L: s.mode === 'tiles' ? layoutTiles(sc, s) : null };
+  }
   function render() {
     pvDirty = false;
-    const s = settings(), t0 = performance.now();
+    const s = settings(), t0 = performance.now(), win = isBig() ? windowAround(ed.cur) : null, rdoc = win ? cropDoc(doc, win) : doc;
+    // otteen mittakaava: koko kuva -tilassa ote sovitetaan arkille, jotta se on luettava (tulosteen ruutu näkyy tiedoissa)
+    const ps = win && s.mode === 'whole' ? Object.assign({}, s, { cellMM: KG.print.fitCell(KG.renderer.dims(rdoc, s), s.paper, s.orient, s.margin).cellMM }) : s;
     let sc;
-    try { sc = KG.renderer.scene(doc, s); } catch (e) { console.error(e); $('renderInfo').textContent = 'Virhe: ' + e.message; return; }
-    let svg = KG.renderer.svgWhole(sc, doc.title), L = null;
-    if (s.mode === 'tiles') L = layoutTiles(sc, s);
-    if (L && $('showSheets').checked) {
+    try { sc = KG.renderer.scene(rdoc, ps); } catch (e) { console.error(e); $('renderInfo').textContent = 'Virhe: ' + e.message; return; }
+    let svg = KG.renderer.svgWhole(sc, rdoc.title), L = null;
+    if (s.mode === 'tiles') L = win ? layoutTiles({ VW: KG.renderer.dims(doc, s).VW, VH: KG.renderer.dims(doc, s).VH, k: sc.k }, s) : layoutTiles(sc, s);
+    if (L && !win && $('showSheets').checked) {
       let ov = ''; for (const sh of L.sheets) { const x = sh.x0 * sc.k, y = sh.y0 * sc.k, w = L.aw * sc.k, h = L.ah * sc.k;
         ov += `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="rgba(200,30,60,.04)" stroke="#c0304a" stroke-width="2" stroke-dasharray="10 6"/><text x="${x + 12}" y="${y + 34}" font-size="28" font-family="sans-serif" fill="#c0304a">${sh.name}</text>`; }
       svg = svg.replace(/<\/svg>$/, ov + '</svg>');
     }
-    last = { sc, s, L, svg };
+    last = { sc, s, L, svg, win };
     showSvg(svg);
-    const ms = Math.round(performance.now() - t0), mmW = (sc.VW / sc.k).toFixed(0), mmH = (sc.VH / sc.k).toFixed(0);
-    $('renderInfo').textContent = `${doc.W}×${doc.H} ruutua · ${ms} ms`;
+    const ms = Math.round(performance.now() - t0), full = win ? KG.renderer.dims(doc, s) : { VW: sc.VW, VH: sc.VH }, mmW = (full.VW / sc.k).toFixed(0), mmH = (full.VH / sc.k).toFixed(0);
+    $('renderInfo').textContent = win ? `ote ${win.x}–${win.x + win.w - 1}, ${win.y}–${win.y + win.h - 1} · kartta ${doc.W}×${doc.H} on liian suuri koko esikatseluun · ${ms} ms` : `${doc.W}×${doc.H} ruutua · ${ms} ms`;
+    const tiny = s.mode === 'whole' && s.cellMM < 2 ? ` Ruutu on alle 2 mm, joten tuloste ei ole luettava: valitse isompi paperi tai A4-lehdet.${win ? ' Esikatselu näyttää otteen luettavassa koossa.' : ''}` : '';
+    const mmF = v => (v / KG.renderer.CS * s.cellMM).toFixed(0);
     $('printInfo').textContent = s.mode === 'whole'
-      ? `Kartta ${mmW} × ${mmH} mm, ruutu ${s.cellMM.toFixed(2)} mm, paperi ${s.paper} ${s.orient === 'landscape' ? 'vaaka' : 'pysty'}.`
+      ? `Kartta ${win ? mmF(full.VW) : mmW} × ${win ? mmF(full.VH) : mmH} mm, ruutu ${s.cellMM.toFixed(2)} mm, paperi ${s.paper} ${s.orient === 'landscape' ? 'vaaka' : 'pysty'}.${tiny}`
       : `${L.sheets.length} lehteä (${L.cols} × ${L.rows}), A4 ${L.PW > L.PH ? 'vaaka' : 'pysty'}, kartta ${mmW} × ${mmH} mm, ruutu ${s.cellMM} mm, liimausreuna ${s.overlap} mm.`;
     const links = $('sheetLinks'); links.innerHTML = '';
-    if (L) for (const sh of L.sheets) { const b = document.createElement('button'); b.textContent = 'Lehti ' + sh.name; b.onclick = () => download(`${fileBase()}_${sh.name}.svg`, KG.print.sheetSvg(sc, L, sh), 'image/svg+xml'); links.appendChild(b); }
+    if (L) for (const sh of L.sheets) { const b = document.createElement('button'); b.textContent = 'Lehti ' + sh.name; b.onclick = () => { const F = fullScene(); download(`${fileBase()}_${sh.name}.svg`, KG.print.sheetSvg(F.sc, F.L, F.L.sheets.find(x => x.name === sh.name)), 'image/svg+xml'); }; links.appendChild(b); }
   }
   function showSvg(svg) {
     if (popup && !popup.closed) { const v = popup.document.getElementById('v'); if (v) { v.innerHTML = svg; sizeSvg(v); } }
@@ -183,10 +207,11 @@
   // esikatselu seuraa editorin kursoria, kun kartta ei mahdu kerralla näkyviin
   let lastCur = null;
   function followCursor(force) {
+    if (last && last.win) { const w = last.win, mx = w.w * .2, my = w.h * .2, c = ed.cur; if ((c.x < w.x + mx && w.x > 0) || (c.x > w.x + w.w - mx && w.x + w.w < doc.W) || (c.y < w.y + my && w.y > 0) || (c.y > w.y + w.h - my && w.y + w.h < doc.H)) scheduleRender(); }
     const sv = $('pvScroll'), el = $('pv').querySelector('svg'), mk = $('pvCur'); if (!el || !last || sv.hidden) return;
     // svg-elementillä ei ole offsetLeft/Top: sijainti #pv:n suhteen näytön koordinaateista
     const er = el.getBoundingClientRect(), pr = $('pv').getBoundingClientRect(), ox = er.left - pr.left, oy = er.top - pr.top;
-    const c = ed.cur, s = er.width / last.sc.VW, cs = 16 * s, x = ox + (last.sc.MG + c.x * 16) * s, y = oy + (last.sc.MG + (last.sc.oy || 0) + c.y * 16) * s;
+    const w0 = last.win || { x: 0, y: 0 }, c = { x: ed.cur.x - w0.x, y: ed.cur.y - w0.y }, s = er.width / last.sc.VW, cs = 16 * s, x = ox + (last.sc.MG + c.x * 16) * s, y = oy + (last.sc.MG + (last.sc.oy || 0) + c.y * 16) * s;
     if (!er.width) return;
     Object.assign(mk.style, { left: x + 'px', top: y + 'px', width: cs + 'px', height: cs + 'px' }); mk.hidden = false;
     const moved = !lastCur || lastCur.x !== c.x || lastCur.y !== c.y; lastCur = { x: c.x, y: c.y };
@@ -221,7 +246,7 @@
 
   // ---- tulostus ja vienti
   function printSvgs() {
-    const { sc, s, L } = last;
+    const { sc, s, L } = fullScene();
     if (s.mode === 'whole') { const [PW, PH] = KG.print.paperSize(s.paper, s.orient); return { svgs: [KG.print.wholeSvg(sc, s.paper, s.orient, s.margin)], PW, PH }; }
     return { svgs: L.sheets.map(sh => KG.print.sheetSvg(sc, L, sh)), PW: L.PW, PH: L.PH };
   }
@@ -231,7 +256,7 @@
     fr.onload = () => { try { fr.contentWindow.focus(); fr.contentWindow.print(); } catch (e) { status('Tulostus estetty – lataa tulostussivu ja tulosta se'); } };
     host.hidden = false; host.appendChild(fr); fr.srcdoc = html;
   };
-  $('btnDlSvg').onclick = () => { fresh(); if (!last) return; const s = last.s; download(`${fileBase()}.svg`, s.mode === 'whole' ? KG.print.wholeSvg(last.sc, s.paper, s.orient, s.margin) : KG.renderer.svgWhole(last.sc, doc.title), 'image/svg+xml'); };
+  $('btnDlSvg').onclick = () => { fresh(); if (!last) return; const F = fullScene(), s = F.s; download(`${fileBase()}.svg`, s.mode === 'whole' ? KG.print.wholeSvg(F.sc, s.paper, s.orient, s.margin) : KG.renderer.svgWhole(F.sc, doc.title), 'image/svg+xml'); };
   // PNG: sama kuva kuin SVG-latauksessa, rasteroituna valitulla tarkkuudella valkoiselle pohjalle
   const PNG_MAX = 16e6; // pikseleitä (mobiiliselainten kangasraja)
   function svgToPng(svg, dpi) {
@@ -249,12 +274,12 @@
       img.src = url;
     });
   }
-  $('btnDlPng').onclick = () => { fresh(); if (!last) return; const s = last.s, svg = s.mode === 'whole' ? KG.print.wholeSvg(last.sc, s.paper, s.orient, s.margin) : KG.renderer.svgWhole(last.sc, doc.title);
+  $('btnDlPng').onclick = () => { fresh(); if (!last) return; const F = fullScene(), s = F.s, svg = s.mode === 'whole' ? KG.print.wholeSvg(F.sc, s.paper, s.orient, s.margin) : KG.renderer.svgWhole(F.sc, doc.title);
     status('Muodostetaan PNG…');
     svgToPng(svg, +$('pngDpi').value).then(r => { download(`${fileBase()}.png`, r.blob, 'image/png'); if (r.shrunk) setTimeout(() => status(`PNG pienennettiin ${r.w}×${r.h} pikseliin (selaimen kokoraja)`), 1500); })
       .catch(e => status('PNG-vienti epäonnistui: ' + e.message)); };
   $('btnDlHtml').onclick = () => { fresh(); if (!last) return; const { svgs, PW, PH } = printSvgs(); download(`${fileBase()}_tulostus.html`, KG.print.printHtml(svgs, PW, PH, doc.title), 'text/html'); };
-  $('btnCopy').onclick = async () => { fresh(); if (!last) return; try { await navigator.clipboard.writeText(KG.renderer.svgWhole(last.sc, doc.title)); status('SVG kopioitu leikepöydälle'); } catch (e) { status('Kopiointi estetty'); } };
+  $('btnCopy').onclick = async () => { fresh(); if (!last) return; try { await navigator.clipboard.writeText(KG.renderer.svgWhole(fullScene().sc, doc.title)); status('SVG kopioitu leikepöydälle'); } catch (e) { status('Kopiointi estetty'); } };
   document.querySelectorAll('input[name=mode]').forEach(r => r.onchange = () => { const t = document.querySelector('input[name=mode]:checked').value === 'tiles'; $('fsTiles').disabled = !t; $('fsWhole').disabled = t; render(); });
   ['paper', 'orientW', 'cellMM', 'orientT', 'overlap', 'margin', 'wMain', 'wCoast', 'wThin', 'wSea', 'spSea', 'spSym', 'optLegend', 'optCompass', 'optTitle', 'optFrame', 'optGrid'].forEach(id => $(id).addEventListener('change', scheduleRender));
 
@@ -356,7 +381,7 @@
   $('toolArea').onclick = () => { setMode(false); setTool('area'); if (!selArea) status('Valitse alue listasta tai luo uusi'); };
   $('toolMove').onclick = () => { setMode(false); setTool('move'); status('Tartu alueeseen kartalla ja raahaa; nuolinäppäimet siirtävät valittua'); };
   $('areaList').onchange = e => { selArea = e.target.value; showTool(); ed.draw();
-    const A = M.byName[selArea]; if (A && A.bbox) { const sc = ed.cv.parentElement; sc.scrollLeft = A.bbox.x * ed.cw - 20; sc.scrollTop = A.bbox.y * ed.ch - 20; } };
+    const A = M.byName[selArea]; if (A && A.bbox) { const sc = ed.sc; sc.scrollLeft = A.bbox.x * ed.cw - 20; sc.scrollTop = A.bbox.y * ed.ch - 20; } };
   $('showAreas').onchange = () => ed.draw();
   $('btnNewArea').onclick = () => { const t = $('newArea').value.trim(); if (!t) { status('Kirjoita alueen nimi'); return; }
     let id = KG.rlml.toId(t), n = 2; const base = id; while (M.byName[id] || (doc.texts[id] && doc.texts[id] !== t)) id = base + '_' + n++;
@@ -466,7 +491,7 @@
     const now = sv.getBoundingClientRect(), wantL = Math.max(0, wasL + now.left - was.left), wantT = Math.max(0, wasT + now.top - was.top);
     const baseW = sv.scrollWidth - slack.x, baseH = sv.scrollHeight - slack.y;
     slack.x = Math.max(0, Math.ceil(wantL - (baseW - sv.clientWidth))); slack.y = Math.max(0, Math.ceil(wantT - (baseH - sv.clientHeight)));
-    ed.cv.style.marginRight = slack.x + 'px'; ed.cv.style.marginBottom = slack.y + 'px';
+    ed.sp.style.marginRight = slack.x + 'px'; ed.sp.style.marginBottom = slack.y + 'px';
     sv.scrollLeft = wantL; sv.scrollTop = wantT;
   }
 

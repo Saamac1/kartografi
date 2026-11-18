@@ -207,7 +207,7 @@ test('kartta pysyy ruudulla paikallaan siirryttäessä Kartan luvusta Kartan muo
     const { page, errors, close } = await open(w, h);
     await tab(page, 'read');
     await page.evaluate(() => { const s = document.getElementById('edScroll'); s.scrollLeft = 400; s.scrollTop = 300; });
-    const at = () => page.$eval('#ed', el => { const r = el.getBoundingClientRect(); return [Math.round(r.left), Math.round(r.top)]; });
+    const at = () => page.$eval('.edspace', el => { const r = el.getBoundingClientRect(); return [Math.round(r.left), Math.round(r.top)]; });
     const a = await at();
     await tab(page, 'edit');
     assert.deepEqual(await at(), a, `${w}px: kartta ei siirry ruudulla`);
@@ -420,6 +420,26 @@ test('laivakartan miehistön voi poistaa selitteestä Tulostus-välilehdellä', 
   assert.ok(h1 <= h0, 'selite ei kasvanut');
   const style = await page.evaluate(() => KG.rlml.serializeProject(KG_APP.doc.file).style);
   assert.match(style, /^- CREW decor$/m, 'valinta tallentuu paperityyliin');
+  assert.deepEqual(errors, []);
+  await close();
+});
+
+test('iso kartta (640 × 640) avautuu lukuun ja muokkaukseen; esikatselu näyttää otteen', async () => {
+  const { page, errors, close } = await open(1440, 860);
+  await page.$eval('#newW', el => { el.value = '640'; }); await page.$eval('#newH', el => { el.value = '640'; });
+  await page.$eval('#newFill', el => { el.value = 'blank'; el.dispatchEvent(new Event('change')); });
+  await page.click('#btnAddMap'); await wait(300);
+  await tab(page, 'read'); await wait(1500);
+  const cv = await page.$eval('#ed', el => [el.width, el.height]);
+  assert.ok(cv[0] < 3000 && cv[1] < 3000, `kangas on näkymän kokoinen: ${cv}`);
+  assert.match(await page.$eval('#renderInfo', el => el.textContent), /ote .* liian suuri/);
+  await tab(page, 'edit');
+  await page.evaluate(() => document.getElementById('edScroll').scrollTo(6000, 7000)); await wait(300);
+  const r = await (await page.$('#edScroll')).boundingBox(); await page.mouse.click(r.x + 100, r.y + 100); await wait(200);
+  const c = await page.evaluate(() => [KG_APP.editor.cur.x, KG_APP.editor.cur.y]);
+  assert.ok(c[0] > 400 && c[1] > 400, `kursori kaukana kartalla: ${c}`);
+  await page.keyboard.type('^'); await wait(100);
+  assert.equal(await page.evaluate(([x, y]) => KG_APP.doc.grid[y][x], c), '^');
   assert.deepEqual(errors, []);
   await close();
 });

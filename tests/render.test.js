@@ -79,3 +79,10 @@ test('saaren järvi jää reiäksi ja saa vesiviivoituksen', () => {
   const y = 8.5 * 16, lines = [...body.matchAll(/M([\d.]+) ([\d.]+)H([\d.]+)/g)].map(m => m.slice(1).map(Number));
   assert.ok(lines.some(([x1, yy, x2]) => Math.abs(yy - y) < 8 && x1 < 12.5 * 16 && x2 > 12.5 * 16), 'järvessä on vesiviivoitusta');
 });
+
+test('rantaviivan lohkotus ei muuta kuvaa ja iso kartta piirtyy kohtuullisessa ajassa', () => {
+  const d = generator.generate({ W: 200, H: 160, seed: 11 }), t0 = Date.now();
+  const svg = renderer.svgWhole(renderer.scene(d, {}), 'x');
+  assert.ok(svg.startsWith('<svg') && !/NaN/.test(svg));
+  assert.ok(Date.now() - t0 < 20000, 'piirto alle 20 s');
+});

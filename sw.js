@@ -1,6 +1,6 @@
 // Generoitu: node tools/build-sw.js
 // Välimuisti, jolla sovellus toimii ilman verkkoa. Uusi versio otetaan käyttöön seuraavalla avauksella.
-const CACHE = 'kartat-21978094911b';
+const CACHE = 'kartat-f47eb0586266';
 const FILES = [
  "./",
  "index.html",

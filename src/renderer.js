@@ -83,7 +83,11 @@
       for (;;) { const nx = (adj[key(cur)] || []).find(m => !used.has(m)); if (nx === undefined) break; used.add(nx); const s = segs[nx]; cur = key(s[0]) === key(cur) ? s[1] : s[0]; if (key(cur) === key(lp[0])) break; lp.push(cur); }
       loops.push(chaikin(rough(chaikin(lp, 1, true), 4, .8, 14), 1, true));
     }
-    function landSpans(y) { const xs = []; for (const lp of loops) { const n = lp.length; for (let i = 0; i < n; i++) { const a = lp[i], b = lp[(i + 1) % n]; if ((a[1] > y) !== (b[1] > y)) xs.push(a[0] + (y - a[1]) / (b[1] - a[1]) * (b[0] - a[0])); } } xs.sort((a, b) => a - b); const s = []; for (let i = 0; i + 1 < xs.length; i += 2) s.push([xs[i] - 3, xs[i + 1] + 3]); return s; }
+    // rantaviivan särmät lohkottuina korkeuden mukaan: vaakaviivan leikkaukset haetaan vain oman lohkon särmistä
+    const EB = 8, ebins = [];
+    for (const lp of loops) { const n = lp.length; for (let i = 0; i < n; i++) { const a = lp[i], b = lp[(i + 1) % n], y0 = Math.min(a[1], b[1]), y1 = Math.max(a[1], b[1]);
+      for (let k = Math.max(0, Math.floor(y0 / EB)); k <= Math.floor(y1 / EB); k++) (ebins[k] || (ebins[k] = [])).push([a, b]); } }
+    function landSpans(y) { const xs = [], bin = ebins[Math.floor(y / EB)] || []; for (const [a, b] of bin) if ((a[1] > y) !== (b[1] > y)) xs.push(a[0] + (y - a[1]) / (b[1] - a[1]) * (b[0] - a[0])); xs.sort((a, b) => a - b); const s = []; for (let i = 0; i + 1 < xs.length; i += 2) s.push([xs[i] - 3, xs[i + 1] + 3]); return s; }
 
     // ---- syvyys (etäisyys maasta ruutuina) ja meren viivoitus: matalikko tummin
     const D = []; for (let j = 0; j < H; j++) { D.push([]); for (let i = 0; i < W; i++) D[j].push(land(i, j) ? 0 : 99); }

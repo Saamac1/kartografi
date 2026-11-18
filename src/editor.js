@@ -23,6 +23,12 @@
       this.cw = 13; this.ch = 17; this.cur = { x: 0, y: 0 }; this.typeStartX = 0; this.brush = '.'; this.brushSize = 1;
       this.undo = []; this.redo = []; this.drag = null; this.hover = null; this.mode = 'paint'; this.readOnly = false; this.paintLock = false;
       this.band = null; this.mv = null; this.rs = null; this.mpan = null; this.touches = new Map(); this.pan = null;
+      // iso kartta: kangas on vain näkyvän alueen kokoinen ja kulkee vierityksen mukana; välike antaa vieritysalan
+      this.sc = canvas.parentElement; this.sp = document.createElement('div'); this.sp.className = 'edspace';
+      this.sc.insertBefore(this.sp, canvas); this.sp.appendChild(canvas); this.ox = 0; this.oy = 0; this.vw = 0; this.vh = 0;
+      let raf = 0; const onView = () => { if (raf) return; raf = requestAnimationFrame(() => { raf = 0; this.layout(); this.draw(); }); };
+      this.sc.addEventListener('scroll', onView, { passive: true });
+      if (typeof ResizeObserver !== 'undefined') new ResizeObserver(onView).observe(this.sc); else window.addEventListener('resize', onView);
       canvas.addEventListener('pointerdown', e => { if (this.touchDown(e)) return; this.down(e); });
       canvas.addEventListener('pointermove', e => { if (this.touchMove(e)) return; this.move(e); });
       window.addEventListener('pointerup', e => { if (this.touchUp(e)) return; this.up(); });
@@ -36,15 +42,26 @@
     // vain katselu: lukutila tai piirtolukko ilman aluetyökalua
     get viewOnly() { return this.readOnly || (this.paintLock && this.mode === 'paint'); }
     setReadOnly(v) { this.readOnly = v; this.band = this.mv = this.rs = this.drag = null; this.cv.classList.toggle('read', v); this.draw(); }
-    layout() { const d = this.doc, r = window.devicePixelRatio || 1; this.cv.width = d.W * this.cw * r; this.cv.height = d.H * this.ch * r; this.cv.style.width = d.W * this.cw + 'px'; this.cv.style.height = d.H * this.ch + 'px'; this.ctx.setTransform(r, 0, 0, r, 0, 0); }
+    // kangas peittää vierityssäiliön näkyvän osan (enintään koko kartan); piirto rajataan näkyviin ruutuihin
+    layout() {
+      const d = this.doc, r = window.devicePixelRatio || 1, W = d.W * this.cw, H = d.H * this.ch, sc = this.sc;
+      this.sp.style.width = W + 'px'; this.sp.style.height = H + 'px';
+      const vw = Math.max(1, Math.min(W, sc.clientWidth || W)), vh = Math.max(1, Math.min(H, sc.clientHeight || H));
+      const ox = Math.max(0, Math.min(W - vw, sc.scrollLeft)), oy = Math.max(0, Math.min(H - vh, sc.scrollTop));
+      if (vw !== this.vw || vh !== this.vh || this.cv.width !== Math.round(vw * r)) { this.cv.width = Math.round(vw * r); this.cv.height = Math.round(vh * r); this.cv.style.width = vw + 'px'; this.cv.style.height = vh + 'px'; this.vw = vw; this.vh = vh; }
+      this.ox = ox; this.oy = oy; this.cv.style.left = ox + 'px'; this.cv.style.top = oy + 'px';
+      this.ctx.setTransform(r, 0, 0, r, -ox * r, -oy * r);
+    }
     types() { return KG.rlml.typeMap(this.doc); }
     fillChar() { return KG.rlml.fillChar(this.doc); }
 
     draw() {
       const d = this.doc, c = this.ctx, cm = colorMap(d), sea = !d.style || d.style === 'sea', tm = sea ? this.types() : null, cw = this.cw, ch = this.ch;
-      c.clearRect(0, 0, d.W * cw, d.H * ch);
+      this.layout();
+      c.clearRect(this.ox, this.oy, this.vw, this.vh);
       c.font = `${ch - 4}px ui-monospace, Menlo, Consolas, monospace`; c.textAlign = 'center'; c.textBaseline = 'middle';
-      for (let j = 0; j < d.H; j++) { const row = d.grid[j]; for (let i = 0; i < d.W; i++) { const k = row[i], t = tm ? tm[k] : null;
+      const i0 = Math.max(0, Math.floor(this.ox / cw)), i1 = Math.min(d.W, Math.ceil((this.ox + this.vw) / cw)), j0 = Math.max(0, Math.floor(this.oy / ch)), j1 = Math.min(d.H, Math.ceil((this.oy + this.vh) / ch));
+      for (let j = j0; j < j1; j++) { const row = d.grid[j]; for (let i = i0; i < i1; i++) { const k = row[i], t = tm ? tm[k] : null;
         const known = cm[k] !== undefined; c.fillStyle = cm[k] || '#fff'; c.fillRect(i * cw, j * ch, cw, ch);
         c.fillStyle = !known ? '#c00' : sea && t === 'water' && k === '~' ? '#9db8d0' : cm[k] === KCOL.solid ? '#f4f1ea' : '#222'; c.fillText(k, i * cw + cw / 2, j * ch + ch / 2 + 1); } }
       for (const a of d.at || []) { const x = (a.x + .5) * cw, y = (a.y + .5) * ch; c.beginPath(); c.arc(x, y, 5.5, 0, 7); c.lineWidth = 2; c.strokeStyle = a.as ? '#c8143c' : '#2f5d8a'; c.stroke(); c.lineWidth = 1; }
@@ -67,7 +84,7 @@
       if (this.viewOnly) return true; // lukutilassa selain vierittää itse (touch-action)
       if (this.touches.size === 2) {
         this.cancel(true);
-        const s = this.cv.parentElement, m = this.mid(); this.pan = { x: m.x, y: m.y, sl: s.scrollLeft, st: s.scrollTop }; this.draw();
+        const s = this.sc, m = this.mid(); this.pan = { x: m.x, y: m.y, sl: s.scrollLeft, st: s.scrollTop }; this.draw();
         return true;
       }
       return this.touches.size > 2 || !!this.pan;
@@ -77,7 +94,7 @@
       this.touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (this.viewOnly) return true;
       if (!this.pan) return false;
-      if (this.touches.size >= 2) { const s = this.cv.parentElement, m = this.mid(); s.scrollLeft = this.pan.sl - (m.x - this.pan.x); s.scrollTop = this.pan.st - (m.y - this.pan.y); }
+      if (this.touches.size >= 2) { const s = this.sc, m = this.mid(); s.scrollLeft = this.pan.sl - (m.x - this.pan.x); s.scrollTop = this.pan.st - (m.y - this.pan.y); }
       return true;
     }
     touchUp(e) {
@@ -97,7 +114,7 @@
       this.drag = this.mv = this.rs = this.band = this.mpan = null;
     }
 
-    cellAt(e) { const r = this.cv.getBoundingClientRect(); return { x: Math.floor((e.clientX - r.left) / this.cw), y: Math.floor((e.clientY - r.top) / this.ch) }; }
+    cellAt(e) { const r = this.sp.getBoundingClientRect(); return { x: Math.floor((e.clientX - r.left) / this.cw), y: Math.floor((e.clientY - r.top) / this.ch) }; }
     inside(p) { return p.x >= 0 && p.y >= 0 && p.x < this.doc.W && p.y < this.doc.H; }
     state() { const d = this.doc; return { grid: d.grid.slice(), areas: JSON.parse(JSON.stringify(d.areas || [])), rules: JSON.parse(JSON.stringify(d.rules || [])) }; }
     restore(s) { this.doc.grid = s.grid; this.doc.areas = s.areas; this.doc.rules = s.rules; }
@@ -142,7 +159,7 @@
     down(e) {
       const p = this.cellAt(e); if (!this.inside(p)) return;
       this.cv.focus({ preventScroll: true }); this.cur = { x: p.x, y: p.y }; this.typeStartX = p.x;
-      if (this.viewOnly) { if (e.button === 0) { const s = this.cv.parentElement; this.mpan = { x: e.clientX, y: e.clientY, sl: s.scrollLeft, st: s.scrollTop }; this.cv.setPointerCapture(e.pointerId); this.pickArea(p); } this.draw(); return; }
+      if (this.viewOnly) { if (e.button === 0) { const s = this.sc; this.mpan = { x: e.clientX, y: e.clientY, sl: s.scrollLeft, st: s.scrollTop }; this.cv.setPointerCapture(e.pointerId); this.pickArea(p); } this.draw(); return; }
       if (this.mode === 'move') {
         if (e.button !== 0) return;
         const name = this.areaUnder(p); if (!name) { this.hooks.status('Tässä kohdassa ei ole nimettyä aluetta'); this.draw(); return; }
@@ -165,7 +182,7 @@
       this.drag = { last: p, changed: this.stamp(p) }; this.cv.setPointerCapture(e.pointerId); this.draw(); if (this.drag.changed) this.hooks.changed(true);
     }
     move(e) {
-      if (this.mpan) { const s = this.cv.parentElement; s.scrollLeft = this.mpan.sl - (e.clientX - this.mpan.x); s.scrollTop = this.mpan.st - (e.clientY - this.mpan.y); return; }
+      if (this.mpan) { const s = this.sc; s.scrollLeft = this.mpan.sl - (e.clientX - this.mpan.x); s.scrollTop = this.mpan.st - (e.clientY - this.mpan.y); return; }
       const p = this.cellAt(e); this.hover = this.inside(p) ? p : null;
       if (this.band) { this.band.x1 = Math.max(0, Math.min(this.doc.W - 1, p.x)); this.band.y1 = Math.max(0, Math.min(this.doc.H - 1, p.y)); this.draw(); return; }
       if (this.rs) { const r = this.rs.rect, d = this.doc, w = Math.max(1, Math.min(d.W - r.x, this.rs.ow + p.x - this.rs.start.x)), h = Math.max(1, Math.min(d.H - r.y, this.rs.oh + p.y - this.rs.start.y)); if (w !== r.w || h !== r.h) { r.w = w; r.h = h; this.rs.changed = true; this.hooks.areasChanged(true); } this.draw(); return; }
@@ -184,7 +201,7 @@
     doUndo() { if (!this.undo.length) return; this.redo.push(this.state()); this.restore(this.undo.pop()); this.hooks.restored(); this.draw(); }
     doRedo() { if (!this.redo.length) return; this.undo.push(this.state()); this.restore(this.redo.pop()); this.hooks.restored(); this.draw(); }
     moveCur(dx, dy, keepStart) { const d = this.doc; this.cur.x = Math.max(0, Math.min(d.W - 1, this.cur.x + dx)); this.cur.y = Math.max(0, Math.min(d.H - 1, this.cur.y + dy)); if (!keepStart) this.typeStartX = this.cur.x; this.scrollTo(); this.draw(); }
-    scrollTo() { const sc = this.cv.parentElement, x = this.cur.x * this.cw, y = this.cur.y * this.ch;
+    scrollTo() { const sc = this.sc, x = this.cur.x * this.cw, y = this.cur.y * this.ch;
       if (x < sc.scrollLeft) sc.scrollLeft = x - 20; else if (x + this.cw > sc.scrollLeft + sc.clientWidth) sc.scrollLeft = x + this.cw - sc.clientWidth + 20;
       if (y < sc.scrollTop) sc.scrollTop = y - 20; else if (y + this.ch > sc.scrollTop + sc.clientHeight) sc.scrollTop = y + this.ch - sc.clientHeight + 20; }
     nudgeArea(dx, dy) {

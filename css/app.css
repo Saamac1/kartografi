@@ -24,7 +24,8 @@ input, select, textarea { font: inherit; }
 .editor, .preview { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
 .preview { border-left: 1px solid var(--line); background: #e9e6df; }
 .scroll { flex: 1; overflow: auto; min-height: 0; }
-#ed { display: block; outline: none; cursor: crosshair; touch-action: none; }
+#ed { display: block; position: absolute; left: 0; top: 0; outline: none; cursor: crosshair; touch-action: none; }
+.edspace { position: relative; }
 #ed:focus { box-shadow: inset 0 0 0 2px var(--accent); }
 .statusline { padding: 3px 8px; font-family: var(--mono); background: var(--panel); border-top: 1px solid var(--line); }
 #pv { padding: 10px; position: relative; }

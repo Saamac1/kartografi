@@ -58,8 +58,8 @@
       <section class="fsec"><h4>Uusi kartta</h4>
         <div class="seg kindseg" id="newKind" role="radiogroup"><button data-kind="sea" class="on">Merikartta</button><button data-kind="cave">Luola</button><button data-kind="ship">Laiva</button></div>
         <div class="row">
-          <label>Leveys <input id="newW" type="number" min="8" max="200" value="64"></label>
-          <label>Korkeus <input id="newH" type="number" min="8" max="200" value="44"></label>
+          <label>Leveys <input id="newW" type="number" min="8" max="1000" value="64"></label>
+          <label>Korkeus <input id="newH" type="number" min="8" max="1000" value="44"></label>
         </div>
         <div class="row">
           <label>Sisältö <select id="newFill"><option value="gen">generoitu</option><option value="blank">tyhjä</option></select></label>
@@ -79,8 +79,8 @@
           <label>Otsikko <input id="mapTitle" type="text" title="Näkyvä nimi (kielitiedostossa KARTTA.NAME)"></label>
         </div>
         <div class="row">
-          <label>Leveys <input id="inW" type="number" min="8" max="200" value="64"></label>
-          <label>Korkeus <input id="inH" type="number" min="8" max="200" value="44"></label>
+          <label>Leveys <input id="inW" type="number" min="8" max="1000" value="64"></label>
+          <label>Korkeus <input id="inH" type="number" min="8" max="1000" value="44"></label>
           <button id="btnResize" title="Rajaa tai laajenna karttaa; laajennus täytetään vedellä tai seinällä">Muuta kokoa</button>
         </div>
         <div class="row"><button id="btnDelMap" title="Poista valittu kartta kartastosta">Poista kartta</button></div>

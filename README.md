@@ -115,6 +115,16 @@ sormi piirtää ja kaksi sormea vierittää. Kumoa ja Tee uudelleen ovat
 yläpalkissa. Esikatselua ei voi irrottaa omaksi
 ikkunakseen.
 
+## Isot kartat
+
+Editori piirtää vain näkyvän osan kartasta, joten satojen ruutujen kartat
+(esim. 640 × 640) toimivat lukemisessa ja muokkauksessa. Yli 160 × 160
+ruudun kartasta esikatselu näyttää 120 × 90 ruudun otteen kursorin ympäriltä
+ja siirtyy kursorin mukana; koko kartan SVG olisi satoja megatavuja.
+Tulostus ja vienti piirtävät koko kartan erikseen, mikä voi kestää ja vaatia
+paljon muistia. Koko kuva yhdelle arkille -tilassa tulostus varoittaa, jos
+ruutu jää alle 2 mm:n; isolle kartalle sopivat A4-lehdet.
+
 ## Tulostus
 
 - **Koko kuva yhdelle arkille:** valitse paperi (A4–A0) ja suunta; kartta
