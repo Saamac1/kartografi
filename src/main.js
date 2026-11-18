@@ -53,7 +53,9 @@
     addRect: r => { if (!selArea) { status('Valitse tai luo alue ensin'); return; } ed.snapshot(); doc.areas.push(Object.assign(r, { name: selArea })); const n = KG.areas.normalize(doc); areaChanged(); if (n) status(`Alueen ${KG.areas.displayName(doc, selArea)} rajaukset yhdistettiin (${n} vähemmän)`); },
     removeRectAt: p => { for (let i = doc.areas.length - 1; i >= 0; i--) { const a = doc.areas[i]; if ((!selArea || a.name === selArea) && p.x >= a.x && p.y >= a.y && p.x < a.x + a.w && p.y < a.y + a.h) { ed.snapshot(); doc.areas.splice(i, 1); areaChanged(); status(`Suorakulmio poistettu alueesta ${a.name}`); return; } } },
     status,
-    onCursor: (c, k) => { const e = doc.legend.find(l => l.ch === k), path = M.at(c.x, c.y).map(n => KG.areas.displayName(doc, n)).join(' › '); $('cursorInfo').textContent = `x ${c.x}, y ${c.y}   "${k}" ${e ? e.name : 'tuntematon merkki'}   ${path ? '▸ ' + path : ''}`; followCursor(false); },
+    onCursor: (c, k) => { const e = doc.legend.find(l => l.ch === k), path = M.at(c.x, c.y).map(n => KG.areas.displayName(doc, n)).join(' › '), at = doc.atlas;
+      const pos = at ? `${KG.rlml.sheetId(at, Math.floor(c.x / at.sw), Math.floor(c.y / at.sh))} · ${c.x % at.sw},${c.y % at.sh}  (x ${c.x}, y ${c.y})` : `x ${c.x}, y ${c.y}`;
+      $('cursorInfo').textContent = `${pos}   "${k}" ${e ? e.name : 'tuntematon merkki'}   ${path ? '▸ ' + path : ''}`; followCursor(false); },
   });
   function buildPalette() {
     const p = $('palette'); p.innerHTML = ''; const cmap = KG.editorColors(doc);
@@ -338,7 +340,18 @@
     if (!/^[A-Z_][A-Z0-9_.]*$/.test(v)) { status('Tunnuksessa saa olla isoja kirjaimia, numeroita, _ ja .'); e.target.value = doc.name; return; }
     if (v !== doc.name && doc.file.maps.some(m => m.name === v)) { status(`Kartta ${v} on jo kartastossa`); e.target.value = doc.name; return; }
     doc.name = v; touched(); fillFileTab(); };
-  $('btnResize').onclick = () => { if (+$('inW').value === doc.W && +$('inH').value === doc.H) { status('Kartta on jo tämän kokoinen'); return; } remember('koon muutos'); KG.rlml.resize(doc, +$('inW').value, +$('inH').value); ed.undo = []; afterDocChange(); };
+  $('btnResize').onclick = () => { let W = +$('inW').value, H = +$('inH').value; const at = doc.atlas;
+    // atlaksen koko on aina kokonaisia lehtiä
+    if (at) { at.cols = Math.max(1, Math.ceil(W / at.sw)); at.rows = Math.max(1, Math.ceil(H / at.sh)); W = at.cols * at.sw; H = at.rows * at.sh; }
+    if (W === doc.W && H === doc.H) { status('Kartta on jo tämän kokoinen'); return; } remember('koon muutos'); KG.rlml.resize(doc, W, H);
+    if (at) { at.atRows = at.atRows.filter(a => a.x < W && a.y < H); doc.at = doc.at.filter(a => a.x < W && a.y < H); status(`Atlas: ${at.cols} × ${at.rows} lehteä`); } ed.undo = []; afterDocChange(); };
+  // karttalehdet: jako, lehtijaon muutos, tallennustapa ja purku
+  $('btnAtlas').onclick = () => { const sw = +$('sheetW').value, sh = +$('sheetH').value; if (!(sw >= 4 && sh >= 4)) { status('Anna lehden koko (vähintään 4 × 4)'); return; }
+    if (doc.atlas) { if (sw === doc.atlas.sw && sh === doc.atlas.sh) { status('Lehtijako on jo tämä'); return; } remember('lehtijaon muutos'); const n = KG.rlml.resplitAtlas(doc, sw, sh); ed.undo = []; afterDocChange(); status(`Lehtijako muutettiin: ${doc.atlas.cols} × ${doc.atlas.rows} lehteä${n ? `; ${n} lehtikohtaista aluetta nimettiin uudelleen` : ''}`); return; }
+    remember('karttalehtiin jako'); const fill = KG.rlml.specNames((doc.legend.find(e => e.ch === KG.rlml.fillChar(doc)) || { spec: '' }).spec)[0] || null;
+    KG.rlml.makeAtlas(doc, sw, sh, fill); ed.undo = []; afterDocChange(); status(`Kartta jaettiin ${doc.atlas.cols} × ${doc.atlas.rows} karttalehdeksi (${doc.name}.A01 …)`); };
+  $('atlasLayout').onchange = e => { if (!doc.atlas) return; doc.atlas.layout = e.target.value; touched(); fillFileTab(); status(e.target.value === 'files' ? 'Lehdet tallennetaan omiin tiedostoihinsa' : 'Lehdet tallennetaan yhteen tiedostoon'); };
+  $('btnUnatlas').onclick = () => { if (!doc.atlas) return; remember('lehtijaon purku'); KG.rlml.unmakeAtlas(doc); ed.undo = []; afterDocChange(); status('Lehtijako purettiin: kartta on taas yksi kartta'); };
   $('btnDelMap').onclick = () => { const f = doc.file; if (f.maps.length < 2) { status('Kartastossa on vain tämä kartta: aloita uusi kartasto tai korvaa kartta'); return; }
     remember('kartan ' + doc.name + ' poisto'); const i = f.maps.indexOf(doc), n = doc.name; f.maps.splice(i, 1); doc = f.maps[Math.max(0, i - 1)]; afterDocChange(); status(`Kartta ${n} poistettiin – Palauta edellinen tuo sen takaisin`); };
   // kaikki kartaston tiedostot peräkkäin (artefaktissa jokainen vahvistetaan erikseen)
@@ -403,20 +416,30 @@
     if (force) srcBuf = [];
     // puhtaat tiedostot päivitetään mallista; muokatut ja uudet säilyvät
     const keep = srcBuf.filter(b => b.isNew || b.removed || b.text !== b.orig);
-    srcBuf = files.map(f => { const k = keep.find(b => b.name === f.name && !b.isNew); return k || { name: f.name, kind: f.kind, lang: f.lang, text: f.text, orig: f.text }; })
+    srcBuf = files.map(f => { const k = keep.find(b => b.name === f.name && !b.isNew); return k || { name: f.name, kind: f.kind, lang: f.lang, sheet: f.sheet, text: f.text, orig: f.text }; })
       .concat(keep.filter(b => b.isNew));
     if (!srcBuf.some(b => b.name === srcCur)) srcCur = (srcBuf.find(b => b.kind === 'map') || srcBuf[0]).name;
     buildSrcTabs(); showSrcFile(); buildMapCards($('srcMaps'), true); srcState();
   }
   function buildSrcTabs() {
     const el = $('srcTabs'); el.innerHTML = '';
+    // atlaksen lehtitiedostot yhden välilehden alla, kun niitä on paljon
+    const sheets = srcBuf.filter(b => b.sheet), group = sheets.length > 6;
     for (const b of srcBuf) {
+      if (group && b.sheet) { if (b !== sheets[0]) continue;
+        const t = document.createElement('button'), on = sheets.some(x => x.name === srcCur), nd = sheets.filter(x => x.isNew || x.removed || x.text !== x.orig).length;
+        t.className = 'srctab' + (on ? ' on' : '') + (nd ? ' dirty' : ''); t.title = 'Atlaksen karttalehdet omissa tiedostoissaan';
+        t.innerHTML = `<span class="k">lehdet</span> ${sheets.length} tiedostoa${nd ? ' •' : ''} `;
+        const sel = document.createElement('select'); sel.className = 'sheetsel';
+        sel.innerHTML = sheets.map(x => `<option value="${x.name}"${x.name === srcCur ? ' selected' : ''}>${x.sheet}${x.isNew || x.removed || x.text !== x.orig ? ' •' : ''}</option>`).join('');
+        sel.onclick = ev => ev.stopPropagation(); sel.onchange = () => { srcCur = sel.value; buildSrcTabs(); showSrcFile(); };
+        t.appendChild(sel); t.onclick = () => { if (!on) { srcCur = sel.value; buildSrcTabs(); showSrcFile(); } }; el.appendChild(t); continue; }
       const t = document.createElement('button'), dirty = b.isNew || b.removed || b.text !== b.orig;
       t.className = 'srctab' + (b.name === srcCur ? ' on' : '') + (dirty ? ' dirty' : '') + (b.removed ? ' removed' : '');
       t.title = `${b.name} (${KIND_LABEL[b.kind]}${b.lang ? ' ' + b.lang : ''})${b.removed ? ' – poistetaan, kun muutokset hyväksytään' : dirty ? ' – hyväksymättömiä muutoksia' : ''}`;
       t.innerHTML = `<span class="k">${KIND_LABEL[b.kind]}</span> ${b.name.replace(/</g, '&lt;')}${dirty ? ' •' : ''}`;
       t.onclick = () => { srcCur = b.name; buildSrcTabs(); showSrcFile(); };
-      const primaryLang = b.kind === 'lang' && b === srcBuf.find(x => x.kind === 'lang'), canDel = !primaryLang && (b.kind !== 'map' || srcBuf.filter(x => x.kind === 'map' && !x.removed).length > 1 || b.removed);
+      const primaryLang = b.kind === 'lang' && b === srcBuf.find(x => x.kind === 'lang'), isAtlasMain = b.kind === 'map' && !b.sheet && /^atlas\s/m.test(b.text) && sheets.length > 0, canDel = !primaryLang && !isAtlasMain && (b.kind !== 'map' || b.sheet || srcBuf.filter(x => x.kind === 'map' && !x.sheet && !x.removed).length > 1 || b.removed);
       if (canDel && b.kind !== 'style') { const x = document.createElement('span'); x.className = 'x'; x.textContent = b.removed ? '↺' : '✕'; x.title = b.removed ? 'Peru poisto' : 'Poista tiedosto kartastosta (kun muutokset hyväksytään)';
         x.onclick = ev => { ev.stopPropagation(); if (b.isNew) srcBuf = srcBuf.filter(y => y !== b); else b.removed = !b.removed; refreshSrcView(); }; t.appendChild(x); }
       el.appendChild(t);
@@ -507,7 +530,7 @@
       const fig = document.createElement('figure'); fig.className = 'mapcard' + (m === doc ? ' on' : ''); fig.tabIndex = 0;
       const cv = document.createElement('canvas'); drawThumb(cv, m, compact ? 170 : 200, compact ? 110 : 130); fig.appendChild(cv);
       const cap = document.createElement('figcaption');
-      cap.innerHTML = `<b>${(m.title || m.name).replace(/</g, '&lt;')}</b><span>${m.name} · ${KIND_NAMES[m.style] || 'merikartta'} · ${m.W} × ${m.H}${f && f.parts.length > 1 && m.src ? ' · ' + m.src.name : ''}</span>`;
+      cap.innerHTML = `<b>${(m.title || m.name).replace(/</g, '&lt;')}</b><span>${m.name} · ${KIND_NAMES[m.style] || 'merikartta'}${m.atlas ? ` · atlas ${m.atlas.cols} × ${m.atlas.rows} lehteä` : ''} · ${m.W} × ${m.H}${f && f.parts.length > 1 && m.src ? ' · ' + m.src.name : ''}</span>`;
       fig.appendChild(cap); fig.title = compact ? 'Näytä kartan lähdekoodi' : 'Napsauta: valitse · kaksoisnapsauta: muokkaa';
       fig.onclick = () => { selectMap(i); if (compact) srcShowMap(m); };
       fig.ondblclick = () => { if (!compact) setTab('edit'); };
@@ -517,19 +540,27 @@
   }
   // kartan valinta Lähdekoodissa: sen tiedoston välilehti ja map-rivi näkyviin
   function srcShowMap(m) {
-    const nm = m.src ? m.src.name : null, b = srcBuf.find(x => x.name === nm) || srcBuf.find(x => x.kind === 'map'); if (!b) return;
+    let nm = m.src ? m.src.name : null;
+    // atlas, lehti per tiedosto: kursorin lehden tiedosto
+    if (m.atlas && m.atlas.layout === 'files' && m === doc) { const id = KG.rlml.sheetId(m.atlas, Math.floor(ed.cur.x / m.atlas.sw), Math.floor(ed.cur.y / m.atlas.sh)), sb = srcBuf.find(x => x.sheet === id); if (sb) { srcCur = sb.name; buildSrcTabs(); showSrcFile(); return; } }
+    const b = srcBuf.find(x => x.name === nm) || srcBuf.find(x => x.kind === 'map'); if (!b) return;
     srcCur = b.name; buildSrcTabs(); showSrcFile();
-    const ta = $('srcTa'), re = new RegExp('^map\\s+' + m.name.replace(/\./g, '\\.') + '\\b', 'm'), mm = re.exec(ta.value); if (!mm) return;
+    const ta = $('srcTa'), re = new RegExp('^(map|atlas)\\s+' + m.name.replace(/\./g, '\\.') + '\\b', 'm'), mm = re.exec(ta.value); if (!mm) return;
     const line = ta.value.slice(0, mm.index).split('\n').length - 1, lh = parseFloat(getComputedStyle(ta).lineHeight) || 16;
     ta.scrollTop = Math.max(0, line * lh - 8); ta.setSelectionRange(mm.index, mm.index + mm[0].length);
   }
   function fillFileTab() {
     const f = doc.file; $('atlasTitle').value = f.title || ''; buildMapCards($('mapCards'), false);
     const files = projFiles().filter(x => x.text.trim());
-    $('atlasFiles').textContent = 'Tiedostot: ' + files.map(x => x.name).join(', ');
+    const sh = files.filter(x => x.sheet), rest = files.filter(x => !x.sheet);
+    $('atlasFiles').textContent = 'Tiedostot: ' + rest.map(x => x.name).join(', ') + (sh.length ? ` sekä ${sh.length} karttalehteä (${sh[0].name} … ${sh[sh.length - 1].name})` : '');
     $('selInfo').innerHTML = `<b>${(doc.title || doc.name).replace(/</g, '&lt;')}</b> – ${KIND_NAMES[doc.style] || 'merikartta'}, ${doc.W} × ${doc.H} ruutua. <span class="hint">Piirtotapa (merikartta, luola, laiva) on paperityylin <code>maps.theme paper</code> -rivillä; sen voi vaihtaa Lähdekoodissa.</span>`;
     $('mapId').value = doc.name; $('mapTitle').value = doc.title || ''; $('inW').value = doc.W; $('inH').value = doc.H;
     $('btnDelMap').disabled = f.maps.length < 2; newFormHints();
+    const at = doc.atlas; $('atlasOpts').hidden = !at; $('btnAtlas').textContent = at ? 'Muuta lehtijakoa' : 'Jaa karttalehdiksi';
+    if (at) { const n = KG.rlml.sheetParts(doc).filter(S => !S.empty).length; $('sheetW').value = at.sw; $('sheetH').value = at.sh; $('atlasLayout').value = at.layout || 'single';
+      $('atlasInfo').innerHTML = `Atlas <b>${doc.name}</b>: ${at.cols} × ${at.rows} lehteä (${KG.rlml.sheetId(at, 0, 0)}–${KG.rlml.sheetId(at, at.cols - 1, at.rows - 1)}), lehti ${at.sw} × ${at.sh} ruutua. Tallennettavia lehtiä ${n}; kokonaan ${at.fill || 'täyttöä'} olevat lehdet jätetään pois. Lehdet ovat RLML-karttoja <code>${doc.name}.A01</code> …, ja editori näyttää lehtien rajat.`; }
+    else $('atlasInfo').innerHTML = 'Iso kartta voidaan tallentaa karttalehtinä: jokainen lehti on oma RLML-kartta (<code>' + doc.name + '.A01</code>, <code>' + doc.name + '.B10</code> …; kirjain on sarake, numero rivi). Lehden koko kirjoitetaan atlaksen <code>atlas</code>-riville.';
   }
   function afterDocChange() { ed.undo = []; ed.redo = []; { const n = KG.areas.normalize(doc); if (n) doc.warnings = (doc.warnings || []).concat(`Sisäkkäisiä rajauksia yhdistettiin: ${n}`); } buildLegendPick(); selArea = null; refreshModel(); fillNames(); buildPalette(); buildAreaList(); ed.setDoc(); touched(); if (doc.warnings && doc.warnings.length) status(doc.warnings[0]); }
   afterDocChange(); setTab(store.get('kg.tab') || 'file');

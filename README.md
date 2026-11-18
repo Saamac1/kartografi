@@ -115,6 +115,53 @@ sormi piirtää ja kaksi sormea vierittää. Kumoa ja Tee uudelleen ovat
 yläpalkissa. Esikatselua ei voi irrottaa omaksi
 ikkunakseen.
 
+## Karttalehdet (atlas)
+
+Ison kartan voi tallentaa karttalehtinä (RLML, dataformaatit 8.12):
+
+```
+atlas MAAILMA sheet 64x48 grid 10x14 fill WATER
+
+legend:
+- ~ WATER
+- . GRASS
+
+areas:
+- 120,40 size 90x60 as NORSUSAARI
+
+## B10
+
+map MAAILMA.B10
+
+```
+(64 × 48 ruudun piirros)
+```
+
+areas:
+- 3,4 size 6x5 as LAHDE
+```
+
+- `sheet` on lehden koko ja `grid` lehtien määrä (sarakkeet × rivit).
+  Lehti on tavallinen kartta `MAAILMA.<sarake><rivi>`: kirjain on sarake,
+  numero rivi (`A01` vasen yläkulma, Z:n jälkeen `AA`). Puuttuva lehti on
+  `fill`-tileä.
+- Atlaksen `legend:`, `vars:` ja `areas:` koskevat kaikkia lehtiä; atlaksen
+  alueet ovat atlaksen koordinaateissa. Lehden omat alueet ja `at:`-rivit ovat
+  lehden koordinaateissa.
+- Työkalu kokoaa lehdet yhdeksi kartaksi. Lehtikohtainen alue näkyy nimellä
+  `B10.LAHDE`, ja sen nimi on kielitiedostossa `MAAILMA.B10.LAHDE.NAME`.
+  Jos samalla merkillä on eri lehdissä eri merkitys, merkki vaihdetaan ja
+  siitä varoitetaan.
+- Tallennus jakaa kartan lehdiksi. Kokonaan täyttöä olevat lehdet jätetään
+  pois. Valittavissa on yksi tiedosto tai lehti per tiedosto
+  (`maailma.rlml.md` atlaksen ja legendan kanssa sekä `maailma-A01.rlml.md`
+  …). Lähdekoodi-välilehdellä lehtitiedostot ovat yhden välilehden alla.
+- Tiedosto → *Karttalehdet*: *Jaa karttalehdiksi*, *Muuta lehtijakoa*
+  (lehtikohtaiset alueet nimetään uudelleen `B10_LAHDE`, koska tunnukset
+  vaihtuvat), tallennustapa ja *Pura lehtijako*. *Muuta kokoa* pyöristää
+  atlaksen kokonaisiin lehtiin.
+- Pelissä lehdeltä toiselle kuljetaan reunan yli (moottori, luku 6.10).
+
 ## Isot kartat
 
 Editori piirtää vain näkyvän osan kartasta, joten satojen ruutujen kartat

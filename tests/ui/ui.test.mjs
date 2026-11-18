@@ -443,3 +443,39 @@ test('iso kartta (640 × 640) avautuu lukuun ja muokkaukseen; esikatselu näytt�
   assert.deepEqual(errors, []);
   await close();
 });
+
+test('karttalehdet: jako, lehtirajat, tilarivin lehti ja lehti per tiedosto -tallennus', async () => {
+  const { page, errors, close } = await open(1440, 860);
+  await page.$eval('#newW', el => { el.value = '130'; }); await page.$eval('#newH', el => { el.value = '100'; });
+  await page.click('#btnReplaceMap'); await wait(300);
+  await page.$eval('#sheetW', el => { el.value = '64'; }); await page.$eval('#sheetH', el => { el.value = '48'; });
+  await page.click('#btnAtlas'); await wait(300);
+  assert.deepEqual(await page.evaluate(() => [KG_APP.doc.W, KG_APP.doc.H, KG_APP.doc.atlas.cols, KG_APP.doc.atlas.rows]), [192, 144, 3, 3]);
+  assert.match(await page.$eval('#atlasInfo', el => el.textContent), /3 × 3 lehteä \(A01–C03\)/);
+  const names = await page.evaluate(() => KG.rlml.projectFiles(KG_APP.doc.file)[0].text.match(/^map \S+$/gm));
+  assert.ok(names.length >= 4 && names[0] === 'map MERIKARTTA.A01', names.join(','));
+  // tilarivi kertoo lehden
+  await tab(page, 'edit');
+  await page.evaluate(() => document.getElementById('edScroll').scrollTo(64 * 13, 48 * 17)); await wait(300);
+  const r = await (await page.$('#edScroll')).boundingBox(); await page.mouse.click(r.x + 20, r.y + 20); await wait(150);
+  assert.match(await page.$eval('#cursorInfo', el => el.textContent), /^B02 · \d+,\d+/);
+  // lehti per tiedosto; Lähdekoodissa lehdet yhden välilehden alla
+  await tab(page, 'file'); await page.select('#atlasLayout', 'files'); await wait(200);
+  const files = await page.evaluate(() => KG.rlml.projectFiles(KG_APP.doc.file).map(f => f.name));
+  assert.ok(files.includes('kapteeni_aaltolan_kartta-A01.rlml.md'), files.join(','));
+  await tab(page, 'src');
+  const tabsText = await page.$$eval('#srcTabs .srctab', ts => ts.map(t => t.textContent));
+  assert.ok(tabsText.some(t => /lehdet/.test(t)) === (files.length - 3 > 6), tabsText.join(' | '));
+  // muokattu lehti ja hyväksyntä: atlas kootaan uudelleen
+  const sheetFile = files.find(n => /-B02\.rlml\.md$/.test(n));
+  await page.evaluate(n => { const sel = document.querySelector('#srcTabs .sheetsel'); if (sel) { sel.value = n; sel.dispatchEvent(new Event('change')); } else [...document.querySelectorAll('#srcTabs .srctab')].find(t => t.textContent.includes(n)).click(); }, sheetFile); await wait(100);
+  await page.$eval('#srcTa', el => { const lines = el.value.split('\n'), i = lines.findIndex(l => l === '```') + 1; lines[i] = 'X' + lines[i].slice(1); el.value = lines.join('\n'); el.dispatchEvent(new Event('input')); });
+  await page.click('#btnSrcApply'); await wait(300);
+  assert.equal(await page.evaluate(() => KG_APP.doc.grid[48][64]), 'X');
+  assert.equal(await page.evaluate(() => KG_APP.doc.file.maps.length), 1);
+  // purku palauttaa tavallisen kartan
+  await tab(page, 'file'); await page.click('#btnUnatlas'); await wait(200);
+  assert.equal(await page.evaluate(() => !!KG_APP.doc.atlas), false);
+  assert.deepEqual(errors, []);
+  await close();
+});

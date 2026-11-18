@@ -85,6 +85,18 @@
         </div>
         <div class="row"><button id="btnDelMap" title="Poista valittu kartta kartastosta">Poista kartta</button></div>
       </section>
+      <section class="fsec"><h4>Karttalehdet</h4>
+        <p class="hint" id="atlasInfo"></p>
+        <div class="row">
+          <label>Lehden leveys <input id="sheetW" type="number" min="4" max="1000" value="64"></label>
+          <label>korkeus <input id="sheetH" type="number" min="4" max="1000" value="48"></label>
+          <button id="btnAtlas" title="Jaa kartta tämän kokoisiksi karttalehdiksi">Jaa karttalehdiksi</button>
+        </div>
+        <div class="row" id="atlasOpts" hidden>
+          <label>Tallennus <select id="atlasLayout"><option value="single">kaikki lehdet yhteen tiedostoon</option><option value="files">lehti per tiedosto (nimi-A01.rlml.md …)</option></select></label>
+          <button id="btnUnatlas" title="Poista lehtijako: atlaksesta tulee tavallinen kartta">Pura lehtijako</button>
+        </div>
+      </section>
     </div>
 
     <div class="panel" data-for="print" id="tPrint">
@@ -177,6 +189,8 @@
       <p>Kartasto on joukko karttoja (esimerkiksi pelin merikartta, laivan kannet ja luolat) sekä niiden yhteinen paperityyli ja nimet. <b>Avaa…</b> lukee kartaston RLML-tiedostot (valitse kaikki kerralla), <b>Tallenna</b> tallentaa ne, ja <b>Esimerkki</b> avaa valmiin kartaston.</p>
       <p><b>Uusi kartta</b>: valitse laji (merikartta, luola tai laiva), koko ja sisältö (generoitu tai tyhjä). <b>Lisää kartastoon</b> tuo kartan nykyiseen kartastoon, <b>Korvaa valittu</b> vaihtaa valitun kartan sisällön ja <b>Aloita uusi kartasto</b> aloittaa alusta pelkällä tällä kartalla. Kartan laji määrää piirtotavan, joten sitä ei valita erikseen. Korvaavat toiminnot voi perua yläpalkin <b>Palauta edellinen</b> -painikkeella.</p>
       <p><b>Kartat</b>-kohdan kortista valitaan muokattava kartta (kaksoisnapsautus avaa muokkauksen). <b>Valittu kartta</b>: tunnus, otsikko, koko ja poisto.</p>
+      <h4>Karttalehdet</h4>
+      <p>Ison kartan voi tallentaa karttalehtinä: <b>Karttalehdet</b>-kohdassa annetaan lehden koko, ja <b>Jaa karttalehdiksi</b> tekee kartasta atlaksen. Jokainen lehti on oma RLML-kartta (<code>MAAILMA.A01</code>, <code>MAAILMA.B10</code>; kirjain on sarake ja numero rivi). Editori näyttää lehtien rajat ja tunnukset, ja tilarivi näyttää lehden ja sijainnin lehdellä. Lehdet tallennetaan joko yhteen tiedostoon tai kukin omaansa (<code>maailma-A01.rlml.md</code> …); kokonaan täyttöä olevat lehdet jätetään pois. Lehtikohtaiset alueet näkyvät nimellä <code>A01.NIMI</code>, ja lehtirajan ylittävät alueet kuuluvat atlakselle.</p>
       <h4>Lähdekoodi</h4>
       <p>Kartaston RLML-tiedostot omilla välilehdillään: karttatiedostot, paperityyli ja kielet. Vasemman laidan kortti näyttää kartan kohdan lähdekoodissa. <b>+ Uusi tiedosto</b> lisää kartta- tai kielitiedoston. Muokkaukset jäävät odottamaan (• välilehdellä), kunnes <b>Hyväksy muutokset</b> ottaa kaikkien tiedostojen muutokset käyttöön kerralla tai <b>Peru muutokset</b> hylkää ne. ✕ poistaa tiedoston kartastosta hyväksyttäessä.</p>
       <h4>Nimet ja Tulostus</h4>

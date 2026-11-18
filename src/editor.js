@@ -70,6 +70,18 @@
         c.lineWidth = on ? 3 : 1.5; c.strokeStyle = on ? 'rgba(200,20,60,.95)' : `hsla(${(A.level * 70 + 210) % 360},70%,35%,.75)`; c.setLineDash(on ? [] : [5, 3]);
         c.strokeRect(a.x * cw + 1, a.y * ch + 1, a.w * cw - 2, a.h * ch - 2); }
       c.setLineDash([]); c.lineWidth = 1;
+      // atlaksen karttalehtien rajat ja tunnukset
+      if (d.atlas) { const at = d.atlas, sw = at.sw * cw, sh = at.sh * ch, x0 = this.ox, y0 = this.oy, x1 = x0 + this.vw, y1 = y0 + this.vh;
+        c.strokeStyle = 'rgba(120,40,140,.75)'; c.lineWidth = 1.5; c.setLineDash([7, 4]); c.beginPath();
+        for (let i = 1; i < at.cols; i++) { const x = i * sw; if (x >= x0 && x <= x1) { c.moveTo(x, y0); c.lineTo(x, y1); } }
+        for (let j = 1; j < at.rows; j++) { const y = j * sh; if (y >= y0 && y <= y1) { c.moveTo(x0, y); c.lineTo(x1, y); } }
+        c.stroke(); c.setLineDash([]); c.lineWidth = 1;
+        c.font = 'bold 12px system-ui, sans-serif'; c.textAlign = 'left'; c.textBaseline = 'top';
+        for (let j = Math.floor(y0 / sh); j * sh < y1 && j < at.rows; j++) for (let i = Math.floor(x0 / sw); i * sw < x1 && i < at.cols; i++) {
+          const id = KG.rlml.sheetId(at, i, j), tx = Math.max(i * sw, x0) + 4, ty = Math.max(j * sh, y0) + 3, w = c.measureText(id).width + 6;
+          c.fillStyle = at.present && at.present.has(id) ? 'rgba(255,255,255,.85)' : 'rgba(235,235,235,.7)'; c.fillRect(tx - 3, ty - 2, w, 16);
+          c.fillStyle = at.present && at.present.has(id) ? '#5a2070' : '#999'; c.fillText(id, tx, ty); }
+        c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = `${ch - 4}px ui-monospace, Menlo, Consolas, monospace`; }
       if (!this.readOnly && this.mode === 'area' && sel) for (const a of d.areas || []) if (a.name === sel && (a.w > 1 || a.h > 1)) { c.fillStyle = 'rgba(200,20,60,.95)'; c.fillRect((a.x + a.w) * cw - 9, (a.y + a.h) * ch - 9, 8, 8); }
       if (this.band) { const b = this.norm(this.band); c.fillStyle = 'rgba(200,20,60,.12)'; c.fillRect(b.x * cw, b.y * ch, b.w * cw, b.h * ch); c.strokeStyle = '#c8143c'; c.lineWidth = 2; c.strokeRect(b.x * cw + 1, b.y * ch + 1, b.w * cw - 2, b.h * ch - 2); c.lineWidth = 1; }
       if (this.hover && !this.viewOnly && this.mode === 'paint') { const n = this.brushSize, o = Math.floor((n - 1) / 2); c.strokeStyle = 'rgba(0,0,0,.6)'; c.strokeRect((this.hover.x - o) * cw + .5, (this.hover.y - o) * ch + .5, n * cw - 1, n * ch - 1); }

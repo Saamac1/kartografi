@@ -216,3 +216,4 @@ button.primary { font-weight: 600; }
 .srcnote { color: #a55a00; font-weight: 600; }
 #btnSrcApply.dirty { background: var(--accent); color: #fff; border-color: var(--accent); }
 #srcTa { white-space: pre; overflow: auto; }
+.srctab .sheetsel { margin-left: 4px; font-size: 12px; padding: 0 2px; }

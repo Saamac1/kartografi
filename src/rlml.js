@@ -137,9 +137,16 @@
       const ln = lines[i], t = ln.trim(); let mm;
       if ((mm = t.match(/^##\s+(.+)$/))) { closeRaw(); section = null; pendingHeading = mm[1].trim(); continue; }
       if (!file.title && !file.maps.length && !m && (mm = t.match(/^#\s+(.+)$/))) { file.title = mm[1].trim(); continue; }
-      if ((mm = t.match(/^map\s+(\S+)\s+size\s+(\d+)\s*x\s*(\d+)/i))) {
+      if ((mm = t.match(/^atlas\s+(\S+)\s+sheet\s+(\d+)\s*x\s*(\d+)\s+grid\s+(\d+)\s*x\s*(\d+)(?:\s+fill\s+(\S+))?\s*$/i))) {
         closeRaw(); section = null;
-        m = newMap(+mm[2], +mm[3]); m.name = mm[1]; attach(m, file);
+        m = newMap(0, 0); m.name = mm[1]; m.isAtlasBlock = true; attach(m, file);
+        m.atlas = { sw: +mm[2], sh: +mm[3], cols: +mm[4], rows: +mm[5], fill: mm[6] || null, layout: 'single', meta: {}, atRows: [] };
+        if (pendingHeading) { m.title = pendingHeading; m.hasHeading = true; } else m.title = file.title;
+        pendingHeading = null; file.maps.push(m); legacy.set(m, []); continue;
+      }
+      if ((mm = t.match(/^map\s+(\S+)(?:\s+size\s+(\d+)\s*x\s*(\d+))?\s*$/i))) {
+        closeRaw(); section = null;
+        m = newMap(mm[2] ? +mm[2] : 0, mm[3] ? +mm[3] : 0); m.name = mm[1]; m.sizeGiven = !!mm[2]; attach(m, file);
         if (pendingHeading) { m.title = pendingHeading; m.hasHeading = true; } else m.title = file.title;
         pendingHeading = null; file.maps.push(m); legacy.set(m, []); continue;
       }
@@ -174,7 +181,9 @@
     closeRaw();
     if (!file.maps.length) { const b = blankDoc(16, 10); attach(b, file); file.maps.push(b); b.warnings.push('Tiedostossa ei ollut karttaa'); }
     for (const map of file.maps) {
+      map.hadLegend = map.legend.length > 0;
       if (!map.legend.length) map.legend = DEFAULT_LEGEND.map(e => Object.assign({}, e));
+      if (map.isAtlasBlock) { normalize(map); continue; }
       if (!map.H) map.H = map.grid.length;
       if (!map.W) map.W = map.grid.reduce((a, r) => Math.max(a, r.length), 0);
       const lg = legacy.get(map) || [];
@@ -234,7 +243,7 @@
     const first = file.maps[0], title = first && !first.hasHeading ? first.title : file.title;
     let s = title ? `# ${title}\n\n` : '';
     if (file.preamble.length) s += file.preamble.join('\n') + '\n\n';
-    s += file.maps.map(serializeMap).join('\n');
+    s += file.maps.map(m => m.atlas ? serializeAtlasBlock(m) + (m.atlas.layout === 'files' ? '' : sheetParts(m).filter(S => !S.empty).map(S => '\n' + serializeSheet(m, S)).join('')) : serializeMap(m)).join('\n');
     return s;
   }
   // ---- projekti: karttatiedosto + tyylitiedosto (paper) + kielitiedosto
@@ -296,7 +305,9 @@
       for (const g of st.glyphs) { const r = g.tile.toUpperCase(); if (g.decor && roots.includes(r) && !m.atDecor.includes(r)) m.atDecor.push(r); }
       const tr = st.glyphs.filter(g => g.kind).map(g => ({ tile: g.tile, kind: g.kind, opts: g.opts.slice() }));
       if (tr.length) { const have = new Set(tr.map(r => r.tile)); m.tileRules = tr.concat((m.tileRules || []).filter(r => !have.has(r.tile))); }
-      const rules = st.labels.filter(r => !r.map || r.map === m.name).map(r => { const o = Object.assign({}, r); delete o.map; return o; });
+      // atlaksen lehden rivi (in MAAILMA.B10) koskee lehtikohtaista aluetta B10.NIMI
+      const sheetRule = r => m.atlas && r.map && r.map.startsWith(m.name + '.') && parseSheetId(r.map.slice(m.name.length + 1));
+      const rules = st.labels.filter(r => !r.map || r.map === m.name || sheetRule(r)).map(r => { const o = Object.assign({}, r); if (sheetRule(r) && o.name != null) o.name = r.map.slice(m.name.length + 1) + '.' + o.name; delete o.map; return o; });
       if (rules.length) m.rules = (m.rules || []).concat(rules);
       if (m.style !== 'sea' || m.styleSet) refreshNames(m);
     }
@@ -315,6 +326,125 @@
     file.lang = L.lang;
     file.langOther = (file.langOther || []).concat(Object.keys(L.keys).filter(k => !used.has(k)).map(k => `${k} ${L.keys[k]}`));
   }
+  // ---- atlas (dataformaatit 8.12): iso kartta karttalehtinä NIMI.A01, NIMI.B10 …
+  // Kirjain on sarake ja numero rivi; lehdet kootaan yhdeksi kartaksi ja jaetaan tallennettaessa takaisin.
+  const colName = i => { let s = ''; for (i++; i > 0; i = Math.floor((i - 1) / 26)) s = String.fromCharCode(65 + (i - 1) % 26) + s; return s; };
+  const colIndex = s => [...s].reduce((a, c) => a * 26 + c.charCodeAt(0) - 64, 0) - 1;
+  const sheetId = (at, c, r) => colName(c) + String(r + 1).padStart(at.rows > 99 ? 3 : 2, '0');
+  const parseSheetId = s => { const m = /^([A-Z]+)(\d+)$/.exec(s); return m ? { c: colIndex(m[1]), r: +m[2] - 1 } : null; };
+  // lehtikohtaisen alueen nimi kootussa kartassa: LEHTI.ALUE (B10.LAHDE)
+  const sheetOfArea = (at, name) => { const i = name.indexOf('.'); if (i < 0) return null; const p = parseSheetId(name.slice(0, i)); return p && p.c < at.cols && p.r < at.rows ? { id: name.slice(0, i), local: name.slice(i + 1), c: p.c, r: p.r } : null; };
+  const atLine = /^-\s*(\d+)\s*,\s*(\d+)(\s+.*)?$/;
+  const atRowsToAt = rows => rows.map(r => { const mm = /\b(as|with)\s+(\S+)/i.exec(r.rest || ''); return mm ? { x: r.x, y: r.y, [mm[1].toLowerCase()]: mm[2] } : null; }).filter(Boolean);
+  function freeChar(used, pref) { for (const c of (pref || '') + '~.,#TDYnrXKCshRSV:;=+*o0123456789abcdefgijklmpqtuvwxyzABEFGHIJLMNOPQUWZ') if (!used.has(c)) return c; return null; }
+  function atlasFillChar(A) {
+    const at = A.atlas; if (!at.fill) return fillChar(A);
+    let e = A.legend.find(l => specNames(l.spec)[0] === at.fill && !/\s/.test(l.spec));
+    if (!e) e = A.legend.find(l => specNames(l.spec)[0] === at.fill);
+    if (!e) { const ch = freeChar(new Set(A.legend.map(l => l.ch)), at.fill.startsWith('WATER') || at.fill.startsWith('SEA') ? '~' : at.fill.startsWith('WALL') ? '#' : '.'); e = { ch, spec: at.fill, name: '' }; A.legend.push(e); refreshNames(A); }
+    return e.ch;
+  }
+  function assembleAtlases(file) {
+    for (const A of file.maps.filter(m => m.isAtlasBlock)) {
+      const at = A.atlas, W = at.cols * at.sw, H = at.rows * at.sh, seen = new Set(), sheets = [];
+      if (!A.hadLegend) A.legend = [];
+      for (const m of file.maps) {
+        if (m === A || !m.name.startsWith(A.name + '.')) continue;
+        const id = m.name.slice(A.name.length + 1), p = parseSheetId(id); if (!p) continue;
+        if (p.c >= at.cols || p.r >= at.rows) { A.warnings.push(`Lehti ${m.name} on atlaksen ruudukon (${at.cols} × ${at.rows}) ulkopuolella`); continue; }
+        if (seen.has(id)) { A.warnings.push(`Lehti ${m.name} on kahteen kertaan; jälkimmäinen jätettiin pois`); m.dropped = true; continue; }
+        seen.add(id); sheets.push({ m, id, p });
+      }
+      // yhtenäinen legenda: atlaksen rivit ja lehtien omat rivit; ristiriitainen merkki saa uuden merkin
+      const cmaps = new Map();
+      for (const S of sheets) { const cm = {}; cmaps.set(S, cm); if (!S.m.hadLegend) continue;
+        for (const e of S.m.legend) { const same = A.legend.find(l => l.ch === e.ch);
+          if (same && same.spec === e.spec) continue;
+          const bySpec = A.legend.find(l => l.spec === e.spec); if (bySpec) { cm[e.ch] = bySpec.ch; continue; }
+          if (!same) { A.legend.push(Object.assign({}, e)); continue; }
+          const nc = freeChar(new Set(A.legend.map(l => l.ch))); A.legend.push(Object.assign({}, e, { ch: nc })); cm[e.ch] = nc;
+          A.warnings.push(`Merkki ${e.ch} tarkoittaa lehdellä ${S.id} eri asiaa (${e.spec}); se vaihdettiin merkiksi ${nc}`); } }
+      if (!A.legend.length) A.legend = DEFAULT_LEGEND.map(e => Object.assign({}, e));
+      refreshNames(A);
+      const fc = atlasFillChar(A), G = Array.from({ length: H }, () => Array(W).fill(fc));
+      for (const S of sheets) {
+        const { m, id, p } = S, ox = p.c * at.sw, oy = p.r * at.sh, cm = cmaps.get(S), rows = m.grid;
+        if ((m.sizeGiven && (m.W !== at.sw || m.H !== at.sh)) || rows.length > at.sh || rows.some(r => r.replace(/\s+$/, '').length > at.sw))
+          A.warnings.push(`Lehden ${id} koko ei ole ${at.sw} × ${at.sh}; ylimenevä osa jätettiin pois`);
+        for (let j = 0; j < at.sh; j++) { const r = rows[j]; if (r == null) continue; for (let i = 0; i < at.sw; i++) { const ch = r[i]; if (ch == null) continue; G[oy + j][ox + i] = cm[ch] || ch; } }
+        for (const a of m.areas) A.areas.push({ x: a.x + ox, y: a.y + oy, w: a.w, h: a.h, name: id + '.' + a.name });
+        const meta = { raw: [] };
+        if (m.hasHeading && m.title && m.title !== id) meta.title = m.title;
+        for (const r of m.raw) { if (r.head.trim().toLowerCase() === 'at:') { for (const l of r.lines) { const mm = atLine.exec(l.trim()); if (mm) at.atRows.push({ x: +mm[1] + ox, y: +mm[2] + oy, rest: mm[3] || '' }); } } else meta.raw.push(r); }
+        at.meta[id] = meta; m.absorbed = true;
+        if (m.src && A.src && m.src !== A.src) at.layout = 'files';
+      }
+      A.grid = G.map(r => r.join('')); A.W = W; A.H = H; A.at = atRowsToAt(at.atRows);
+      at.present = new Set(sheets.map(S => S.id));
+      normalize(A);
+    }
+    const before = file.maps.length;
+    file.maps = file.maps.filter(m => !m.absorbed && !m.dropped);
+    return before !== file.maps.length;
+  }
+  // lehden sisältö kootusta kartasta
+  function sheetParts(A) {
+    const at = A.atlas, fc = atlasFillChar(A), out = [];
+    for (let r = 0; r < at.rows; r++) for (let c = 0; c < at.cols; c++) {
+      const id = sheetId(at, c, r), ox = c * at.sw, oy = r * at.sh;
+      const grid = A.grid.slice(oy, oy + at.sh).map(row => row.slice(ox, ox + at.sw));
+      const areas = [], atRows = (at.atRows || []).filter(a => a.x >= ox && a.y >= oy && a.x < ox + at.sw && a.y < oy + at.sh).map(a => ({ x: a.x - ox, y: a.y - oy, rest: a.rest }));
+      for (const a of A.areas) { const so = sheetOfArea(at, a.name); if (so && so.id === id && a.x >= ox && a.y >= oy && a.x + a.w <= ox + at.sw && a.y + a.h <= oy + at.sh) areas.push({ x: a.x - ox, y: a.y - oy, w: a.w, h: a.h, name: so.local }); }
+      const meta = at.meta[id] || { raw: [] }, empty = grid.every(row => [...row].every(ch => ch === fc)) && !areas.length && !atRows.length && !(meta.raw || []).length;
+      out.push({ id, c, r, grid, areas, atRows, meta, empty });
+    }
+    return out;
+  }
+  function serializeSheet(A, S) {
+    let s = `## ${S.meta.title || S.id}\n\nmap ${A.name}.${S.id}\n\n\`\`\`\n${S.grid.join('\n')}\n\`\`\`\n`;
+    if (S.atRows.length) s += '\nat:\n' + S.atRows.map(a => `- ${a.x},${a.y}${a.rest}`).join('\n') + '\n';
+    for (const r of S.meta.raw || []) s += `\n${r.head}\n${r.lines.join('\n')}${r.lines.length ? '\n' : ''}`;
+    if (S.areas.length) s += '\nareas:\n' + S.areas.map(a => `- ${a.x},${a.y} size ${a.w}x${a.h} as ${a.name}`).join('\n') + '\n';
+    return s;
+  }
+  function serializeAtlasBlock(A) {
+    const at = A.atlas; let s = '';
+    if (A.hasHeading) s += `## ${A.title}\n\n`;
+    s += `atlas ${A.name} sheet ${at.sw}x${at.sh} grid ${at.cols}x${at.rows}${at.fill ? ' fill ' + at.fill : ''}\n\nlegend:\n`;
+    for (const e of A.legend) s += legendLine(e) + '\n';
+    for (const r of A.raw || []) s += `\n${r.head}\n${r.lines.join('\n')}${r.lines.length ? '\n' : ''}`;
+    // lehtirajan ylittävät ja atlaksen omat alueet; lehtikohtaiset alueet menevät lehdille
+    const own = A.areas.filter(a => { const so = sheetOfArea(at, a.name); if (!so) return true; const ox = so.c * at.sw, oy = so.r * at.sh; return !(a.x >= ox && a.y >= oy && a.x + a.w <= ox + at.sw && a.y + a.h <= oy + at.sh); });
+    if (own.length) s += '\nareas:\n' + own.map(a => `- ${a.x},${a.y} size ${a.w}x${a.h} as ${a.name}`).join('\n') + '\n';
+    return s;
+  }
+  // tavallisesta kartasta atlas: lehden koko, ruudukko kartan kokoon pyöristettynä ylöspäin, täyttö
+  function makeAtlas(m, sw, sh, fillTile) {
+    const at = { sw, sh, cols: Math.max(1, Math.ceil(m.W / sw)), rows: Math.max(1, Math.ceil(m.H / sh)), fill: fillTile || null, layout: 'single', meta: {}, atRows: [] };
+    const rest = []; for (const r of m.raw || []) { if (r.head.trim().toLowerCase() === 'at:') { for (const l of r.lines) { const mm = atLine.exec(l.trim()); if (mm) at.atRows.push({ x: +mm[1], y: +mm[2], rest: mm[3] || '' }); } } else rest.push(r); }
+    m.raw = rest; m.atlas = at; m.isAtlasBlock = true;
+    const fc = atlasFillChar(m), W = at.cols * sw, H = at.rows * sh;
+    m.grid = Array.from({ length: H }, (_, j) => { const r = (m.grid[j] || '').slice(0, W); return r + fc.repeat(W - r.length); }); m.W = W; m.H = H;
+    m.at = atRowsToAt(at.atRows); at.present = new Set(sheetParts(m).filter(S => !S.empty).map(S => S.id));
+    return m;
+  }
+  // lehtijaon purku: atlaksesta tavallinen kartta (lehtikohtaiset alueet säilyvät nimellä LEHTI.ALUE)
+  function unmakeAtlas(m) {
+    const at = m.atlas; if (!at) return m;
+    if (at.atRows.length) m.raw = [{ head: 'at:', lines: at.atRows.map(a => `- ${a.x},${a.y}${a.rest}`) }].concat(m.raw || []);
+    for (const id of Object.keys(at.meta)) if ((at.meta[id].raw || []).length) m.warnings = (m.warnings || []).concat(`Lehden ${id} omat osiot jätettiin pois`);
+    delete m.atlas; delete m.isAtlasBlock; m.sizeGiven = true; return m;
+  }
+  // lehtijaon muutos: uusi lehtikoko; lehtikohtaiset alueet nimetään uudelleen (B10.LAHDE → B10_LAHDE), koska tunnukset vaihtuvat
+  function resplitAtlas(m, sw, sh) {
+    const at = m.atlas, ren = {};
+    for (const a of m.areas) { const so = sheetOfArea(at, a.name); if (so) { const nn = a.name.replace('.', '_'); ren[a.name] = nn; a.name = nn; } }
+    for (const [o, n] of Object.entries(ren)) { if (m.texts[o] != null) { m.texts[n] = m.texts[o]; delete m.texts[o]; } for (const r of m.rules || []) if (r.name === o) r.name = n; }
+    const fill = at.fill, atRows = at.atRows; unmakeAtlas(m); makeAtlas(m, sw, sh, fill);
+    if (!m.atlas.atRows.length && atRows.length) m.atlas.atRows = atRows;
+    return Object.keys(ren).length;
+  }
+
   // ---- projekti (kartasto): yksi tai useampi karttatiedosto, yksi paperityyli ja kielitiedostot
   // Syöte: merkkijonoja tai { name, text } -olioita missä järjestyksessä tahansa.
   const KINDS = ['map', 'style', 'lang'];
@@ -343,10 +473,11 @@
     file.parts = [{ name: maps.length ? maps[0].name : '' }];
     for (const m of file.maps) m.src = file.parts[0];
     for (const e of maps.slice(1)) { const f2 = parseFile(e.text), part = { name: e.name, title: f2.title, preamble: f2.preamble }; file.parts.push(part); for (const m of f2.maps) { m.src = part; attach(m, file); file.maps.push(m); } }
+    if (assembleAtlases(file)) { const used = new Set(file.maps.map(m => m.src)); file.parts = file.parts.filter((p, i) => i === 0 || used.has(p)); }
     file.styleOther = []; file.langOther = []; file.extraLangs = []; file.lang = null; file.sources = [];
     let styleSeen = false;
     for (const e of entries) {
-      if (e.kind === 'map') { const part = file.parts.find(p => p.name === e.name && String(e.text).trim()); if (part) file.sources.push({ kind: 'map', part }); }
+      if (e.kind === 'map') { const part = file.parts.find(p => p.name === e.name && String(e.text).trim()); if (part && !file.sources.some(s => s.part === part)) file.sources.push({ kind: 'map', part }); }
       else if (e.kind === 'style') { applyStyle(file, parseStyle(e.text)); if (!styleSeen) { file.sources.push({ kind: 'style', name: e.name }); styleSeen = true; } else warnings.push(`Paperityyli ${e.name} yhdistettiin tiedostoon ${file.sources.find(s => s.kind === 'style').name}`); }
       else if (e.kind === 'lang') { const L = parseLang(e.text);
         if (!file.lang) { applyLang(file, L); file.sources.push({ kind: 'lang', name: e.name, lang: L.lang }); }
@@ -388,7 +519,10 @@
     ensureSources(file); const out = [];
     for (const s of file.sources) {
       if (s.kind === 'map') { const p = s.part, i = file.parts.indexOf(p), maps = file.maps.filter(m => (m.src || file.parts[0]) === p);
-        out.push({ name: p.name, kind: 'map', text: serializeFile({ title: i === 0 ? file.title : p.title, preamble: i === 0 ? file.preamble : (p.preamble || []), maps }) }); }
+        out.push({ name: p.name, kind: 'map', text: serializeFile({ title: i === 0 ? file.title : p.title, preamble: i === 0 ? file.preamble : (p.preamble || []), maps }) });
+        // atlas lehti per tiedosto: nimi-A01.rlml.md …
+        for (const A of maps) if (A.atlas && A.atlas.layout === 'files') { const base = p.name.replace(/\.rlml(\.md)?$|\.md$/i, '');
+          for (const S of sheetParts(A)) if (!S.empty) out.push({ name: `${base}-${S.id}.rlml.md`, kind: 'map', sheet: S.id, text: serializeSheet(A, S) }); } }
       else if (s.kind === 'style') out.push({ name: s.name, kind: 'style', text: serializeStyle(file) });
       else if (s.raw != null) out.push({ name: s.name, kind: 'lang', lang: s.lang, text: s.raw });
       else out.push({ name: s.name, kind: 'lang', lang: s.lang, text: serializeLang(file) });
@@ -426,7 +560,8 @@
     for (const m of maps) for (const e of m.legend) if (e.decor) { const names = specNames(e.spec); decorRow(names[names.length - 1]); }
     for (const m of maps) for (const n of m.atDecor || []) decorRow(n);
     if (rows.size) { s += (s ? '\n' : '') + 'tiles.glyphs paper\n'; for (const r of rows.values()) s += `- ${r.join(' ')}\n`; }
-    const lab = []; for (const m of maps) for (const r of m.rules || []) lab.push('- ' + ruleToString(Object.assign({}, r, { map: multi ? m.name : null }), true));
+    const lab = []; for (const m of maps) for (const r of m.rules || []) { const so = m.atlas && r.name != null ? sheetOfArea(m.atlas, r.name) : null;
+      lab.push('- ' + ruleToString(Object.assign({}, r, so ? { name: so.local, map: m.name + '.' + so.id } : { map: multi ? m.name : null }), true)); }
     if (lab.length) s += (s ? '\n' : '') + 'areas.labels paper\n' + lab.join('\n') + '\n';
     for (const o of file.styleOther || []) s += (s ? '\n' : '') + o + '\n';
     if (!s) return '';
@@ -475,7 +610,7 @@
     return doc;
   }
 
-  const api = { projectOf, projectFiles, renameSource, fileTemplate, mapOfKind, inferStyle, kindOfName, kindOfEntry, defaultName, KINDS, SHIP_LEGEND, CAVE_LEGEND, atRoots, specNames, parseProject, serializeProject, serializeStyle, serializeLang, parseStyle, parseLang, kindOfText, SEA_KINDS, DUNGEON_KINDS, attach, refreshNames, DEFAULT_LEGEND, TYPE_NAMES, STYLES, typeOf, toId, ID_RE, parse, parseFile, serialize, serializeFile, serializeMap, typeMap, blankDoc, newMap, normalize, resize, fillChar, parseRule, ruleToString, parseText, parseLegendLine, legendLine, rulesText, textsText, parseRulesText, parseTextsText };
+  const api = { makeAtlas, unmakeAtlas, resplitAtlas, sheetParts, sheetId, parseSheetId, colName, projectOf, projectFiles, renameSource, fileTemplate, mapOfKind, inferStyle, kindOfName, kindOfEntry, defaultName, KINDS, SHIP_LEGEND, CAVE_LEGEND, atRoots, specNames, parseProject, serializeProject, serializeStyle, serializeLang, parseStyle, parseLang, kindOfText, SEA_KINDS, DUNGEON_KINDS, attach, refreshNames, DEFAULT_LEGEND, TYPE_NAMES, STYLES, typeOf, toId, ID_RE, parse, parseFile, serialize, serializeFile, serializeMap, typeMap, blankDoc, newMap, normalize, resize, fillChar, parseRule, ruleToString, parseText, parseLegendLine, legendLine, rulesText, textsText, parseRulesText, parseTextsText };
   KG.rlml = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })();
