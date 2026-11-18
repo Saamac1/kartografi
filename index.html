@@ -151,12 +151,21 @@
     </div>
 
     <div class="panel" data-for="names" id="tNames">
-      <label class="wide">Otsikko <input id="inTitle" type="text"></label>
-      <p class="hint"><b>labels paper</b> – piirto-ohjeet: <code>level 0 size 11 spacing wide</code>, <code>NIMI size 9 place water|land|center</code>, <code>NIMI at x,y</code>, <code>NIMI hide</code>, <code>NIMI outline dotted</code></p>
-      <textarea id="rulesTa" rows="9" spellcheck="false"></textarea>
-      <p class="hint"><b>text <span id="langLbl">fi</span></b> – näkyvät nimet: <code>NIMI "Teksti"</code> (lainausmerkit vapaaehtoiset)</p>
-      <textarea id="textsTa" rows="9" spellcheck="false"></textarea>
-      <button id="btnNamesApply">Päivitä</button>
+      <label class="wide">Kartan otsikko <input id="inTitle" type="text" placeholder="Näkyy tulosteessa ja kielitiedostossa"></label>
+      <h4>Alueiden nimet</h4>
+      <p class="hint">Napsauta aluetta nähdäksesi sen esikatselussa punaisella ja muuttaaksesi nimen piirtoa. Tyhjä kenttä käyttää tason oletusta.</p>
+      <div id="nameList" class="namelist"></div>
+      <h4>Tasojen oletukset</h4>
+      <p class="hint">Taso 0 on uloin alue, taso 1 sen sisällä ja niin edelleen.</p>
+      <div id="levelList" class="namelist"></div>
+      <div id="otherNamesBox" hidden><h4>Muut nimet</h4><p class="hint">Kielitiedoston nimet, joille kartalla ei ole aluetta.</p><div id="otherNames" class="namelist"></div></div>
+      <details class="namesrc"><summary>Tekstinä</summary>
+        <p class="hint"><b>areas.labels paper</b> – piirto-ohjeet: <code>level 0 size 11 spacing wide</code>, <code>NIMI size 9 place water|land|center</code>, <code>NIMI at x,y</code>, <code>NIMI hide</code>, <code>NIMI outline dotted</code></p>
+        <textarea id="rulesTa" rows="8" spellcheck="false"></textarea>
+        <p class="hint"><b>language <span id="langLbl">fi</span></b> – näkyvät nimet: <code>NIMI "Teksti"</code> (lainausmerkit vapaaehtoiset)</p>
+        <textarea id="textsTa" rows="8" spellcheck="false"></textarea>
+        <button id="btnNamesApply">Päivitä</button>
+      </details>
     </div>
 
     <div class="panel srcpanel" data-for="src" id="tSrc">
@@ -184,7 +193,7 @@
       <h4>Alueet</h4>
       <p>Alueet-välilehdellä maastoa ei piirretä: vedä vierittääksesi ja napsauta aluetta valitaksesi sen. <b>Lisää</b> luo alueen nimestä. Valitse alue listasta ja <b>Rajaa</b> (raahaa suorakulmio, kulmakahvasta koko, oikea napsautus poistaa) tai <b>Siirrä</b> (tartu alueeseen ja raahaa tai käytä nuolinäppäimiä; alue siirtyy sisältöineen ja tyhjäksi jäävä osa täytetään vedellä). <b>Valmis</b> tai Esc palaa maaston piirtoon.</p>
       <h4>Esikatselu</h4>
-      <p>Kartan luku-, Kartan muokkaus- ja Alueet-välilehdillä editorin alalaidan <b>Näytä alueet</b> -valinta näyttää alueiden rajat ja <b>Esikatselu</b>-valinta näyttää tai piilottaa esikatselun; valinta muistetaan kullekin välilehdelle erikseen. Zoom-painikkeet ovat esikatselun alalaidassa. Esikatselu päivittyy muokatessa. Kun kartta on zoomattu niin, ettei se mahdu kerralla näkyviin, esikatselu seuraa editorin kursoria (punainen ruutu). Esikatselua voi siirrellä vetämällä. <b>Lehtijako</b> näyttää A4-lehtien rajat.</p>
+      <p>Kartan luku-, Kartan muokkaus- ja Alueet-välilehdillä editorin alalaidan <b>Näytä alueet</b> -valinta näyttää alueiden rajat ja <b>Esikatselu</b>-valinta näyttää tai piilottaa esikatselun; valinta muistetaan kullekin välilehdelle erikseen. Zoom-painikkeet ovat esikatselun alalaidassa. Esikatselu päivittyy muokatessa, ja valittu alue näkyy siinä punaisella. Kun kartta on zoomattu niin, ettei se mahdu kerralla näkyviin, esikatselu seuraa editorin kursoria (punainen ruutu). Esikatselua voi siirrellä vetämällä. <b>Lehtijako</b> näyttää A4-lehtien rajat.</p>
       <h4>Kartasto</h4>
       <p>Kartasto on joukko karttoja (esimerkiksi pelin merikartta, laivan kannet ja luolat) sekä niiden yhteinen paperityyli ja nimet. <b>Avaa…</b> lukee kartaston RLML-tiedostot (valitse kaikki kerralla), <b>Tallenna</b> tallentaa ne, ja <b>Esimerkki</b> avaa valmiin kartaston.</p>
       <p><b>Uusi kartta</b>: valitse laji (merikartta, luola tai laiva), koko ja sisältö (generoitu tai tyhjä). <b>Lisää kartastoon</b> tuo kartan nykyiseen kartastoon, <b>Korvaa valittu</b> vaihtaa valitun kartan sisällön ja <b>Aloita uusi kartasto</b> aloittaa alusta pelkällä tällä kartalla. Kartan laji määrää piirtotavan, joten sitä ei valita erikseen. Korvaavat toiminnot voi perua yläpalkin <b>Palauta edellinen</b> -painikkeella.</p>
@@ -194,14 +203,14 @@
       <h4>Lähdekoodi</h4>
       <p>Kartaston RLML-tiedostot omilla välilehdillään: karttatiedostot, paperityyli ja kielet. Vasemman laidan kortti näyttää kartan kohdan lähdekoodissa. <b>+ Uusi tiedosto</b> lisää kartta- tai kielitiedoston. Muokkaukset jäävät odottamaan (• välilehdellä), kunnes <b>Hyväksy muutokset</b> ottaa kaikkien tiedostojen muutokset käyttöön kerralla tai <b>Peru muutokset</b> hylkää ne. ✕ poistaa tiedoston kartastosta hyväksyttäessä.</p>
       <h4>Nimet ja Tulostus</h4>
-      <p><b>Tulostus</b>: koko kuva yhdelle arkille tai A4-lehdet liimausreunoin, viivavahvuudet, selitteen sisältö sekä SVG-, PNG- ja HTML-vienti. <b>Nimet</b>: otsikko, piirto-ohjeet ja näkyvät nimet.</p>
+      <p><b>Tulostus</b>: koko kuva yhdelle arkille tai A4-lehdet liimausreunoin, viivavahvuudet, selitteen sisältö sekä SVG-, PNG- ja HTML-vienti. <b>Nimet</b>: kartan otsikko sekä kunkin alueen näkyvä nimi ja nimen piirto (koko, harvennus, paikka, piilotus ja pisteviivareuna). Napsautettu alue näkyy esikatselussa punaisella. Tasojen oletukset koskevat kaikkia saman tason alueita, ja <b>Tekstinä</b> näyttää samat asetukset RLML-riveinä.</p>
       <p>Kartasto tallentuu selaimen muistiin automaattisesti.</p>
     </div>
   </aside>
 
   <section class="editor">
     <div class="scroll" id="edScroll"><canvas id="ed" tabindex="0"></canvas></div>
-    <div class="statusline edfoot"><span id="cursorInfo"></span><label class="pvtoggle" title="Näytä nimettyjen alueiden rajat kartalla"><input type="checkbox" id="showAreas" checked> Näytä alueet</label><label class="pvtoggle no-mobile" title="Näytä esikatselu tällä välilehdellä"><input type="checkbox" id="pvToggle" checked> Esikatselu</label></div>
+    <div class="statusline edfoot"><label class="pvtoggle" title="Näytä nimettyjen alueiden rajat kartalla"><input type="checkbox" id="showAreas" checked> Näytä alueet</label><label class="pvtoggle no-mobile" title="Näytä esikatselu tällä välilehdellä"><input type="checkbox" id="pvToggle" checked> Esikatselu</label><span id="cursorInfo"></span></div>
   </section>
 
   <section class="preview" id="previewPane">

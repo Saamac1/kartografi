@@ -39,8 +39,8 @@ RLML-tiedostot tekstinä), **Nimet**, **Tulostus** ja **Ohje**. Sovellus avautuu
 sen jälkeen viimeksi käytetylle välilehdelle.
 
 Kartan luku-, Kartan muokkaus- ja Alueet-välilehdillä editorin alalaidassa
-ovat valinnat *Näytä alueet* (nimettyjen alueiden rajat) ja *Esikatselu*: kun se ei ole valittuna, esikatselu piilotetaan ja
-kartta saa koko tilan. Valinta muistetaan kullekin näistä välilehdistä
+ovat vasemmalla valinnat *Näytä alueet* (nimettyjen alueiden rajat) ja *Esikatselu*: kun se ei ole valittuna, esikatselu piilotetaan ja
+kartta saa koko tilan. Valinnat pysyvät paikallaan, kun esikatselu kytketään. Valittu alue näkyy esikatselussa punaisena. Valinta muistetaan kullekin näistä välilehdistä
 erikseen. Nimet- ja Tulostus-välilehdillä esikatselu näkyy aina asetusten
 vieressä; Tiedosto- ja Lähdekoodi-välilehdillä esikatselua ei ole. Kumoa ja Tee uudelleen
 ovat yläpalkissa aina näkyvissä.
@@ -95,8 +95,12 @@ ovat yläpalkissa aina näkyvissä.
     vedellä (legendan ensimmäinen WATER-pala).
   - *Valmis* tai Esc palaa maaston piirtoon ja poistaa valinnan.
   Lista näyttää hierarkian, ja alla näkyvät tarkistusten huomautukset.
-- **Nimet-välilehti:** otsikko, piirto-ohjeet (`labels paper`) ja tekstit
-  (`text fi`).
+- **Nimet-välilehti:** kartan otsikko ja alueet listana hierarkian mukaan.
+  Alueen napsautus näyttää sen esikatselussa punaisena ja avaa sen nimen
+  piirron asetukset: koko, väli, paikka (automaattinen, maalla, vedessä,
+  keskellä tai ruudussa x,y), piilotus ja pisteviivareuna. Tyhjä kenttä
+  käyttää tason oletusta, ja tasojen oletukset ovat omana listanaan.
+  *Tekstinä* näyttää samat asetukset `areas.labels paper`- ja kielitiedoston riveinä.
 - **Lähdekoodi (Tiedosto-välilehti):** kartta, paperityyli ja kielitiedosto tekstinä; muokkaa ja lue takaisin.
 - Kartta tallentuu selaimen muistiin automaattisesti; *Tallenna RLML* lataa
   sen tiedostona.

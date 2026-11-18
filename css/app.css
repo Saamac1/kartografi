@@ -122,7 +122,7 @@ body[data-tab=names] .layout { grid-template-columns: 420px 1fr; }
 body[data-tab=preview] .layout { grid-template-columns: 210px minmax(240px, 1fr) minmax(300px, 1.2fr); }
 /* esikatselun valinta (luku, muokkaus, alueet): pv-off piilottaa esikatselun ja kartta saa tilan */
 .edfoot { display: flex; align-items: center; gap: 12px; }
-.edfoot #cursorInfo { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.edfoot #cursorInfo { flex: 1; min-width: 0; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pvtoggle { font-family: system-ui, sans-serif; white-space: nowrap; cursor: pointer; }
 .pvbar { border-top: 1px solid var(--line); border-bottom: 0; }
 body.pv-off .preview { display: none; }
@@ -217,3 +217,17 @@ button.primary { font-weight: 600; }
 #btnSrcApply.dirty { background: var(--accent); color: #fff; border-color: var(--accent); }
 #srcTa { white-space: pre; overflow: auto; }
 .srctab .sheetsel { margin-left: 4px; font-size: 12px; padding: 0 2px; }
+/* Nimet-välilehti: alueet listana, valittu rivi avautuu asetuksiksi */
+#tNames h4 { margin: 14px 0 4px; font-size: 13px; }
+.namelist { display: flex; flex-direction: column; gap: 3px; }
+.nrow { border: 1px solid var(--line); border-radius: 5px; background: #fff; padding: 4px 6px; }
+.nrow.on { border-color: #c8143c; box-shadow: 0 0 0 1px #c8143c; }
+.nrow .nhead { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.nrow .nhead input[type=text] { flex: 1; min-width: 0; }
+.nrow .nid { font-family: var(--mono); font-size: 11px; color: #777; white-space: nowrap; }
+.nrow .nlvl { font-size: 11px; color: #777; white-space: nowrap; }
+.nrow .nopts { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; margin-top: 5px; padding-top: 5px; border-top: 1px dashed var(--line); }
+.nrow .nopts label { white-space: nowrap; }
+.nrow .nopts input[type=number] { width: 4.2em; }
+.nrow .nmark { color: #c8143c; font-size: 11px; }
+.namesrc { margin-top: 14px; } .namesrc summary { cursor: pointer; color: #555; }

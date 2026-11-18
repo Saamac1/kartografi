@@ -479,3 +479,38 @@ test('karttalehdet: jako, lehtirajat, tilarivin lehti ja lehti per tiedosto -tal
   assert.deepEqual(errors, []);
   await close();
 });
+
+test('tilarivin valinnat pysyvät paikallaan, kun esikatselu kytketään pois', async () => {
+  const { page, errors, close } = await open(1440, 860);
+  await tab(page, 'edit');
+  const xs = () => page.$$eval('.edfoot .pvtoggle', els => els.map(e => Math.round(e.getBoundingClientRect().left)));
+  const on = await xs(); await page.click('#pvToggle'); await wait(200); const off = await xs();
+  assert.deepEqual(off, on);
+  assert.deepEqual(errors, []);
+  await close();
+});
+
+test('Nimet: alueen valinta näkyy esikatselussa punaisena ja lomake muuttaa nimeä ja piirtoa', async () => {
+  const { page, errors, close } = await open(1440, 860);
+  await tab(page, 'names');
+  const rows = await page.$$('#nameList .nrow');
+  assert.ok(rows.length > 0, 'oletuskartalla on alueita');
+  const n = await page.$eval('#nameList .nrow', r => r.dataset.name);
+  assert.equal(await page.$$eval('#pv #pvArea', e => e.length), 0, 'ei valintaa aluksi');
+  await page.click('#nameList .nrow .nid'); await wait(150);
+  assert.equal(await page.$$eval('#pv #pvArea path', e => e.length), 2, 'valittu alue piirretään esikatseluun');
+  assert.ok(await visible(page, '#nameList .nrow.on .nopts'), 'valitun rivin asetukset auki');
+  await page.$eval('#nameList .nrow.on .nhead input', i => { i.value = ''; });
+  await page.type('#nameList .nrow.on .nhead input', 'Uusi nimi');
+  await page.type('#nameList .nrow.on [data-p=size]', '14');
+  await page.click('#nameList .nrow.on [data-p=hide]');
+  const st = await page.evaluate(n => { const d = KG_APP.doc; return { t: d.texts[n], r: d.rules.find(r => r.name === n) }; }, n);
+  assert.equal(st.t, 'Uusi nimi'); assert.equal(st.r.size, 14); assert.equal(st.r.hide, true);
+  assert.match(await page.$eval('#rulesTa', t => t.value), new RegExp(`${n} size 14 hide`));
+  await page.click('#nameList .nrow.on [data-p=hide]'); await page.$eval('#nameList .nrow.on [data-p=size]', i => { i.value = ''; i.dispatchEvent(new Event('input')); });
+  assert.equal(await page.evaluate(n => KG_APP.doc.rules.some(r => r.name === n), n), false, 'tyhjä sääntö poistuu');
+  await wait(800); // esikatselu piirretään uudelleen, valinta säilyy
+  assert.equal(await page.$$eval('#pv #pvArea', e => e.length), 1);
+  assert.deepEqual(errors, []);
+  await close();
+});

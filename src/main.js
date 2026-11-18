@@ -201,6 +201,21 @@
   function showSvg(svg) {
     if (popup && !popup.closed) { const v = popup.document.getElementById('v'); if (v) { v.innerHTML = svg; sizeSvg(v); } }
     else { $('pv').innerHTML = svg + '<div id="pvCur" hidden></div>'; sizeSvg($('pv')); followCursor(false); }
+    markArea();
+  }
+  // valittu alue esikatselussa punaisella (vain näytöllä; vienti ja tulostus piirtävät kohtauksesta)
+  function markArea() {
+    const hosts = [$('pv')]; if (popup && !popup.closed) { const v = popup.document.getElementById('v'); if (v) hosts.push(v); }
+    const A = selArea && M.byName[selArea]; let fill = '', edge = '';
+    if (A && A.size && last) {
+      const w = last.win || { x: 0, y: 0, w: doc.W, h: doc.H }, W = M.W, o = last.sc.MG, oy = last.sc.oy || 0, inside = (x, y) => x >= w.x && y >= w.y && x < w.x + w.w && y < w.y + w.h;
+      const has = (x, y) => x >= 0 && y >= 0 && x < W && y < M.H && A.cells.has(y * W + x) && inside(x, y);
+      for (const c of A.cells) { const x = c % W, y = (c / W) | 0; if (!inside(x, y)) continue;
+        const X = o + (x - w.x) * 16, Y = o + oy + (y - w.y) * 16; fill += `M${X} ${Y}h16v16h-16z`;
+        if (!has(x, y - 1)) edge += `M${X} ${Y}h16`; if (!has(x, y + 1)) edge += `M${X} ${Y + 16}h16`; if (!has(x - 1, y)) edge += `M${X} ${Y}v16`; if (!has(x + 1, y)) edge += `M${X + 16} ${Y}v16`; }
+    }
+    for (const h of hosts) { const el = h.querySelector('svg'); if (!el) continue; const old = el.querySelector('#pvArea'); if (old) old.remove();
+      if (fill) el.insertAdjacentHTML('beforeend', `<g id="pvArea" pointer-events="none"><path d="${fill}" fill="rgba(200,20,60,.22)"/><path d="${edge}" fill="none" stroke="#c8143c" stroke-width="2.5" vector-effect="non-scaling-stroke"/></g>`); }
   }
   function sizeSvg(host) { const el = host.querySelector('svg'); if (!el) return; el.removeAttribute('width'); el.removeAttribute('height'); el.style.width = (zoom * 100) + '%'; }
   $('zIn').onclick = () => { zoom = Math.min(8, zoom * 1.4); sizeSvg($('pv')); followCursor(true); };
@@ -240,7 +255,7 @@
     w.document.write('<!DOCTYPE html><html lang="fi"><head><meta charset="utf-8"><title>Kartan esikatselu</title><style>body{margin:0;background:#e9e6df;font:13px system-ui}#t{position:sticky;top:0;padding:6px;background:#fffdf8;border-bottom:1px solid #ccc}#v{padding:12px}#v svg{display:block;background:#fff;box-shadow:0 1px 6px rgba(0,0,0,.25);height:auto}</style></head><body><div id="t"><button onclick="z(1/1.4)">−</button> <button onclick="Z=1;s()">Sovita</button> <button onclick="z(1.4)">+</button></div><div id="v"></div><script>var Z=1;function s(){var e=document.querySelector("#v svg");if(e)e.style.width=(Z*100)+"%"}function z(f){Z=Math.max(.25,Math.min(8,Z*f));s()}<\/script></body></html>');
     w.document.close();
     $('pvScroll').hidden = true; $('dockMsg').hidden = false;
-    if (last) { const v = w.document.getElementById('v'); v.innerHTML = last.svg; sizeSvg(v); }
+    if (last) { const v = w.document.getElementById('v'); v.innerHTML = last.svg; sizeSvg(v); markArea(); }
     const poll = setInterval(() => { if (!popup || popup.closed) { clearInterval(poll); dock(); } }, 800);
   };
   function dock() { if (popup && !popup.closed) popup.close(); popup = null; $('pvScroll').hidden = false; $('dockMsg').hidden = true; if (last) showSvg(last.svg); }
@@ -371,6 +386,7 @@
     const L = $('areaList'), names = M.tree.slice(); if (selArea && !names.includes(selArea)) names.push(selArea);
     L.innerHTML = names.map(n => { const A = M.byName[n], lv = A ? A.level : 0, cnt = A ? A.rects.length : 0;
       return `<option value="${n}"${n === selArea ? ' selected' : ''}>${'   '.repeat(lv)}${KG.areas.displayName(doc, n)}  (${n}${cnt ? ', ' + cnt + ' ▭' : ', ei vielä suorakulmioita'})</option>`; }).join('');
+    markArea(); markNameRow();
   }
   function showChecks() { const v = KG.areas.validate(doc, M).concat((doc.warnings || []).map(m => ({ level: 'info', msg: m })));
     $('checks').innerHTML = v.slice(0, 10).map(x => `<div class="${x.level}">${x.level === 'error' ? '✖' : x.level === 'warn' ? '⚠' : 'ℹ'} ${x.msg.replace(/</g, '&lt;')}</div>`).join('') + (v.length > 10 ? `<div class="info">… ${v.length - 10} lisää</div>` : ''); }
@@ -393,7 +409,7 @@
   $('btnToolDone').onclick = () => endAreaTool();
   $('toolArea').onclick = () => { setMode(false); setTool('area'); if (!selArea) status('Valitse alue listasta tai luo uusi'); };
   $('toolMove').onclick = () => { setMode(false); setTool('move'); status('Tartu alueeseen kartalla ja raahaa; nuolinäppäimet siirtävät valittua'); };
-  $('areaList').onchange = e => { selArea = e.target.value; showTool(); ed.draw();
+  $('areaList').onchange = e => { selArea = e.target.value; showTool(); ed.draw(); markArea();
     const A = M.byName[selArea]; if (A && A.bbox) { const sc = ed.sc; sc.scrollLeft = A.bbox.x * ed.cw - 20; sc.scrollTop = A.bbox.y * ed.ch - 20; } };
   $('showAreas').onchange = () => ed.draw();
   $('btnNewArea').onclick = () => { const t = $('newArea').value.trim(); if (!t) { status('Kirjoita alueen nimi'); return; }
@@ -402,10 +418,74 @@
   $('newArea').onkeydown = e => { if (e.key === 'Enter') $('btnNewArea').onclick(); };
   $('btnDelArea').onclick = () => { if (!selArea) return; const n = selArea; ed.snapshot(); doc.areas = doc.areas.filter(a => a.name !== n); delete doc.texts[n]; doc.rules = doc.rules.filter(r => r.name !== n); selArea = null; areaChanged(); showTool(); status(`Alue ${n} poistettu`); };
 
-  // ---- nimet ja lähde
+  // ---- Nimet: kartan otsikko, alueiden näkyvät nimet ja nimien piirto (areas.labels paper)
+  // Lomake muuttaa doc.texts- ja doc.rules-tietoja suoraan; Tekstinä-osio näyttää samat rivit RLML:nä.
+  const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  const levelDefault = L => { const o = { size: L === 0 ? 11 : L === 1 ? 8.5 : 7, spacing: L === 0 ? 'wide' : 'normal' };
+    for (const r of doc.rules || []) if (r.name == null && r.level === L) for (const k of ['size', 'spacing', 'place', 'hide', 'outline']) if (r[k] != null) o[k] = r[k]; return o; };
+  const ruleOf = (key, make) => { const f = r => key.level != null ? r.name == null && r.level === key.level && !r.map : r.name === key.name && !r.map;
+    let r = (doc.rules || []).find(f); if (!r && make) { r = Object.assign({}, key); (doc.rules = doc.rules || []).push(r); } return r; };
+  // asetus päivitetään ilman lomakkeen uudelleenrakennusta, jotta kirjoitus ei katkea
+  function setRule(key, prop, val) {
+    const r = ruleOf(key, val != null && val !== false && val !== '');
+    if (!r) return;
+    if (val == null || val === false || val === '') delete r[prop]; else r[prop] = val;
+    if (!Object.keys(r).some(k => !['name', 'level', 'map'].includes(k))) doc.rules = doc.rules.filter(x => x !== r);
+    namesChanged();
+  }
+  function namesChanged() { buildAreaList(); ed.draw(); touched(); fillNamesSrc(); }
+  const PLACES = [['', 'automaattinen'], ['land', 'maalla'], ['water', 'vedessä'], ['center', 'keskellä'], ['at', 'ruudussa…']];
+  function styleOpts(key, def) {
+    const r = ruleOf(key) || {}, place = r.at ? 'at' : r.place || '', sp = def.spacing === 'wide' ? 'leveä' : 'normaali';
+    return `<div class="nopts" data-key='${esc(JSON.stringify(key))}'>
+      <label>Koko <input type="number" data-p="size" min="3" max="60" step="0.5" value="${r.size != null ? r.size : ''}" placeholder="${def.size}"></label>
+      <label>Väli <select data-p="spacing"><option value="">oletus (${sp})</option><option value="normal"${r.spacing === 'normal' ? ' selected' : ''}>normaali</option><option value="wide"${r.spacing === 'wide' ? ' selected' : ''}>leveä</option></select></label>
+      <label>Paikka <select data-p="place">${PLACES.map(([v, t]) => `<option value="${v}"${v === place ? ' selected' : ''}>${t}</option>`).join('')}</select></label>
+      <span class="nat"${place === 'at' ? '' : ' hidden'}><label>x <input type="number" data-p="atx" min="0" value="${r.at ? r.at[0] : ''}"></label> <label>y <input type="number" data-p="aty" min="0" value="${r.at ? r.at[1] : ''}"></label></span>
+      <label title="Nimeä ei piirretä"><input type="checkbox" data-p="hide"${r.hide ? ' checked' : ''}> Piilota nimi</label>
+      <label title="Pisteviiva alueen reunalle"><input type="checkbox" data-p="outline"${r.outline ? ' checked' : ''}> Pisteviivareuna</label>
+    </div>`;
+  }
+  function wireOpts(box) {
+    for (const o of box.querySelectorAll('.nopts')) {
+      const key = JSON.parse(o.dataset.key), q = p => o.querySelector(`[data-p=${p}]`);
+      const setAt = () => { const x = q('atx').value, y = q('aty').value; if (x !== '' && y !== '') { const r = ruleOf(key, true); delete r.place; r.at = [+x, +y]; namesChanged(); } };
+      q('size').oninput = e => setRule(key, 'size', e.target.value === '' ? null : +e.target.value);
+      q('spacing').onchange = e => setRule(key, 'spacing', e.target.value);
+      q('place').onchange = e => { const v = e.target.value; o.querySelector('.nat').hidden = v !== 'at';
+        if (v === 'at') { const A = key.name && M.byName[key.name]; if (A && A.bbox && q('atx').value === '') { q('atx').value = A.bbox.x + (A.bbox.w >> 1); q('aty').value = A.bbox.y + (A.bbox.h >> 1); } setAt(); }
+        else { const r = ruleOf(key); if (r) delete r.at; setRule(key, 'place', v); } };
+      q('atx').oninput = setAt; q('aty').oninput = setAt;
+      q('hide').onchange = e => setRule(key, 'hide', e.target.checked);
+      q('outline').onchange = e => setRule(key, 'outline', e.target.checked ? 'dotted' : null);
+    }
+  }
+  function markNameRow() { for (const r of document.querySelectorAll('#nameList .nrow')) { const on = r.dataset.name === selArea; r.classList.toggle('on', on); r.querySelector('.nopts').hidden = !on; } }
+  function fillNames() {
+    $('inTitle').value = doc.title || '';
+    const names = M.tree.slice(), lv = n => M.byName[n] ? M.byName[n].level : 0;
+    $('nameList').innerHTML = names.length ? names.map(n => `<div class="nrow" data-name="${esc(n)}" style="margin-left:${lv(n) * 14}px">
+        <div class="nhead"><input type="text" value="${esc(doc.texts[n] || '')}" placeholder="${esc(KG.areas.displayName(doc, n))}" title="Näkyvä nimi (kielitiedostossa ${esc(doc.name)}.${esc(n)}.NAME)"><span class="nid">${esc(n)}</span><span class="nlvl">taso ${lv(n)}</span></div>
+        ${styleOpts({ name: n }, levelDefault(lv(n)))}</div>`).join('')
+      : '<p class="hint">Kartalla ei ole vielä alueita. Lisää niitä Alueet-välilehdellä.</p>';
+    for (const row of $('nameList').querySelectorAll('.nrow')) { const n = row.dataset.name;
+      row.querySelector('.nhead').onclick = () => { if (selArea === n) return; selArea = n; buildAreaList(); showTool(); ed.draw(); };
+      row.querySelector('.nhead input').onfocus = () => { if (selArea !== n) { selArea = n; buildAreaList(); showTool(); ed.draw(); } };
+      row.querySelector('.nhead input').oninput = e => { const v = e.target.value.trim(); if (v) doc.texts[n] = v; else delete doc.texts[n]; namesChanged(); }; }
+    wireOpts($('nameList')); markNameRow();
+    const maxL = Math.max(0, ...names.map(lv), ...(doc.rules || []).filter(r => r.name == null && r.level != null).map(r => r.level));
+    $('levelList').innerHTML = Array.from({ length: maxL + 1 }, (_, L) => `<div class="nrow lvl"><div class="nhead"><b>Taso ${L}</b><span class="nlvl">${names.filter(n => lv(n) === L).length} aluetta</span></div>${styleOpts({ level: L }, { size: L === 0 ? 11 : L === 1 ? 8.5 : 7, spacing: L === 0 ? 'wide' : 'normal' })}</div>`).join('');
+    wireOpts($('levelList'));
+    const other = Object.keys(doc.texts || {}).filter(k => !M.byName[k]);
+    $('otherNamesBox').hidden = !other.length;
+    $('otherNames').innerHTML = other.map(k => `<div class="nrow"><div class="nhead"><input type="text" data-k="${esc(k)}" value="${esc(doc.texts[k])}"><span class="nid">${esc(k)}</span><button data-del="${esc(k)}" title="Poista nimi">✕</button></div></div>`).join('');
+    for (const i of $('otherNames').querySelectorAll('input')) i.oninput = e => { doc.texts[i.dataset.k] = e.target.value; touched(); fillNamesSrc(); };
+    for (const b of $('otherNames').querySelectorAll('button')) b.onclick = () => { delete doc.texts[b.dataset.del]; touched(); fillNames(); };
+    fillNamesSrc();
+  }
+  function fillNamesSrc() { $('rulesTa').value = KG.rlml.rulesText(doc); $('textsTa').value = KG.rlml.textsText(doc); $('langLbl').textContent = doc.lang || 'fi'; }
   $('inTitle').oninput = e => { doc.title = e.target.value; touched(); };
-  $('btnNamesApply').onclick = () => { doc.rules = KG.rlml.parseRulesText($('rulesTa').value); doc.texts = KG.rlml.parseTextsText($('textsTa').value); areaChanged(); status('Nimet päivitetty'); };
-  const fillNames = () => { $('inTitle').value = doc.title || ''; $('rulesTa').value = KG.rlml.rulesText(doc); $('textsTa').value = KG.rlml.textsText(doc); $('langLbl').textContent = doc.lang || 'fi'; };
+  $('btnNamesApply').onclick = () => { doc.rules = KG.rlml.parseRulesText($('rulesTa').value); doc.texts = KG.rlml.parseTextsText($('textsTa').value); areaChanged(); fillNames(); status('Nimet päivitetty'); };
   // ---- Lähdekoodi: kartaston tiedostot omilla välilehdillään; Hyväksy muutokset ottaa kaikki kerralla käyttöön.
   // Puskuri: { name, kind, lang, text, orig, isNew, removed }. Hyväksymättömiä muutoksia ei kirjoiteta yli.
   let srcBuf = [], srcCur = null;

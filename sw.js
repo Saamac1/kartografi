@@ -1,6 +1,6 @@
 // Generoitu: node tools/build-sw.js
 // Välimuisti, jolla sovellus toimii ilman verkkoa. Uusi versio otetaan käyttöön seuraavalla avauksella.
-const CACHE = 'kartografi-49adc1bfc3fa';
+const CACHE = 'kartografi-2660296f3fc7';
 const FILES = [
  "./",
  "index.html",
