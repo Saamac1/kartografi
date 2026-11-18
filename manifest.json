@@ -1,6 +1,6 @@
 {
-  "name": "Karttageneraattori",
-  "short_name": "Kartat",
+  "name": "Kartografi",
+  "short_name": "Kartografi",
   "description": "RLML-karttojen editori ja tulostettavat vektorikartat",
   "lang": "fi",
   "start_url": "./",

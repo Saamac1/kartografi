@@ -10,7 +10,7 @@ for (const f of files) if (f !== './') h.update(fs.readFileSync(path.join(root, 
 const version = h.digest('hex').slice(0, 12);
 fs.writeFileSync(path.join(root, 'sw.js'), `// Generoitu: node tools/build-sw.js
 // Välimuisti, jolla sovellus toimii ilman verkkoa. Uusi versio otetaan käyttöön seuraavalla avauksella.
-const CACHE = 'kartat-${version}';
+const CACHE = 'kartografi-${version}';
 const FILES = ${JSON.stringify(files, null, 1)};
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });

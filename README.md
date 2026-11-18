@@ -1,6 +1,6 @@
-# Karttageneraattori
+# Kartografi
 
-Selainpohjainen työkalu RLML-karttojen muokkaamiseen ja tulostettavien
+*Kartografi* (repo `karttageneraattori`) on selainpohjainen työkalu RLML-karttojen muokkaamiseen ja tulostettavien
 mustavalkoisten vektorikarttojen (SVG) tekemiseen. Tyyli on vanhan
 kaiverretun merikartan kaltainen: rosoinen rantaviiva, vaakaviivoitettu meri
 (matalikko tummin), vuoret, kukkulat, havu- ja lehtimetsä, pensaikko, palmut,
