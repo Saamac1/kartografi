@@ -359,7 +359,7 @@ test('Tiedosto-välilehti: uusi kartta lajin mukaan, peruttava korvaus, koko ja 
   await page.$eval('#mapId', el => { el.value = 'kallio'; el.dispatchEvent(new Event('change')); }); await wait(100);
   assert.equal(await page.evaluate(() => KG_APP.doc.name), 'KALLIO');
   // kaksoisnapsautus avaa muokkauksen
-  await page.click('#mapCards .mapcard.on', { clickCount: 2 }); await wait(150);
+  await page.click('#mapCards .mapcard.on', { count: 2 }); await wait(150);
   assert.equal(await page.evaluate(() => document.body.dataset.tab), 'edit');
   assert.deepEqual(errors, []);
   await close();
