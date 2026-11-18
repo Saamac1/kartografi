@@ -1,6 +1,6 @@
 # Kartografi
 
-*Kartografi* (repo `karttageneraattori`) on selainpohjainen työkalu RLML-karttojen muokkaamiseen ja tulostettavien
+*Kartografi* on selainpohjainen työkalu RLML-karttojen muokkaamiseen ja tulostettavien
 mustavalkoisten vektorikarttojen (SVG) tekemiseen. Tyyli on vanhan
 kaiverretun merikartan kaltainen: rosoinen rantaviiva, vaakaviivoitettu meri
 (matalikko tummin), vuoret, kukkulat, havu- ja lehtimetsä, pensaikko, palmut,
@@ -12,7 +12,7 @@ Pelin kevyempi visualisointi tehdään erikseen; tämä työkalu on paperille.
 ## Asennus puhelimeen tai koneelle
 
 Työkalu on asennettava verkkosovellus (PWA). Kun se on julkaistu
-https-osoitteessa (esim. GitHub Pages), avaa sivu ja
+https-osoitteessa (julkaistu versio: https://saamac1.github.io/kartografi/), avaa sivu ja
 
 - **iPhone/iPad:** Safari → Jaa → *Lisää Koti-valikkoon*
 - **Android:** Chrome → valikko → *Asenna sovellus*
