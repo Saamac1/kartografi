@@ -31,18 +31,18 @@ GitHub Pages: repon *Settings → Pages → Deploy from a branch*, haara
 Avaa `index.html` selaimessa. Rakennusvaihetta tai palvelinta ei tarvita, ja
 tiedostot ovat tavallisia skriptejä, joten `file://` toimii.
 
-Yläpalkin välilehdet ovat järjestyksessä **Tiedosto** (kartan valinta,
-tyyli, koko, generointi, esimerkit, avaus ja tallennus sekä RLML-lähdekoodi
-tekstinä), **Kartan luku** (editori lukutilassa), **Kartan muokkaus** (selite
-ja sivellin), **Alueet** (nimetyt alueet), **Nimet**, **Tulostus** ja
-**Ohje**. Sovellus avautuu ensimmäisellä kerralla Tiedosto-välilehdelle ja
+Yläpalkin välilehdet ovat järjestyksessä **Tiedosto** (kartasto: avaus,
+tallennus, esimerkit, karttakortit, uusi kartta ja valitun kartan tiedot),
+**Kartan luku** (editori lukutilassa), **Kartan muokkaus** (selite ja
+sivellin), **Alueet** (nimetyt alueet), **Lähdekoodi** (kartaston
+RLML-tiedostot tekstinä), **Nimet**, **Tulostus** ja **Ohje**. Sovellus avautuu ensimmäisellä kerralla Tiedosto-välilehdelle ja
 sen jälkeen viimeksi käytetylle välilehdelle.
 
 Kartan luku-, Kartan muokkaus- ja Alueet-välilehdillä editorin alalaidassa
 ovat valinnat *Näytä alueet* (nimettyjen alueiden rajat) ja *Esikatselu*: kun se ei ole valittuna, esikatselu piilotetaan ja
 kartta saa koko tilan. Valinta muistetaan kullekin näistä välilehdistä
 erikseen. Nimet- ja Tulostus-välilehdillä esikatselu näkyy aina asetusten
-vieressä; Tiedosto-välilehdellä esikatselua ei ole. Kumoa ja Tee uudelleen
+vieressä; Tiedosto- ja Lähdekoodi-välilehdillä esikatselua ei ole. Kumoa ja Tee uudelleen
 ovat yläpalkissa aina näkyvissä.
 
 - **Selite (Kartan muokkaus -välilehti):** valitse piirrettävä pala. Valittu
@@ -221,8 +221,10 @@ ja tallennetaan uusiin muotoihin.
 | `cave` | luola: luonnonseinät rosoisina, rakennetut (`WALL.ornament`, ovet) suorina, kallio viivoitettu seinän vierestä |
 | `ship` | laiva: runko umpiviivoitettuna, kansilankut, ympärillä vaakaviivoitettu meri |
 
-Editorin *Tyyli*-valinta kirjoittaa rivin tyylitiedostoon. Jos kartassa on
-seinä- tai kansipaloja mutta piirtotapa puuttuu, editori varoittaa.
+Kartan laji valitaan, kun kartta luodaan (Tiedosto → *Uusi kartta*), ja se
+kirjoitetaan tälle riville. Jos rivi puuttuu, laji päätellään paloista:
+seinät ja lattiat tekevät luolan, runko ja kansi laivan. Lajia voi vaihtaa
+muokkaamalla riviä Lähdekoodi-välilehdellä.
 
 ### Palojen piirto (`tiles.glyphs paper`)
 
@@ -274,13 +276,30 @@ Nimet-välilehdellä niitä muokataan kartta kerrallaan.
 Kumpikin on kolmena tiedostona kansiossa `examples/`; valikon sisältö kootaan niistä komennolla
 `node tools/build-examples.js`.
 
-## Monta karttaa yhdessä tiedostossa
+## Kartasto: monta karttaa ja tiedostoa
 
-Tiedosto voi sisältää useita `## Otsikko` + `map`-lohkoja (esim. pelin
-kansi, ruuma ja luolat). Editorin *Kartta*-valinnalla vaihdetaan
-muokattavaa karttaa, *+ kartta* lisää uuden samalla legendalla, ja
-*Tallenna RLML* tallentaa koko tiedoston. Osiot, joita työkalu ei tunne
-(`at:`, `vars:`…), säilyvät sellaisinaan.
+Kartasto on joukko karttoja sekä niiden yhteinen paperityyli ja nimet.
+Se voi koostua useasta karttatiedostosta ja kielitiedostosta.
+
+- **Tiedosto**-välilehti: kartaston nimi, avaus, esimerkit ja tallennus;
+  karttakortit (napsautus valitsee, kaksoisnapsautus avaa muokkauksen);
+  *Uusi kartta* lajin mukaan (merikartta, luola, laiva), koon ja sisällön
+  (generoitu tai tyhjä) kanssa: *Lisää kartastoon*, *Korvaa valittu* tai
+  *Aloita uusi kartasto*; valitun kartan tunnus, otsikko, koko ja poisto.
+  Kartan laji kirjoitetaan paperityylin `maps.theme paper` -riville, joten
+  piirtotapaa ei valita erikseen. Ilman riviä laji päätellään paloista
+  (seinät ja lattiat → luola, runko ja kansi → laiva).
+- **Lähdekoodi**-välilehti: kartaston tiedostot omilla välilehdillään,
+  vasemmalla karttakortit (napsautus näyttää kartan `map`-rivin). *+ Uusi
+  tiedosto* lisää kartta- tai kielitiedoston (tai paperityylin, jos sitä ei
+  vielä ole). Muokkaukset odottavat (•), kunnes *Hyväksy muutokset* ottaa
+  kaikkien tiedostojen muutokset käyttöön kerralla; ✕ poistaa tiedoston
+  hyväksyttäessä. Kaikki kartaston korvaavat toiminnot voi perua yläpalkin
+  *Palauta edellinen* -painikkeella.
+
+Ensimmäinen kielitiedosto on ensisijainen: sen nimet näkyvät kartoissa ja
+Nimet-välilehdellä. Muiden kielten tiedostot säilyvät sellaisinaan.
+Osiot, joita työkalu ei tunne (`at:`, `vars:`…), säilyvät.
 
 *Generoi* tekee merikartalle saariston ja luolakartalle luolaston
 (soluautomaatti, portaat, aarteet, himmelisali). Laivoille ei ole

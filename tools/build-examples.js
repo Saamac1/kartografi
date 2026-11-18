@@ -1,6 +1,6 @@
 // Kokoaa examples/-kansion kartta-, tyyli- ja kielitiedostot selaimen esimerkkivalikkoon (src/examples.js)
 const fs = require('fs'), path = require('path');
-const ex = p => fs.readFileSync(path.join(__dirname, '..', 'examples', p), 'utf8');
+const ex = p => ({ name: p, text: fs.readFileSync(path.join(__dirname, '..', 'examples', p), 'utf8') });
 const list = [
   { id: 'aaltola', name: 'Aaltolan seikkailu', files: ['kapteeni-aaltola.rlml.md', 'kapteeni-aaltola.paper.rlml.md', 'kapteeni-aaltola.fi.rlml.md'].map(ex) },
   { id: 'meri', name: 'Merikartta', files: ['merikartta.rlml.md', 'merikartta.paper.rlml.md', 'merikartta.fi.rlml.md'].map(ex) },

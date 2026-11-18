@@ -315,17 +315,107 @@
     file.lang = L.lang;
     file.langOther = (file.langOther || []).concat(Object.keys(L.keys).filter(k => !used.has(k)).map(k => `${k} ${L.keys[k]}`));
   }
-  // texts: tiedostojen sisällöt missä järjestyksessä tahansa (kartta, tyyli, kieli)
-  function parseProject(texts) {
-    const list = (Array.isArray(texts) ? texts : [texts]).filter(t => t && String(t).trim());
-    const maps = list.filter(t => kindOfText(t) === 'map'), styles = list.filter(t => kindOfText(t) === 'style'), langs = list.filter(t => kindOfText(t) === 'lang');
-    const file = parseFile(maps[0] || '');
-    for (const extra of maps.slice(1)) { const f2 = parseFile(extra); for (const m of f2.maps) { attach(m, file); file.maps.push(m); } }
-    file.styleOther = []; file.langOther = []; file.lang = file.maps[0].lang || 'fi';
-    for (const t of styles) applyStyle(file, parseStyle(t));
-    for (const t of langs) applyLang(file, parseLang(t));
+  // ---- projekti (kartasto): yksi tai useampi karttatiedosto, yksi paperityyli ja kielitiedostot
+  // Syöte: merkkijonoja tai { name, text } -olioita missä järjestyksessä tahansa.
+  const KINDS = ['map', 'style', 'lang'];
+  function kindOfName(name) { const n = String(name || '').toLowerCase(); if (/\.paper\.rlml(\.md)?$/.test(n)) return 'style'; if (/\.[a-z]{2,3}\.rlml(\.md)?$/.test(n)) return 'lang'; if (/\.(rlml|md)$/.test(n)) return 'map'; return null; }
+  // sisältö ratkaisee, jos siinä on määrittelyjä; tyhjän tiedoston laji tulee nimestä
+  function kindOfEntry(e) {
+    const t = String(e.text || '');
+    if (/^\s*language\s+[a-z]{2,3}\s*$/im.test(t) && kindOfText(t) === 'lang') return 'lang';
+    if (/^map\s+\S+/im.test(t)) return 'map';
+    if (t.split('\n').some(l => STYLE_HEAD.test(l.trim()))) return 'style';
+    return e.kind || kindOfName(e.name) || (t.trim() ? 'map' : null);
+  }
+  // uusien tiedostojen nimien alku: ensimmäisen karttatiedoston nimi ilman päätettä, muuten kartaston nimi
+  const baseName = file => { const first = (file.sources || []).map(s => s.part ? s.part.name : s.kind === 'map' || kindOfName(s.name) === 'map' ? s.name : null).find(Boolean);
+    return first ? first.replace(/\.rlml(\.md)?$|\.md$/i, '') : toId(file.title || (file.maps[0] && file.maps[0].name) || 'kartasto').toLowerCase(); };
+  function defaultName(file, kind, lang) {
+    const b = baseName(file), used = new Set((file.sources || []).map(s => s.name));
+    const mk = n => kind === 'map' ? `${b}${n}.rlml.md` : kind === 'style' ? `${b}${n}.paper.rlml.md` : `${b}${n}.${lang || 'fi'}.rlml.md`;
+    let n = '', i = 2; while (used.has(mk(n))) n = '-' + i++; return mk(n);
+  }
+  function parseProject(input) {
+    const entries = (Array.isArray(input) ? input : [input]).map(x => typeof x === 'string' ? { name: '', text: x } : Object.assign({}, x)).filter(e => e && (e.text != null));
+    for (const e of entries) e.kind = kindOfEntry(e);
+    const maps = entries.filter(e => e.kind === 'map' && String(e.text).trim()), warnings = [];
+    const file = parseFile(maps.length ? maps[0].text : '');
+    file.parts = [{ name: maps.length ? maps[0].name : '' }];
+    for (const m of file.maps) m.src = file.parts[0];
+    for (const e of maps.slice(1)) { const f2 = parseFile(e.text), part = { name: e.name, title: f2.title, preamble: f2.preamble }; file.parts.push(part); for (const m of f2.maps) { m.src = part; attach(m, file); file.maps.push(m); } }
+    file.styleOther = []; file.langOther = []; file.extraLangs = []; file.lang = null; file.sources = [];
+    let styleSeen = false;
+    for (const e of entries) {
+      if (e.kind === 'map') { const part = file.parts.find(p => p.name === e.name && String(e.text).trim()); if (part) file.sources.push({ kind: 'map', part }); }
+      else if (e.kind === 'style') { applyStyle(file, parseStyle(e.text)); if (!styleSeen) { file.sources.push({ kind: 'style', name: e.name }); styleSeen = true; } else warnings.push(`Paperityyli ${e.name} yhdistettiin tiedostoon ${file.sources.find(s => s.kind === 'style').name}`); }
+      else if (e.kind === 'lang') { const L = parseLang(e.text);
+        if (!file.lang) { applyLang(file, L); file.sources.push({ kind: 'lang', name: e.name, lang: L.lang }); }
+        else if (L.lang === file.lang) { applyLang(file, L); warnings.push(`Kielitiedosto ${e.name || ''} yhdistettiin kielen ${L.lang} tiedostoon`); }
+        else file.sources.push({ kind: 'lang', name: e.name, lang: L.lang, raw: e.text }); }
+      else if (String(e.text).trim()) warnings.push(`Tiedoston ${e.name || '(nimetön)'} lajia ei tunnistettu`);
+    }
+    file.lang = file.lang || file.maps[0].lang || 'fi';
+    // jokaisella kartastolla on karttatiedosto, paperityyli ja ensisijainen kielitiedosto
+    if (!file.sources.some(s => s.kind === 'map')) file.sources.unshift({ kind: 'map', part: file.parts[0] });
+    for (const p of file.parts) if (!p.name) p.name = defaultName(file, 'map');
+    if (!file.sources.some(s => s.kind === 'style')) file.sources.push({ kind: 'style', name: '' });
+    if (!file.sources.some(s => s.kind === 'lang' && !s.raw)) file.sources.push({ kind: 'lang', name: '', lang: file.lang });
+    for (const s of file.sources) if (!s.part && !s.name) s.name = defaultName(file, s.kind, s.lang);
+    for (const m of file.maps) { inferStyle(m); }
+    if (warnings.length) file.maps[0].warnings = (file.maps[0].warnings || []).concat(warnings);
     return file;
   }
+  // kartta ilman piirtotapaa: laji päätellään palojen nimistä (seinät ja lattiat → luola, runko ja kansi → laiva)
+  function inferStyle(m) {
+    if (m.styleSet) return m.style;
+    const bases = m.legend.map(e => specNames(e.spec)[0].split('.')[0].toUpperCase());
+    // merikartan palat (vesi, niitty, metsä…) pitävät kartan merikarttana
+    if (bases.some(b => ['WATER', 'GRASS', 'FOREST', 'MOUNTAIN', 'HILL', 'SAND', 'RIVER'].includes(b))) return m.style;
+    const ship = bases.some(b => ['HULL', 'DECK', 'RAIL', 'CABIN', 'GANGPLANK'].includes(b)), cave = bases.some(b => ['WALL', 'FLOOR'].includes(b));
+    if (ship || cave) { m.style = ship ? 'ship' : 'cave'; m.styleSet = true; refreshNames(m); }
+    return m.style;
+  }
+  // tiedostojen sisällöt nykyisestä mallista: [{ name, kind, lang?, text }]
+  // pelkästä parseFile-tuloksesta kartasto: oletusnimet tiedostoille
+  function ensureSources(file) {
+    if (file.sources) return file;
+    const base = toId(file.title || (file.maps[0] && file.maps[0].name) || 'kartasto').toLowerCase(), part = { name: base + '.rlml.md' }, lang = file.lang || (file.maps[0] && file.maps[0].lang) || 'fi';
+    file.parts = [part]; for (const m of file.maps) if (!m.src) m.src = part;
+    file.sources = [{ kind: 'map', part }, { kind: 'style', name: base + '.paper.rlml.md' }, { kind: 'lang', name: `${base}.${lang}.rlml.md`, lang }];
+    return file;
+  }
+  function projectFiles(file) {
+    ensureSources(file); const out = [];
+    for (const s of file.sources) {
+      if (s.kind === 'map') { const p = s.part, i = file.parts.indexOf(p), maps = file.maps.filter(m => (m.src || file.parts[0]) === p);
+        out.push({ name: p.name, kind: 'map', text: serializeFile({ title: i === 0 ? file.title : p.title, preamble: i === 0 ? file.preamble : (p.preamble || []), maps }) }); }
+      else if (s.kind === 'style') out.push({ name: s.name, kind: 'style', text: serializeStyle(file) });
+      else if (s.raw != null) out.push({ name: s.name, kind: 'lang', lang: s.lang, text: s.raw });
+      else out.push({ name: s.name, kind: 'lang', lang: s.lang, text: serializeLang(file) });
+    }
+    return out;
+  }
+  function renameSource(file, oldName, newName) { for (const s of file.sources) { if (s.part && s.part.name === oldName) s.part.name = newName; else if (s.name === oldName) s.name = newName; } }
+  // uuden tiedoston pohja projektiin
+  function fileTemplate(file, kind, lang) {
+    if (kind === 'lang') return `language ${lang || 'en'}\n`;
+    if (kind === 'style') return `# ${file.title || 'Kartasto'}: paperikartan tyyli\n\nmaps.theme paper\n`;
+    let n = file.maps.length + 1; while (file.maps.some(m => m.name === 'KARTTA' + n)) n++;
+    return `## Kartta ${n}\n\nmap KARTTA${n} size 24x16\n\n\`\`\`\n${('~'.repeat(24) + '\n').repeat(16)}\`\`\`\n\nlegend:\n- ~ WATER\n- . GRASS\n`;
+  }
+  // kartaston uusi kartta lajin mukaan: merikartta, luola tai laiva
+  const SHIP_LEGEND = [[' ', 'SEA'], ['W', 'HULL'], ['V', 'HULL.window'], ['Y', 'HULL.lantern'], ['r', 'RAIL'], ['.', 'DECK'], [',', 'CABIN'], ['D', 'DOOR'], ['x', 'CRATE'], ['w', 'HELM'],
+    ['=', 'GANGPLANK'], ['<', 'GANGPLANK.end as TO_SHORE'], ['>', 'HATCH as TO_HOLD'], ['m', 'DECK with MAST'], ['b', 'DECK with BARREL'], ['n', 'DECK with CANNON']];
+  const CAVE_LEGEND = [['#', 'WALL'], ['M', 'WALL.moss'], ['R', 'WALL.ornament'], ['T', 'WALL.torch'], ['.', 'FLOOR'], ['D', 'DOOR'], ['<', 'STAIR.up as TO_UP'], ['>', 'STAIR.down as TO_DEEP'],
+    ['P', 'FLOOR with PILLAR'], ['k', 'FLOOR with KEY'], ['g', 'FLOOR with GOLD'], ['c', 'FLOOR with CHEST']];
+  function mapOfKind(kind, W, H) {
+    const m = newMap(W, H, kind);
+    if (kind === 'sea') m.legend = DEFAULT_LEGEND.map(e => Object.assign({}, e));
+    else { m.styleSet = true; m.legend = (kind === 'ship' ? SHIP_LEGEND : CAVE_LEGEND).map(([ch, spec]) => ({ ch, spec, name: '' })); m.vars = { EDGE: kind === 'ship' ? 'SEA' : 'WALL' }; m.raw = [{ head: 'vars:', lines: [`- EDGE ${m.vars.EDGE}`] }]; refreshNames(m); }
+    const fc = fillChar(m); m.grid = Array.from({ length: H }, () => fc.repeat(W));
+    return m;
+  }
+
   function serializeStyle(file) {
     const maps = file.maps, multi = maps.length > 1; let s = '';
     const themed = maps.filter(m => m.styleSet || m.style !== 'sea');
@@ -351,7 +441,15 @@
     for (const o of file.langOther || []) lines.push(o);
     return lines.length ? `language ${lang}\n` + lines.join('\n') + '\n' : '';
   }
-  function serializeProject(file) { return { map: serializeFile(file), style: serializeStyle(file), lang: serializeLang(file) }; }
+  // yksittäisestä kartasta kartasto: karttatiedosto, paperityyli ja kielitiedosto
+  function projectOf(m, title) {
+    const base = toId(title || m.title || m.name || 'kartasto').toLowerCase(), part = { name: base + '.rlml.md' };
+    const f = { title: title || m.title || '', preamble: [], maps: [m], parts: [part], lang: m.lang || 'fi', styleOther: [], langOther: [],
+      sources: [{ kind: 'map', part }, { kind: 'style', name: base + '.paper.rlml.md' }, { kind: 'lang', name: `${base}.${m.lang || 'fi'}.rlml.md`, lang: m.lang || 'fi' }] };
+    m.src = part; m.hasHeading = false; attach(m, f); return f;
+  }
+  // vanha kolmen tiedoston muoto (kaikki kartat yhteen)
+  function serializeProject(file) { const fs = projectFiles(file); return { map: fs.filter(f => f.kind === 'map').map(f => f.text).join('\n'), style: serializeStyle(file), lang: serializeLang(file), files: fs }; }
 
   // yksittäisen kartan rajapinta (vanhat kutsut): ensimmäinen kartta, tiedosto mukana
   function parse(text) { return parseFile(text).maps[0]; }
@@ -377,7 +475,7 @@
     return doc;
   }
 
-  const api = { atRoots, specNames, parseProject, serializeProject, serializeStyle, serializeLang, parseStyle, parseLang, kindOfText, SEA_KINDS, DUNGEON_KINDS, attach, refreshNames, DEFAULT_LEGEND, TYPE_NAMES, STYLES, typeOf, toId, ID_RE, parse, parseFile, serialize, serializeFile, serializeMap, typeMap, blankDoc, newMap, normalize, resize, fillChar, parseRule, ruleToString, parseText, parseLegendLine, legendLine, rulesText, textsText, parseRulesText, parseTextsText };
+  const api = { projectOf, projectFiles, renameSource, fileTemplate, mapOfKind, inferStyle, kindOfName, kindOfEntry, defaultName, KINDS, SHIP_LEGEND, CAVE_LEGEND, atRoots, specNames, parseProject, serializeProject, serializeStyle, serializeLang, parseStyle, parseLang, kindOfText, SEA_KINDS, DUNGEON_KINDS, attach, refreshNames, DEFAULT_LEGEND, TYPE_NAMES, STYLES, typeOf, toId, ID_RE, parse, parseFile, serialize, serializeFile, serializeMap, typeMap, blankDoc, newMap, normalize, resize, fillChar, parseRule, ruleToString, parseText, parseLegendLine, legendLine, rulesText, textsText, parseRulesText, parseTextsText };
   KG.rlml = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })();

@@ -31,7 +31,7 @@ const visible = (page, sel) => page.$eval(sel, el => !!(el.offsetWidth || el.off
 test('välilehdet näyttävät oikean paneelin ja piilottavat editorin asetuksissa', async () => {
   const { page, errors, close } = await open(1440, 860);
   // välilehti: [editori, esikatselu]
-  const expect = { file: [false, false], read: [true, true], edit: [true, true], areas: [true, true], names: [false, true], print: [false, true], help: [false, false] };
+  const expect = { file: [false, false], src: [false, false], read: [true, true], edit: [true, true], areas: [true, true], names: [false, true], print: [false, true], help: [false, false] };
   for (const [t, [editor, preview]] of Object.entries(expect)) {
     await tab(page, t);
     if (t !== 'read') assert.ok(await visible(page, `.panel[data-for=${t}]`), `${t}: paneeli näkyy`);
@@ -48,7 +48,7 @@ test('välilehdet näyttävät oikean paneelin ja piilottavat editorin asetuksis
 
 test('mobiilissa kartta ja esikatselu ovat eri välilehdillä eikä sivu levene', async () => {
   const { page, errors, close } = await open(390, 800);
-  for (const t of ['file', 'read', 'edit', 'preview', 'areas', 'names', 'print', 'help']) {
+  for (const t of ['file', 'read', 'edit', 'preview', 'areas', 'src', 'names', 'print', 'help']) {
     await tab(page, t);
     const w = await page.evaluate(() => document.documentElement.scrollWidth);
     assert.ok(w <= 390, `${t}: sivun leveys ${w} px`);
@@ -148,18 +148,23 @@ test('Ohje-välilehti näyttää ohjeen koko leveydellä', async () => {
 test('välilehdet ovat sovitussa järjestyksessä', async () => {
   const { page, close } = await open(1440, 860);
   const names = await page.$$eval('#mainTabs button', bs => bs.filter(b => b.offsetWidth).map(b => b.textContent));
-  assert.deepEqual(names, ['Tiedosto', 'Kartan luku', 'Kartan muokkaus', 'Alueet', 'Nimet', 'Tulostus', 'Ohje']);
+  assert.deepEqual(names, ['Tiedosto', 'Kartan luku', 'Kartan muokkaus', 'Alueet', 'Lähdekoodi', 'Nimet', 'Tulostus', 'Ohje']);
   await close();
 });
 
-test('ensimmäinen avaus näyttää Tiedosto-välilehden ja siellä lähdekoodin', async () => {
+test('ensimmäinen avaus näyttää Tiedosto-välilehden karttakortteineen; lähdekoodi on omalla välilehdellään', async () => {
   const { page, errors, close } = await open(1440, 860);
   assert.equal(await page.evaluate(() => document.body.dataset.tab), 'file');
+  assert.equal(await page.$$eval('#mapCards .mapcard', c => c.length), 1);
+  assert.ok(!(await visible(page, '#srcTa')), 'lähdekoodi ei ole Tiedosto-välilehdellä');
+  await tab(page, 'src');
   assert.ok(await visible(page, '#srcTa'));
   assert.match(await page.$eval('#srcTa', el => el.value), /^# .+\n[\s\S]*map \S+ size \d+x\d+/);
-  const [f, src] = await page.evaluate(() => ['.filepanel', '#tSrc'].map(s => document.querySelector(s).getBoundingClientRect()).map(r => [r.left, r.width]));
-  assert.ok(src[0] > f[0] + f[1] - 1 && src[1] > 500, `lähdekoodi tiedostotoimintojen vieressä: ${JSON.stringify([f, src])}`);
-  await shot(page, 'tiedosto');
+  const tabs = await page.$$eval('#srcTabs .srctab', ts => ts.map(t => t.textContent));
+  assert.ok(tabs.some(t => /kartat .*\.rlml\.md/.test(t)) && tabs.some(t => /paperityyli .*\.paper\.rlml\.md/.test(t)) && tabs.some(t => /kieli .*\.fi\.rlml\.md/.test(t)) && /Uusi tiedosto/.test(tabs.at(-1)), tabs.join(' | '));
+  const [m, src] = await page.evaluate(() => ['#srcMaps', '#srcTa'].map(s => document.querySelector(s).getBoundingClientRect()).map(r => [r.left, r.width]));
+  assert.ok(src[0] > m[0] + m[1] - 1 && src[1] > 500, `pienoiskartat lähdekoodin vasemmalla: ${JSON.stringify([m, src])}`);
+  await shot(page, 'lahdekoodi');
   assert.deepEqual(errors, []);
   await close();
 });
@@ -315,44 +320,87 @@ test('Näytä alueet -valinta on tilarivillä ennen Esikatselu-valintaa', async 
   await close();
 });
 
-test('Tiedosto-välilehti: pienoiskartta, peruttava korvaus ja lähdekoodin muokkausten suojaus', async () => {
+test('Tiedosto-välilehti: uusi kartta lajin mukaan, peruttava korvaus, koko ja poisto', async () => {
   const { page, errors, close } = await open(1440, 860);
   const grid = () => page.evaluate(() => KG_APP.doc.grid.join('\n'));
-  const mini = () => page.$eval('#miniMap', c => c.toDataURL());
-  assert.ok(await visible(page, '#miniMap'), 'pienoiskartta näkyy');
-  const g0 = await grid(), m0 = await mini();
-  // generointi muuttaa kartan ja pienoiskartan; Palauta edellinen tuo sen takaisin
-  await page.$eval('#inSeed', el => { el.value = '123'; }); await page.click('#btnGen'); await wait(200);
-  assert.notEqual(await grid(), g0); assert.notEqual(await mini(), m0, 'pienoiskartta päivittyi');
-  assert.ok(await visible(page, '#btnPrev'));
-  await page.click('#btnNew'); await wait(150);
+  const maps = () => page.evaluate(() => KG_APP.doc.file.maps.map(m => m.name + ':' + m.style));
+  const g0 = await grid();
+  // luola kartastoon: uusi kortti, valittuna, laji luola
+  await page.click('#newKind button[data-kind=cave]');
+  await page.$eval('#newW', el => { el.value = '30'; }); await page.$eval('#newH', el => { el.value = '20'; });
+  await page.click('#btnAddMap'); await wait(200);
+  assert.deepEqual(await maps(), ['MERIKARTTA:sea', 'LUOLA:cave']);
+  assert.equal(await page.$$eval('#mapCards .mapcard', c => c.length), 2);
+  assert.match(await page.$eval('#mapCards .mapcard.on', c => c.textContent), /LUOLA · luola · 30 × 20/);
+  // laivalle ei ole generaattoria: sisältö on tyhjä
+  await page.click('#newKind button[data-kind=ship]');
+  assert.equal(await page.$eval('#newFill', el => el.disabled), true);
+  await page.click('#btnAddMap'); await wait(200);
+  assert.deepEqual((await maps()).at(-1), 'LAIVA:ship');
+  // kortin napsautus valitsee kartan; korvaus ja poisto ovat peruttavissa
+  await page.click('#mapCards .mapcard:first-child'); await wait(150);
+  assert.equal(await page.evaluate(() => KG_APP.doc.name), 'MERIKARTTA');
+  await page.click('#newKind button[data-kind=sea]'); await page.$eval('#inSeed', el => { el.value = '123'; });
+  await page.$eval('#newW', el => { el.value = '64'; }); await page.$eval('#newH', el => { el.value = '44'; });
+  await page.click('#btnReplaceMap'); await wait(200);
+  assert.notEqual(await grid(), g0); assert.equal(await page.evaluate(() => KG_APP.doc.name), 'MERIKARTTA', 'tunnus säilyy');
   await page.click('#btnPrev'); await wait(150);
-  await page.click('#btnPrev'); await wait(150);
-  assert.equal(await grid(), g0, 'kaksi palautusta tuo alkuperäisen kartan');
-  assert.ok(!(await visible(page, '#btnPrev')));
-  // koon muutos on peruttavissa
+  assert.equal(await grid(), g0);
   await page.$eval('#inW', el => { el.value = '30'; }); await page.click('#btnResize'); await wait(150);
   assert.equal(await page.evaluate(() => KG_APP.doc.W), 30);
   await page.click('#btnPrev'); await wait(150);
   assert.equal(await grid(), g0);
-  // lähdekoodi ei rivity, ja lukemattomat muutokset säilyvät
-  assert.equal(await page.$eval('#srcTa', el => el.getAttribute('wrap')), 'off');
-  await page.focus('#srcTa'); await page.keyboard.press('End'); await page.keyboard.type(' muokattu');
-  assert.ok(await visible(page, '#srcNote')); assert.ok(await visible(page, '#btnSrcRevert'));
-  await page.select('#srcSel', 'style');
-  assert.equal(await page.$eval('#srcSel', el => el.value), 'map', 'tiedostoa ei vaihdeta lukemattomien muutosten päälle');
-  assert.ok((await page.$eval('#srcTa', el => el.value)).includes(' muokattu'));
-  await page.click('#btnSrcRevert');
-  assert.ok(!(await page.$eval('#srcTa', el => el.value)).includes(' muokattu')); assert.ok(!(await visible(page, '#srcNote')));
-  // lähteestä luku on peruttavissa
-  await page.$eval('#srcTa', el => { el.value = el.value.replace(/size 64x44/, 'size 64x40'); el.dispatchEvent(new Event('input')); });
-  await page.click('#btnSrcApply'); await wait(200);
-  assert.equal(await page.evaluate(() => KG_APP.doc.H), 40);
+  await page.click('#btnDelMap'); await wait(150);
+  assert.equal((await maps()).length, 2);
   await page.click('#btnPrev'); await wait(150);
-  assert.equal(await page.evaluate(() => KG_APP.doc.H), 44);
-  // pienoiskartan napsautus avaa muokkauksen
-  await page.click('#miniMap'); await wait(150);
+  assert.equal((await maps()).length, 3);
+  // tunnuksen ja otsikon muutos
+  await page.click('#mapCards .mapcard:nth-child(2)'); await wait(150);
+  await page.$eval('#mapId', el => { el.value = 'kallio'; el.dispatchEvent(new Event('change')); }); await wait(100);
+  assert.equal(await page.evaluate(() => KG_APP.doc.name), 'KALLIO');
+  // kaksoisnapsautus avaa muokkauksen
+  await page.click('#mapCards .mapcard.on', { clickCount: 2 }); await wait(150);
   assert.equal(await page.evaluate(() => document.body.dataset.tab), 'edit');
+  assert.deepEqual(errors, []);
+  await close();
+});
+
+test('Lähdekoodi: tiedostovälilehdet, uusi tiedosto ja kaikkien muutosten hyväksyntä kerralla', async () => {
+  const { page, errors, close } = await open(1440, 860);
+  await tab(page, 'file'); await page.select('#exSel', 'aaltola'); await wait(500);
+  await tab(page, 'src');
+  const tabText = () => page.$$eval('#srcTabs .srctab', ts => ts.map(t => t.textContent));
+  // kartan kortti näyttää karttatiedoston ja valitsee map-rivin
+  await page.click('#srcMaps .mapcard:nth-child(3)'); await wait(150);
+  assert.equal(await page.$eval('#srcTa', t => t.value.slice(t.selectionStart, t.selectionEnd)), 'map CAVE');
+  assert.equal(await page.evaluate(() => KG_APP.doc.name), 'CAVE');
+  assert.equal(await page.$eval('#srcTa', el => el.getAttribute('wrap')), 'off');
+  // muokkaus kahteen tiedostoon: välilehti vaihtuu, muutokset säilyvät
+  const edit = (from, to) => page.$eval('#srcTa', (el, a, b) => { el.value = el.value.replace(a, b); el.dispatchEvent(new Event('input')); }, from, to);
+  await page.click('#srcTabs .srctab:nth-child(3)'); await edit('CAVE.NAME Luola', 'CAVE.NAME Kallioluola');
+  await page.click('#srcTabs .srctab:nth-child(2)'); await edit('- HOLD ship', '- HOLD cave');
+  assert.match(await page.$eval('#srcNote', el => el.textContent), /2 tiedostossa/);
+  await page.click('#srcTabs .srctab:nth-child(3)');
+  assert.match(await page.$eval('#srcTa', el => el.value), /Kallioluola/, 'muutos säilyi välilehteä vaihdettaessa');
+  // peruutus hylkää kaiken
+  await page.click('#btnSrcRevert'); await wait(100);
+  assert.ok(!(await visible(page, '#srcNote'))); assert.ok(!(await page.$eval('#srcTa', el => el.value)).includes('Kallioluola'));
+  // uusi kielitiedosto ja kaksi muutosta hyväksytään kerralla
+  await page.click('#srcTabs .srctab:nth-child(3)'); await edit('CAVE.NAME Luola', 'CAVE.NAME Kallioluola');
+  await page.click('#srcTabs .add'); await page.select('#newFileKind', 'lang');
+  assert.equal(await page.$eval('#newFileName', el => el.value), 'kapteeni-aaltola.en.rlml.md');
+  await page.click('#btnNewFileOk'); await wait(100);
+  await page.$eval('#srcTa', el => { el.value = 'language en\nCAVE.NAME Cave\n'; el.dispatchEvent(new Event('input')); });
+  await page.click('#btnSrcApply'); await wait(300);
+  assert.equal(await page.evaluate(() => KG_APP.doc.file.maps.find(m => m.name === 'CAVE').title), 'Kallioluola');
+  assert.ok((await tabText()).some(t => t.includes('kapteeni-aaltola.en.rlml.md')));
+  assert.ok(!(await visible(page, '#srcNote')));
+  const files = await page.evaluate(() => KG.rlml.projectFiles(KG_APP.doc.file).map(f => f.name));
+  assert.deepEqual(files, ['kapteeni-aaltola.rlml.md', 'kapteeni-aaltola.paper.rlml.md', 'kapteeni-aaltola.fi.rlml.md', 'kapteeni-aaltola.en.rlml.md']);
+  // hyväksyntä on peruttavissa
+  await page.click('#btnPrev'); await wait(200);
+  assert.equal(await page.evaluate(() => KG_APP.doc.file.maps.find(m => m.name === 'CAVE').title), 'Luola');
+  await shot(page, 'lahdekoodi-muokattu');
   assert.deepEqual(errors, []);
   await close();
 });
@@ -360,8 +408,7 @@ test('Tiedosto-välilehti: pienoiskartta, peruttava korvaus ja lähdekoodin muok
 test('laivakartan miehistön voi poistaa selitteestä Tulostus-välilehdellä', async () => {
   const { page, errors, close } = await open(1440, 860);
   await page.select('#exSel', 'aaltola'); await wait(500);
-  const deck = await page.$$eval('#mapSel option', os => os.find(o => /DECK/.test(o.textContent)).value);
-  await page.select('#mapSel', deck); await wait(300);
+  await page.$$eval('#mapCards .mapcard', cs => cs.find(c => /DECK/.test(c.textContent)).click()); await wait(300);
   await tab(page, 'print'); await wait(600);
   const labels = await page.$$eval('#legendPick label', ls => ls.map(l => l.textContent.trim()));
   assert.ok(labels.includes('miehistö'), `miehistö on valittavissa: ${labels.join(', ')}`);

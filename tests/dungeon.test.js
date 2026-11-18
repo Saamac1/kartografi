@@ -59,11 +59,12 @@ test('esimerkkivalikon tiedostot ovat ajan tasalla', () => {
   const ex = path.join(__dirname, '..', 'examples');
   require('../src/examples.js');
   const x = globalThis.KG.examples.find(v => v.id === 'aaltola');
-  assert.strictEqual(x.files[0], game);
-  assert.strictEqual(x.files[1], fs.readFileSync(path.join(ex, 'kapteeni-aaltola.paper.rlml.md'), 'utf8'));
+  assert.deepStrictEqual(x.files.map(f => f.name), ['kapteeni-aaltola.rlml.md', 'kapteeni-aaltola.paper.rlml.md', 'kapteeni-aaltola.fi.rlml.md']);
+  assert.strictEqual(x.files[0].text, game);
+  for (const f of x.files) assert.strictEqual(f.text, fs.readFileSync(path.join(ex, f.name), 'utf8'), f.name);
   const f = rlml.parseProject(x.files);
   assert.deepStrictEqual(f.maps.map(m => m.style), ['ship', 'ship', 'cave', 'cave']);
-  assert.deepStrictEqual(rlml.serializeProject(f), { map: x.files[0], style: x.files[1], lang: x.files[2] });
+  assert.deepStrictEqual(rlml.projectFiles(f).map(o => [o.name, o.text]), x.files.map(o => [o.name, o.text]));
 });
 
 test('sijoitetut kohteet (at:) voi jättää pois selitteestä, ja valinta säilyy tallennuksessa', () => {
@@ -82,4 +83,23 @@ test('sijoitetut kohteet (at:) voi jättää pois selitteestä, ja valinta säil
   const back = rlml.parseProject([pj.map, pj.style, pj.lang]).maps.find(m => m.name === 'DECK');
   assert.deepEqual(back.atDecor, ['CREW']);
   assert.equal(legendText(back).length, legendText(d).length);
+});
+
+test('kartasto voi koostua useasta karttatiedostosta ja kielestä', () => {
+  const sea = rlml.mapOfKind('sea', 10, 8), f = rlml.projectOf(sea, 'Testi');
+  const files = rlml.projectFiles(f).concat([{ name: 'luolat.rlml.md', text: rlml.fileTemplate(f, 'map') }, { name: 'testi.en.rlml.md', text: 'language en\nX.NAME y\n' }]);
+  const p = rlml.parseProject(files), out = rlml.projectFiles(p);
+  assert.deepStrictEqual(out.filter(o => o.text.trim()).map(o => o.name), ['testi.rlml.md', 'testi.paper.rlml.md', 'testi.fi.rlml.md', 'luolat.rlml.md', 'testi.en.rlml.md']);
+  assert.strictEqual(p.maps.length, 2);
+  assert.deepStrictEqual(p.maps.map(m => m.style), ['sea', 'sea']);
+  assert.strictEqual(out.find(o => o.name === 'testi.en.rlml.md').text, 'language en\nX.NAME y\n');
+  const again = rlml.projectFiles(rlml.parseProject(out));
+  assert.deepStrictEqual(again, out);
+});
+
+test('kartan laji päätellään paloista, kun piirtotapa puuttuu', () => {
+  const f = rlml.parseProject([game]);
+  assert.deepStrictEqual(f.maps.map(m => m.style), ['ship', 'ship', 'cave', 'cave']);
+  assert.match(rlml.projectFiles(f).find(o => o.kind === 'style').text, /- DECK ship/);
+  for (const k of ['sea', 'cave', 'ship']) { const m = rlml.mapOfKind(k, 12, 6); assert.strictEqual(m.grid.length, 6); assert.strictEqual(m.style, k); }
 });

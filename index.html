@@ -16,7 +16,7 @@
 <header class="bar top">
   <strong class="brand">Karttageneraattori</strong>
   <nav class="maintabs" id="mainTabs">
-    <button data-tab="file">Tiedosto</button><button data-tab="read">Kartan luku</button><button data-tab="edit" class="on">Kartan muokkaus</button><button data-tab="preview" class="only-mobile">Esikatselu</button><button data-tab="areas">Alueet</button><button data-tab="names">Nimet</button><button data-tab="print">Tulostus</button><button data-tab="help">Ohje</button>
+    <button data-tab="file">Tiedosto</button><button data-tab="read">Kartan luku</button><button data-tab="edit" class="on">Kartan muokkaus</button><button data-tab="preview" class="only-mobile">Esikatselu</button><button data-tab="areas">Alueet</button><button data-tab="src">Lähdekoodi</button><button data-tab="names">Nimet</button><button data-tab="print">Tulostus</button><button data-tab="help">Ohje</button>
   </nav>
   <span class="grp undo"><button id="btnUndo" title="Kumoa (Ctrl+Z)">↶</button><button id="btnRedo" title="Tee uudelleen (Ctrl+Y)">↷</button></span>
   <span id="status" class="status"></span><button id="btnPrev" hidden title="Palauta kartta, joka oli auki ennen esimerkkiä">Palauta edellinen</button>
@@ -41,29 +41,50 @@
     </div>
 
     <div class="panel filepanel" data-for="file">
-      <fieldset><legend>Kartta</legend>
-        <label>Kartta <select id="mapSel" title="Tiedoston kartat"></select></label>
-        <button id="btnAddMap" title="Lisää tiedostoon uusi tyhjä kartta (koko alta)">+ kartta</button>
-        <label>Tyyli <select id="styleSel" title="Kartan piirtotapa paperilla"><option value="sea">merikartta</option><option value="cave">luola</option><option value="ship">laiva</option></select></label>
-        <figure class="mini"><canvas id="miniMap" title="Avaa kartan muokkaus"></canvas><figcaption id="miniInfo"></figcaption></figure>
-      </fieldset>
-      <fieldset><legend>Koko</legend>
-        <label>Leveys <input id="inW" type="number" min="8" max="200" value="64"></label>
-        <label>Korkeus <input id="inH" type="number" min="8" max="200" value="44"></label>
-        <button id="btnResize" title="Rajaa tai laajenna nykyistä karttaa; laajennus täytetään vedellä tai seinällä">Muuta nykyisen kokoa</button>
-      </fieldset>
-      <fieldset><legend>Uusi kartta (korvaa nykyisen)</legend>
-        <p class="hint">Käyttää yllä olevaa kokoa. Edellisen kartan saa takaisin yläpalkin <b>Palauta edellinen</b> -painikkeella.</p>
-        <label>Siemen <input id="inSeed" type="number" value="7"></label>
-        <button id="btnGen" title="Generoi saaristo (luolakartassa luola) tällä siemenellä">Generoi</button>
-        <button id="btnRnd" title="Generoi satunnaisella siemenellä">🎲 Satunnainen</button>
-        <button id="btnNew" title="Tyhjä kartta samalla tyylillä ja selitteellä">Tyhjä kartta</button>
-      </fieldset>
-      <fieldset><legend>Tiedostot</legend>
-        <select id="exSel" title="Avaa esimerkkitiedosto (korvaa nykyisen)"><option value="">Avaa esimerkki…</option></select>
-        <button id="btnOpen" title="Valitse kartta-, tyyli- ja kielitiedosto (yksi tai useampi)">Avaa tiedostoja…</button><input id="fileIn" type="file" accept=".md,.rlml,.txt" multiple hidden>
-        <button id="btnSave" title="Tallentaa karttatiedoston, paperityylin ja kielitiedoston">Tallenna RLML</button>
-      </fieldset>
+      <section class="fsec"><h4>Kartasto</h4>
+        <p class="hint">Kartasto on joukko karttoja sekä niiden yhteinen paperityyli ja nimet. Se tallennetaan RLML-tiedostoina, ja tiedostoja voi muokata tekstinä <b>Lähdekoodi</b>-välilehdellä.</p>
+        <label class="wide">Nimi <input id="atlasTitle" type="text" placeholder="Kartaston nimi"></label>
+        <div class="row">
+          <button id="btnOpen" title="Valitse kartaston RLML-tiedostot (kartat, paperityyli, kielet; yksi tai useampi)">Avaa…</button><input id="fileIn" type="file" accept=".md,.rlml,.txt" multiple hidden>
+          <select id="exSel" title="Avaa esimerkkikartasto (nykyisen saa takaisin Palauta edellinen -painikkeella)"><option value="">Esimerkki…</option></select>
+          <button id="btnSave" title="Tallentaa kaikki kartaston tiedostot">Tallenna</button>
+        </div>
+        <div id="atlasFiles" class="hint"></div>
+      </section>
+      <section class="fsec"><h4>Kartat</h4>
+        <p class="hint">Napsauta karttaa valitaksesi sen, kaksoisnapsauta muokataksesi.</p>
+        <div id="mapCards" class="mapcards"></div>
+      </section>
+      <section class="fsec"><h4>Uusi kartta</h4>
+        <div class="seg kindseg" id="newKind" role="radiogroup"><button data-kind="sea" class="on">Merikartta</button><button data-kind="cave">Luola</button><button data-kind="ship">Laiva</button></div>
+        <div class="row">
+          <label>Leveys <input id="newW" type="number" min="8" max="200" value="64"></label>
+          <label>Korkeus <input id="newH" type="number" min="8" max="200" value="44"></label>
+        </div>
+        <div class="row">
+          <label>Sisältö <select id="newFill"><option value="gen">generoitu</option><option value="blank">tyhjä</option></select></label>
+          <label id="seedLbl">Siemen <input id="inSeed" type="number" value="7"></label><button id="btnRnd" title="Arvo siemen">🎲</button>
+        </div>
+        <div class="row">
+          <button id="btnAddMap" class="primary" title="Lisää uusi kartta tähän kartastoon">Lisää kartastoon</button>
+          <button id="btnReplaceMap" title="Korvaa valittu kartta uudella (tunnus ja otsikko säilyvät)">Korvaa valittu</button>
+          <button id="btnNewAtlas" title="Aloita uusi kartasto, jossa on vain tämä kartta">Aloita uusi kartasto</button>
+        </div>
+        <p class="hint" id="newHint"></p>
+      </section>
+      <section class="fsec"><h4>Valittu kartta</h4>
+        <div id="selInfo" class="selinfo"></div>
+        <div class="row">
+          <label>Tunnus <input id="mapId" type="text" size="12" title="Kartan nimi RLML:ssä (map NIMI): isoja kirjaimia, numeroita, _ ja ."></label>
+          <label>Otsikko <input id="mapTitle" type="text" title="Näkyvä nimi (kielitiedostossa KARTTA.NAME)"></label>
+        </div>
+        <div class="row">
+          <label>Leveys <input id="inW" type="number" min="8" max="200" value="64"></label>
+          <label>Korkeus <input id="inH" type="number" min="8" max="200" value="44"></label>
+          <button id="btnResize" title="Rajaa tai laajenna karttaa; laajennus täytetään vedellä tai seinällä">Muuta kokoa</button>
+        </div>
+        <div class="row"><button id="btnDelMap" title="Poista valittu kartta kartastosta">Poista kartta</button></div>
+      </section>
     </div>
 
     <div class="panel" data-for="print" id="tPrint">
@@ -126,9 +147,19 @@
       <button id="btnNamesApply">Päivitä</button>
     </div>
 
-    <div class="panel srcpanel" data-for="file" id="tSrc">
-      <div class="row"><b>Lähdekoodi</b> <label><select id="srcSel" title="Näytettävä tiedosto"><option value="map">Kartat (.rlml.md)</option><option value="style">Paperityyli (.paper.rlml.md)</option><option value="lang">Kieli (.fi.rlml.md)</option></select></label><button id="btnSrcApply" title="Ottaa muokatun tekstin käyttöön">Lue lähteestä</button><button id="btnSrcRevert" hidden title="Hylkää tekstin muutokset">Peru muutokset</button><span id="srcNote" class="srcnote" hidden>Muutoksia ei ole vielä luettu</span></div>
-      <textarea id="srcTa" spellcheck="false" wrap="off"></textarea>
+    <div class="panel srcpanel" data-for="src" id="tSrc">
+      <div class="srcmaps" id="srcMaps" title="Kartaston kartat: napsautus näyttää kartan lähdekoodin"></div>
+      <div class="srcmain">
+        <div class="srctabs" id="srcTabs" role="tablist"></div>
+        <div class="row newfile" id="newFileRow" hidden>
+          <label>Laji <select id="newFileKind"><option value="map">Kartat</option><option value="lang">Kieli</option><option value="style">Paperityyli</option></select></label>
+          <label id="newFileLangLbl" hidden>Kieli <input id="newFileLang" type="text" size="3" value="en"></label>
+          <label>Nimi <input id="newFileName" type="text" size="26"></label>
+          <button id="btnNewFileOk">Lisää</button><button id="btnNewFileCancel">Peru</button>
+        </div>
+        <textarea id="srcTa" spellcheck="false" wrap="off"></textarea>
+        <div class="row srcbar"><button id="btnSrcApply" title="Ottaa kaikkien tiedostojen muutokset käyttöön kerralla">Hyväksy muutokset</button><button id="btnSrcRevert" hidden title="Hylkää kaikki hyväksymättömät muutokset">Peru muutokset</button><span id="srcNote" class="srcnote" hidden></span></div>
+      </div>
     </div>
 
     <div class="panel help" data-for="help">
@@ -142,9 +173,15 @@
       <p>Alueet-välilehdellä maastoa ei piirretä: vedä vierittääksesi ja napsauta aluetta valitaksesi sen. <b>Lisää</b> luo alueen nimestä. Valitse alue listasta ja <b>Rajaa</b> (raahaa suorakulmio, kulmakahvasta koko, oikea napsautus poistaa) tai <b>Siirrä</b> (tartu alueeseen ja raahaa tai käytä nuolinäppäimiä; alue siirtyy sisältöineen ja tyhjäksi jäävä osa täytetään vedellä). <b>Valmis</b> tai Esc palaa maaston piirtoon.</p>
       <h4>Esikatselu</h4>
       <p>Kartan luku-, Kartan muokkaus- ja Alueet-välilehdillä editorin alalaidan <b>Näytä alueet</b> -valinta näyttää alueiden rajat ja <b>Esikatselu</b>-valinta näyttää tai piilottaa esikatselun; valinta muistetaan kullekin välilehdelle erikseen. Zoom-painikkeet ovat esikatselun alalaidassa. Esikatselu päivittyy muokatessa. Kun kartta on zoomattu niin, ettei se mahdu kerralla näkyviin, esikatselu seuraa editorin kursoria (punainen ruutu). Esikatselua voi siirrellä vetämällä. <b>Lehtijako</b> näyttää A4-lehtien rajat.</p>
-      <h4>Tiedosto, Nimet ja Tulostus</h4>
-      <p><b>Tiedosto</b>: kartan valinta ja tyyli, pienoiskartta, koko, uusi kartta (generointi siemenestä tai tyhjä), esimerkit, avaus ja tallennus (kartta, paperityyli ja kielitiedosto) sekä lähdekoodi tekstinä: muokkaa ja lue takaisin; lukemattomat muutokset säilyvät, kunnes ne luetaan tai perutaan. Kartan korvaavat toiminnot voi perua yläpalkin <b>Palauta edellinen</b> -painikkeella. <b>Tulostus</b>: koko kuva yhdelle arkille tai A4-lehdet liimausreunoin, viivavahvuudet, selitteen sisältö sekä SVG-, PNG- ja HTML-vienti. <b>Nimet</b>: otsikko, piirto-ohjeet ja näkyvät nimet.</p>
-      <p>Kartta tallentuu selaimen muistiin automaattisesti.</p>
+      <h4>Kartasto</h4>
+      <p>Kartasto on joukko karttoja (esimerkiksi pelin merikartta, laivan kannet ja luolat) sekä niiden yhteinen paperityyli ja nimet. <b>Avaa…</b> lukee kartaston RLML-tiedostot (valitse kaikki kerralla), <b>Tallenna</b> tallentaa ne, ja <b>Esimerkki</b> avaa valmiin kartaston.</p>
+      <p><b>Uusi kartta</b>: valitse laji (merikartta, luola tai laiva), koko ja sisältö (generoitu tai tyhjä). <b>Lisää kartastoon</b> tuo kartan nykyiseen kartastoon, <b>Korvaa valittu</b> vaihtaa valitun kartan sisällön ja <b>Aloita uusi kartasto</b> aloittaa alusta pelkällä tällä kartalla. Kartan laji määrää piirtotavan, joten sitä ei valita erikseen. Korvaavat toiminnot voi perua yläpalkin <b>Palauta edellinen</b> -painikkeella.</p>
+      <p><b>Kartat</b>-kohdan kortista valitaan muokattava kartta (kaksoisnapsautus avaa muokkauksen). <b>Valittu kartta</b>: tunnus, otsikko, koko ja poisto.</p>
+      <h4>Lähdekoodi</h4>
+      <p>Kartaston RLML-tiedostot omilla välilehdillään: karttatiedostot, paperityyli ja kielet. Vasemman laidan kortti näyttää kartan kohdan lähdekoodissa. <b>+ Uusi tiedosto</b> lisää kartta- tai kielitiedoston. Muokkaukset jäävät odottamaan (• välilehdellä), kunnes <b>Hyväksy muutokset</b> ottaa kaikkien tiedostojen muutokset käyttöön kerralla tai <b>Peru muutokset</b> hylkää ne. ✕ poistaa tiedoston kartastosta hyväksyttäessä.</p>
+      <h4>Nimet ja Tulostus</h4>
+      <p><b>Tulostus</b>: koko kuva yhdelle arkille tai A4-lehdet liimausreunoin, viivavahvuudet, selitteen sisältö sekä SVG-, PNG- ja HTML-vienti. <b>Nimet</b>: otsikko, piirto-ohjeet ja näkyvät nimet.</p>
+      <p>Kartasto tallentuu selaimen muistiin automaattisesti.</p>
     </div>
   </aside>
 
