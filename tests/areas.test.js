@@ -24,11 +24,26 @@ test('saman nimen suorakulmiot muodostavat yhdisteen', () => {
   assert.deepEqual(M.at(11, 6), ['A']);
 });
 
-test('yhtä suurista samoista alueista myöhempi on tarkempi', () => {
-  const M = areas.model(doc([{ x: 1, y: 1, w: 2, h: 2, name: 'A' }, { x: 1, y: 1, w: 2, h: 2, name: 'B' }]));
-  assert.equal(M.byName.B.parent, 'A');
+test('samanruutuiset alueet ovat samalla tasolla, myöhempi on tarkempi ja niistä varoitetaan', () => {
+  const d = doc([{ x: 1, y: 1, w: 2, h: 2, name: 'A' }, { x: 1, y: 1, w: 2, h: 2, name: 'B' }, { x: 1, y: 1, w: 1, h: 1, name: 'C' }]);
+  const M = areas.model(d);
   assert.equal(M.byName.A.parent, null);
-  assert.deepEqual(M.at(1, 1), ['A', 'B']);
+  assert.equal(M.byName.B.parent, null);
+  assert.deepEqual([0, 0], ['A', 'B'].map(n => M.byName[n].level));
+  // lähin vanhempi tasatilanteessa myöhempi, taso ketjun pituus
+  assert.equal(M.byName.C.parent, 'B');
+  assert.equal(M.byName.C.level, 1);
+  assert.deepEqual(M.at(1, 1), ['A', 'B', 'C']);
+  assert.deepEqual(M.at(2, 2), ['A', 'B']);
+  const v = areas.validate(d, M);
+  assert.ok(v.some(x => x.level === 'warn' && /A ja B: samat ruudut/.test(x.msg)), JSON.stringify(v));
+  assert.ok(!v.some(x => /A ja C|B ja C/.test(x.msg)));
+});
+
+test('osittain päällekkäisten sisällä oleva alue on tasolla 1', () => {
+  const M = areas.model(doc([{ x: 0, y: 0, w: 4, h: 4, name: 'A' }, { x: 2, y: 2, w: 3, h: 3, name: 'B' }, { x: 2, y: 2, w: 1, h: 1, name: 'C' }]));
+  assert.equal(M.byName.C.parent, 'B');
+  assert.equal(M.byName.C.level, 1);
 });
 
 test('osittainen päällekkäisyys ei tee vanhempaa ja siitä varoitetaan', () => {

@@ -2,7 +2,9 @@
 //
 // - Ruutu kuuluu kaikkiin alueisiin, joiden suorakulmioon se osuu.
 // - Alue A on alueen B vanhempi, jos kaikki B:n ruudut ovat A:ssa ja A on suurempi;
-//   vanhemmaksi valitaan pienin tällainen. Taso = vanhempien määrä.
+//   vanhemmaksi valitaan pienin tällainen, tasatilanteessa myöhemmin määritelty.
+//   Taso = lähimpien vanhempien ketjun pituus.
+// - Alueet, joilla on samat ruudut, ovat samalla tasolla, ja niistä varoitetaan.
 // - Ruudun tarkin alue on pienin sen sisältävä; tasatilanteessa myöhemmin määritelty.
 (function () {
   'use strict';
@@ -21,11 +23,10 @@
       A.bbox = A.size ? { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 } : null; }
     const subset = (a, b) => { if (a.size > b.size) return false; for (const c of a.cells) if (!b.cells.has(c)) return false; return true; };
     // vanhempi: pienin aidosti suurempi alue, joka sisältää kaikki ruudut;
-    // yhtä suurista samoista alueista myöhemmin määritelty on lapsi
+    // samanruutuiset alueet eivät ole toistensa vanhempia
     for (const n of order) { const A = byName[n]; let best = null;
       if (A.size) for (const m of order) { if (m === n) continue; const B = byName[m];
-        if (!B.size || !subset(A, B)) continue;
-        if (B.size === A.size && B.index > A.index) continue;
+        if (B.size <= A.size || !subset(A, B)) continue;
         if (!best || B.size < best.size || (B.size === best.size && B.index > best.index)) best = B; }
       A.parent = best ? best.name : null; }
     for (const n of order) { let l = 0, p = byName[n].parent, guard = 0; while (p && guard++ < 100) { l++; p = byName[p].parent; } byName[n].level = l; }
@@ -65,6 +66,7 @@
       const A = M.byName[M.order[i]], B = M.byName[M.order[j]]; let both = 0;
       for (const c of A.cells) if (B.cells.has(c)) both++;
       if (both && both < A.size && both < B.size) out.push({ level: 'warn', msg: `${A.name} ja ${B.name} menevät osittain päällekkäin (${both} ruutua)` });
+      else if (A.size && both === A.size && both === B.size) out.push({ level: 'warn', msg: `${A.name} ja ${B.name}: samat ruudut, kaksi nimeä samalle paikalle` });
     }
     for (const n of M.order) if (!(doc.texts && doc.texts[n])) out.push({ level: 'info', msg: `${n}: ei tekstiä kielessä ${doc.lang || 'fi'}` });
     for (const r of doc.rules || []) if (r.name != null && !M.byName[r.name]) out.push({ level: 'warn', msg: `labels paper: aluetta ${r.name} ei ole kartalla` });

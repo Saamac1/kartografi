@@ -266,7 +266,11 @@ ja tallennetaan uusiin muotoihin.
   Saman nimen rivit muodostavat yhdisteen.
 - Ruutu kuuluu kaikkiin alueisiin, joihin se osuu. Alue A on alueen B
   vanhempi, jos kaikki B:n ruudut ovat A:ssa ja A on suurempi (pienin
-  tällainen). Taso = vanhempien määrä.
+  tällainen, tasatilanteessa myöhemmin määritelty). Taso = lähimpien
+  vanhempien ketjun pituus.
+- Alueet, joilla on samat ruudut, ovat samalla tasolla, eikä kumpikaan ole
+  toisen vanhempi. Niistä varoitetaan, koska kaksi nimeä samalle paikalle on
+  yleensä virhe.
 - Ruudun tarkin alue on pienin sen sisältävä; tasatilanteessa myöhemmin
   määritelty. Editorin tilarivi näyttää polun, esim. *Norsusaari › Vaaravuori*.
 - Osittaisesta päällekkäisyydestä varoitetaan; vanhempaa ei silloin synny.
